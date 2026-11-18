@@ -1,0 +1,113 @@
+{
+  "model_id": "caplife-gru-demo-v0.1",
+  "model_type": "GRU time-series regression",
+  "hidden_dim": 32,
+  "sequence_length": 6,
+  "features": [
+    "Hours",
+    "Ambient_C",
+    "Core_C",
+    "Voltage_ratio",
+    "Ripple_A",
+    "Ripple_Hz",
+    "C_ratio",
+    "ESR_ratio",
+    "Leakage_ratio",
+    "Case_Strain_Index"
+  ],
+  "rul_scale_hours": 1000.0,
+  "scaler": {
+    "mean": [
+      3292.634521484375,
+      28.38850212097168,
+      33.52217483520508,
+      0.851728081703186,
+      1.9887280464172363,
+      2.7412078380584717,
+      0.9286630749702454,
+      1.364707350730896,
+      2.393897294998169,
+      0.3423781991004944
+    ],
+    "std": [
+      2236.775634765625,
+      11.01264476776123,
+      11.300013542175293,
+      0.08271005749702454,
+      0.7188812494277954,
+      0.7003716230392456,
+      0.04903532192111015,
+      0.23864972591400146,
+      0.951371967792511,
+      0.2410178929567337
+    ]
+  },
+  "training_bounds": {
+    "Hours": [
+      0.0,
+      11800.0
+    ],
+    "Ambient_C": [
+      8.943,
+      53.737
+    ],
+    "Core_C": [
+      11.469,
+      69.891
+    ],
+    "Voltage_ratio": [
+      0.70516,
+      1.04472
+    ],
+    "Ripple_A": [
+      0.77134,
+      3.5647
+    ],
+    "Ripple_Hz": [
+      100.0,
+      10000.0
+    ],
+    "C_ratio": [
+      0.792976,
+      1.0
+    ],
+    "ESR_ratio": [
+      1.0,
+      2.05722
+    ],
+    "Leakage_ratio": [
+      1.0,
+      5.215837
+    ],
+    "Case_Strain_Index": [
+      0.0,
+      1.025559
+    ]
+  },
+  "training_data_provenance": "Invented synthetic degradation trajectories; NO real AEC experiments",
+  "validated_for_real_world_use": false,
+  "unit_conventions": {
+    "Hours": "elapsed operational hours",
+    "Ambient_C": "degrees Celsius",
+    "Core_C": "degrees Celsius",
+    "Voltage_ratio": "applied voltage / rated voltage",
+    "Ripple_A": "RMS ripple current in amperes",
+    "Ripple_Hz": "ripple current frequency in hertz",
+    "C_ratio": "measured capacitance / initial capacitance",
+    "ESR_ratio": "measured ESR / initial ESR, measured at a consistent specified frequency and temperature",
+    "Leakage_ratio": "measured leakage / initial reference leakage, controlled measurement protocol",
+    "Case_Strain_Index": "nonnegative hypothetical normalized strain; NOT measured gas pressure"
+  },
+  "metrics": {
+    "test_MAE_hours": 626.03,
+    "test_RMSE_hours": 899.22,
+    "test_R2": 0.877,
+    "test_measurement_windows": 1426,
+    "train_capacitors": 123,
+    "validation_capacitors": 26,
+    "test_capacitors": 27,
+    "excluded_censored_capacitors": 4,
+    "best_epoch": 22
+  },
+  "warning": "DEMONSTRATION ONLY. No reliability or safety claims. No calibrated prediction intervals."
+}

@@ -1,0 +1,171 @@
+# CapLife AI — End-to-end AEC RUL **research demonstrator**
+
+A working starter application that accepts capacitor measurement histories, checks
+input quality, runs a PyTorch GRU neural network, and displays health indicator
+curves, a demonstration RUL estimate, and a downloadable assessment.
+
+> **NOT A REAL-WORLD LIFETIME PREDICTOR.** The bundled model is trained entirely
+> on *invented synthetic trajectories*. The simplified degradation equations,
+> threshold criteria, failure labels, and resulting predictions have **not**
+> been validated on experimental AEC data. The application must not be used to
+> determine maintenance schedules, replacement decisions, or safety-critical life.
+
+## 1 — Try the web app locally (Windows / macOS / Linux)
+
+1. Install Python 3.11 or 3.12 (Python 3.13 may work depending on installed packages).
+2. Extract this ZIP, then open a terminal inside the `CapLife_AI_Starter` folder.
+3. Create a virtual environment (optional but recommended):
+
+   ```bash
+   python -m venv .venv
+   # Windows PowerShell: .venv\Scripts\Activate.ps1
+   # macOS/Linux: source .venv/bin/activate
+   ```
+
+4. Install dependencies:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+5. Launch the interface:
+
+   ```bash
+   streamlit run app.py
+   ```
+
+6. Your browser should open the application, usually at `http://localhost:8501`.
+   With no upload, it shows a pre-generated synthetic example automatically.
+
+The bundled `artifacts/gru_demo_state.pt` and `artifacts/metadata.json` contain
+trained model weights and preprocessing statistics. You **do not need to train**
+the example model to open the website.
+
+## 2 — Input CSV contract (important)
+
+See `sample_data/upload_template.csv`. Every row is one timestamp/measurement.
+Every capacitor must have at least **six unique measurement hours**.
+
+Required columns:
+
+| Column | Description |
+| --- | --- |
+| `Cap_ID` | Unique capacitor identity, repeated for its measurements |
+| `Hours` | Elapsed operating hours (not a date string) |
+| `Ambient_C` | Operating ambient temperature, degrees C |
+| `Core_C` | Estimated/measured core temperature, degrees C |
+| `Voltage_ratio` | Applied voltage / rated voltage |
+| `Ripple_A` | RMS ripple current, amperes |
+| `Ripple_Hz` | Ripple frequency, Hz |
+| `C_ratio` | Capacitance divided by *initial* capacitance |
+| `ESR_ratio` | ESR divided by *initial* ESR, measured at consistent frequency/temperature |
+| `Leakage_ratio` | Leakage current divided by an initial reference, under controlled test conditions |
+| `Case_Strain_Index` | Hypothetical nonnegative strain indicator, not hydrogen volume |
+
+The app rejects missing columns, non-numeric measurements, invalid values,
+duplicate hours per capacitor, and histories with fewer than six points. It will
+warn if a prediction uses inputs outside the numerical range of the simulated
+training data. **Matching column names does not imply an uploaded real dataset
+is within the validated application domain.** It is not validated at all yet.
+
+Changing measurement frequency, temperature, voltage, or method may change
+observed C/ESR/leakage without corresponding aging. A future model must explicitly
+account for measurement protocols or normalize readings appropriately.
+
+## 3 — Retrain the demo model (optional)
+
+From the project folder:
+
+```bash
+python -m caplife.train --root . --caps 180 --epochs 25
+```
+
+This replaces the *demo* artifacts and example dataset. Training, validation and
+final test are split **by capacitor ID**, not randomly by measurement row.
+Scaler statistics are fit on the training capacitors alone. Early stopping uses
+validation capacitors, leaving test capacitors out of model selection.
+
+Saved artifacts:
+- `artifacts/gru_demo_state.pt`: neural network state dictionary.
+- `artifacts/metadata.json`: feature order, scaler, range checks, test metrics,
+  data provenance, and schema.
+- `sample_data/demo_capacitors.csv`: generated synthetic example histories.
+- `sample_data/upload_template.csv`: six-row CSV input example.
+
+## 4 — How it works
+
+`app.py` -> `caplife/data.py` -> `caplife/predict.py` -> `caplife/model.py`.
+
+- The **frontend** is the Streamlit browser app.
+- The **preprocessor** validates columns, orders measurements by time, and
+  standardizes data using **training-only** statistics.
+- The **neural network** is a small gated recurrent unit (GRU), taking six
+  successive measurements, each with ten explanatory inputs.
+- The **RUL output** is a continuous number of remaining hours.
+- An **illustrative EOL rule** overrides the prediction with zero at its toy
+  threshold (C <= 0.8 initial, ESR >= 2x, leakage >= 5x, strain >= 1.0).
+- The **results view** plots individual health indicators and allows CSV export.
+
+This is a time-series neural-network model, not an LSTM. Later work can compare
+GRU, LSTM, and physics-aware hybrid methods on the same validated real dataset.
+
+## 5 — Share the website through Streamlit Community Cloud
+
+1. Create a GitHub repository containing the project folder's **contents**,
+   including `app.py`, `requirements.txt`, `caplife/`, `artifacts/`, and
+   `sample_data/`. Avoid uploading confidential experiment data.
+2. Open https://share.streamlit.io and link the repository.
+3. Select entry point `app.py`, choose compatible Python version, and deploy.
+4. Share the resulting `*.streamlit.app` address with others.
+
+This ZIP does not deploy itself. Uploaded data are processed on the remote host;
+review data ownership, storage, provider policies, and security before asking
+external researchers to upload sensitive measurements. Streamlit Community
+Cloud is suitable for a demonstrator, not automatically a secure production
+scientific data service.
+
+## 6 — What must be done before scientific use?
+
+1. Obtain **real** accelerated life test (ALT) data with calibration records,
+   device type/batch metadata, measured environmental/operating history, and
+   actual end-of-life events or explicitly censored trajectories.
+2. Define failure modes and application-specific EOL criteria, consistent with
+   manufacturer specifications and intended operation.
+3. Support different instrument protocols; ensure C/ESR/leakage comparisons
+   are made at comparable conditions or corrected using validated models.
+4. Use grouped and external validation by capacitor, batch, technology and
+   stress regime. Evaluate generalization under changing/future conditions.
+5. Handle censored lifetimes explicitly via survival modeling or another
+   appropriate treatment. Currently censored caps are excluded from training.
+6. Quantify and calibrate uncertainty; detect missing inputs, distribution
+   shifts, and unsupported conditions and **abstain** when necessary.
+7. Conduct scientific review before removing the demonstrator warning.
+
+### Model limitations today
+
+- Synthetic-only and thus **no defensible reliability claim**.
+- Six-timestep GRU estimates RUL; it does not separately forecast future C/ESR.
+- No prediction interval or scientifically validated health score.
+- No true support for arbitrary missing-column dataset formats.
+- Changing future stress is not modeled through user-supplied scenarios yet.
+- No database, authentication, production privacy controls, or server-side job queue.
+- The simulated 'strain index' is **not** a calibrated measurement of internal H2.
+
+## 7 — File map
+
+```text
+CapLife_AI_Starter/
+  app.py                         Streamlit interface
+  caplife/config.py              Canonical feature schema
+  caplife/simulator.py           Entirely invented teaching simulator
+  caplife/data.py                CSV validation, six-step windows, standardization
+  caplife/model.py               PyTorch GRU neural network
+  caplife/train.py               Training and held-out testing
+  caplife/predict.py             Reusable loaded prediction API
+  artifacts/gru_demo_state.pt    Pretrained demo weights
+  artifacts/metadata.json       Preprocessing, provenance, metrics
+  sample_data/demo_capacitors.csv
+  sample_data/upload_template.csv
+  tests/test_pipeline.py
+  requirements.txt
+```
