@@ -1,4 +1,4 @@
-"""CapLife AI — v0.6 experimental measurements + preserved synthetic RUL demo."""
+"""CapLife AI — v0.7 descriptive research-data audit + preserved synthetic GRU demo."""
 from __future__ import annotations
 
 import hashlib
@@ -42,18 +42,21 @@ with st.sidebar:
     st.subheader("Workflow")
     workflow = st.radio(
         "Choose an assessment mode",
-        ("Experimental measurements (v0.6)", "Synthetic RUL demonstration (v0.5)"),
-        key="caplife_workflow_v06",
+        ("Experimental measurements (v0.7)", "Synthetic RUL demonstration (v0.5)"),
+        key="caplife_workflow_v07",
     )
     st.divider()
 
-if workflow == "Experimental measurements (v0.6)":
+if workflow == "Experimental measurements (v0.7)":
     from io import BytesIO
     from caplife.real_data import (
         RealDataValidationError,
         assess_real_measurements,
-        assessment_zip_bytes,
         blank_template_csv,
+    )
+    from caplife.readiness import (
+        audit_measurement_readiness,
+        assessment_zip_with_readiness_bytes,
     )
 
     st.subheader("1 · Upload experimental measurements")
@@ -98,7 +101,7 @@ if workflow == "Experimental measurements (v0.6)":
     try:
         uploaded_frame = pd.read_csv(BytesIO(upload_real.getvalue()), low_memory=False, dtype={"Cap_ID": str})
         real_report = assess_real_measurements(uploaded_frame)
-    except (RealDataValidationError, ValueError, pd.errors.ParserError, UnicodeError) as exc:
+    except (RealDataValidationError, ValueError, pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeError) as exc:
         st.error(f"Upload could not be assessed: {exc}")
         st.info("Correct the source CSV and upload it again. No values were generated to replace missing readings.")
         st.stop()
@@ -122,6 +125,18 @@ if workflow == "Experimental measurements (v0.6)":
     st.subheader("2 · Measurement-quality report")
     st.caption("Zero recorded readings means 'not supplied' or 'no measurements' — not a zero sensor reading.")
     st.dataframe(quality, hide_index=True, use_container_width=True)
+
+    st.subheader("2A · Research-data readiness (NOT a health score)")
+    audit = audit_measurement_readiness(real_report)
+    st.caption(
+        "This audit flags missing baselines, sparse histories, unrecorded conditions "
+        "and measurement gaps. It does not certify sensor accuracy or predict RUL."
+    )
+    st.dataframe(audit["summary"], hide_index=True, use_container_width=True)
+    with st.expander("Recommended measurement and documentation improvements"):
+        st.dataframe(audit["actions"], hide_index=True, use_container_width=True)
+    with st.expander("Recorded operating and test conditions"):
+        st.dataframe(audit["conditions"], hide_index=True, use_container_width=True)
 
     st.subheader("3 · Observed degradation (no forecasting)")
     st.dataframe(changes.round(3), hide_index=True, use_container_width=True)
@@ -164,8 +179,8 @@ if workflow == "Experimental measurements (v0.6)":
     st.subheader("5 · Download assessment package")
     st.download_button(
         "Download all-capacitor assessment (ZIP)",
-        data=assessment_zip_bytes(real_report),
-        file_name="CapLife_v0_6_Measurement_Assessment.zip",
+        data=assessment_zip_with_readiness_bytes(real_report, audit),
+        file_name="CapLife_v0_7_Measurement_Readiness.zip",
         mime="application/zip",
     )
     st.info(
@@ -175,7 +190,7 @@ if workflow == "Experimental measurements (v0.6)":
         "The uploaded file is processed by the web-app server; check hosting/privacy "
         "policies before submitting confidential experiments."
     )
-    st.caption("CapLife AI v0.6 · descriptive measurements only · no neural-network prediction")
+    st.caption("CapLife AI v0.7 · descriptive research-data audit only · no neural-network prediction")
     st.stop()
 
 # Previous synthetic RUL page is intentionally preserved below this line.
