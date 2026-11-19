@@ -1,4 +1,4 @@
-"""CapLife AI — synthetic-data research demonstrator, not a validated reliability tool."""
+"""CapLife AI — v0.6 experimental measurements + preserved synthetic RUL demo."""
 from __future__ import annotations
 
 import hashlib
@@ -29,10 +29,156 @@ st.set_page_config(
 st.title("⚡ CapLife AI")
 st.caption("Aluminum Electrolytic Capacitor Health Monitoring & Remaining Useful Life")
 st.warning(
-    "**RESEARCH DEMONSTRATOR — NOT VALIDATED FOR REAL CAPACITORS.** "
-    "This neural network was trained on invented synthetic aging histories. "
-    "Its RUL predictions are examples, not trustworthy lifetime or maintenance advice."
+    "**RESEARCH PROTOTYPE — NOT VALIDATED FOR REAL CAPACITORS.** "
+    "The synthetic RUL mode uses a GRU trained on invented histories. "
+    "The experimental-measurement mode provides descriptive checks and observed changes only. "
+    "Neither mode provides validated maintenance or lifetime advice."
 )
+
+
+# v0.6 introduces a separate mode. The original GRU RUL page below is unchanged
+# for users who select the synthetic demonstrator. Real-data uploads NEVER enter it.
+with st.sidebar:
+    st.subheader("Workflow")
+    workflow = st.radio(
+        "Choose an assessment mode",
+        ("Experimental measurements (v0.6)", "Synthetic RUL demonstration (v0.5)"),
+        key="caplife_workflow_v06",
+    )
+    st.divider()
+
+if workflow == "Experimental measurements (v0.6)":
+    from io import BytesIO
+    from caplife.real_data import (
+        RealDataValidationError,
+        assess_real_measurements,
+        assessment_zip_bytes,
+        blank_template_csv,
+    )
+
+    st.subheader("1 · Upload experimental measurements")
+    st.write(
+        "Upload one CSV containing one or multiple capacitor histories. "
+        "Only **Cap_ID** and **Hours** and at least one measured degradation "
+        "indicator are required. Keep unavailable measurements blank."
+    )
+    st.download_button(
+        "Download real-data CSV template",
+        data=blank_template_csv(),
+        file_name="CapLife_Real_Data_Template_v0_6.csv",
+        mime="text/csv",
+    )
+    st.caption(
+        "Measured columns: Capacitance_uF, ESR_ohm, Leakage_uA, "
+        "Case_Expansion_um. Optional: environmental, electrical, and ESR test conditions. "
+        "Units must match the column names; do not upload normalized GRU features as raw measurements."
+    )
+    upload_real = st.file_uploader(
+        "Upload real-data CSV (8 MB maximum)", type=["csv"], key="caplife_real_csv_v06"
+    )
+    if upload_real is None:
+        st.info(
+            "Choose a CSV to view measurement completeness, recorded changes, and graphs. "
+            "The synthetic GRU is **not** run in this mode."
+        )
+        with st.expander("How to prepare measurement data"):
+            st.write(
+                "A row is one measurement for one capacitor at a stated operating hour. "
+                "Include actual measured capacitance, ESR, leakage, or case expansion in the "
+                "documented units. Supply a measured hour-zero baseline when possible. "
+                "For meaningful ESR comparison, document the same ESR_Test_Hz and "
+                "ESR_Test_Temp_C for the readings being compared. "
+                "Do not fill unknown measurements with artificial values."
+            )
+        st.stop()
+
+    if upload_real.size > 8 * 1024 * 1024:
+        st.error("This prototype accepts at most 8 MB per uploaded file.")
+        st.stop()
+    try:
+        uploaded_frame = pd.read_csv(BytesIO(upload_real.getvalue()), low_memory=False, dtype={"Cap_ID": str})
+        real_report = assess_real_measurements(uploaded_frame)
+    except (RealDataValidationError, ValueError, pd.errors.ParserError, UnicodeError) as exc:
+        st.error(f"Upload could not be assessed: {exc}")
+        st.info("Correct the source CSV and upload it again. No values were generated to replace missing readings.")
+        st.stop()
+
+    readings = real_report["measurements"]
+    quality = real_report["quality"]
+    changes = real_report["changes"]
+    warnings = real_report["warnings"]
+    n_caps = readings["Cap_ID"].nunique()
+    metrics = st.columns(3)
+    metrics[0].metric("Capacitors", str(n_caps))
+    metrics[1].metric("Measurement rows", f"{len(readings):,}")
+    metrics[2].metric("Measured channels", str(sum(
+        c in uploaded_frame and uploaded_frame[c].notna().any()
+        for c in ("Capacitance_uF", "ESR_ohm", "Leakage_uA", "Case_Expansion_um")
+    )))
+    st.success("Basic data checks passed. This does not establish measurement validity or real-world reliability.")
+    for warning in warnings:
+        st.warning(warning)
+
+    st.subheader("2 · Measurement-quality report")
+    st.caption("Zero recorded readings means 'not supplied' or 'no measurements' — not a zero sensor reading.")
+    st.dataframe(quality, hide_index=True, use_container_width=True)
+
+    st.subheader("3 · Observed degradation (no forecasting)")
+    st.dataframe(changes.round(3), hide_index=True, use_container_width=True)
+    st.caption(
+        "Changes are calculated only with an available hour-zero baseline; percentages "
+        "refer to the observed raw measurement, not to remaining life. "
+        "Case expansion is expressed as an absolute µm difference. "
+        "Inconsistent ESR test conditions suppress the ESR ratio."
+    )
+
+    st.subheader("4 · Inspect a capacitor's measured history")
+    cap_choice = st.selectbox("Capacitor ID", sorted(readings["Cap_ID"].unique()))
+    cap_rows = readings.loc[readings["Cap_ID"] == cap_choice].sort_values("Hours")
+    plot_groups = (
+        ("C_ratio", "Capacitance ratio"),
+        ("ESR_ratio", "ESR ratio"),
+        ("Leakage_ratio", "Leakage current ratio"),
+        ("Case_Expansion_um", "Case expansion (µm)"),
+    )
+    left, right = st.columns(2)
+    for idx, (column, label) in enumerate(plot_groups):
+        place = left if idx % 2 == 0 else right
+        with place:
+            st.markdown(f"**{label}**")
+            if column not in cap_rows or cap_rows[column].notna().sum() == 0:
+                st.caption("No comparable measured values are available.")
+            else:
+                # Scatter only: connecting points could conceal missing measurements.
+                actual_points = cap_rows[["Hours", column]].dropna()
+                st.scatter_chart(actual_points, x="Hours", y=column, height=240)
+                missing_hours = cap_rows.loc[cap_rows[column].isna(), "Hours"].tolist()
+                if missing_hours:
+                    preview = ", ".join(f"{x:g}" for x in missing_hours[:12])
+                    st.caption(
+                        f"Missing / unavailable at {preview} h"
+                        + (" (more omitted)" if len(missing_hours) > 12 else "")
+                    )
+    with st.expander("View processed measurements"):
+        st.dataframe(cap_rows, hide_index=True, use_container_width=True)
+    st.subheader("5 · Download assessment package")
+    st.download_button(
+        "Download all-capacitor assessment (ZIP)",
+        data=assessment_zip_bytes(real_report),
+        file_name="CapLife_v0_6_Measurement_Assessment.zip",
+        mime="application/zip",
+    )
+    st.info(
+        "**Limitations:** This mode does not determine health, EOL, RUL, uncertainty "
+        "intervals, or maintenance actions. A complete dataset can still have inaccurate "
+        "sensors, changing operating conditions, or incomparable test settings. "
+        "The uploaded file is processed by the web-app server; check hosting/privacy "
+        "policies before submitting confidential experiments."
+    )
+    st.caption("CapLife AI v0.6 · descriptive measurements only · no neural-network prediction")
+    st.stop()
+
+# Previous synthetic RUL page is intentionally preserved below this line.
 
 
 @st.cache_resource(show_spinner="Loading the demonstration neural network…")
