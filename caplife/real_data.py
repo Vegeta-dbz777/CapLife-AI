@@ -250,7 +250,7 @@ def assessment_zip_bytes(result: dict) -> bytes:
             ("measurement_quality.csv", "quality"),
             ("observed_degradation.csv", "changes"),
         ):
-            archive.writestr(filename, result[key].to_csv(index=False))
+            archive.writestr(filename, result[key].to_csv(index=False).encode("utf-8-sig"))
         archive.writestr("README.txt", readme)
         if result["warnings"]:
             archive.writestr("measurement_warnings.txt", "\n".join(result["warnings"]) + "\n")
