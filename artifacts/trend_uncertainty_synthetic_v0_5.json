@@ -1,0 +1,57 @@
+{
+  "version": "v0.5-synthetic-demo",
+  "method": "group-specific split conformal",
+  "prediction_engine": "multi-indicator threshold trend",
+  "target_coverage": 0.9,
+  "calibration_seed": 9511,
+  "calibration_capacitors": 358,
+  "calibration_sampling": "One randomly selected eligible pre-EOL observation per synthetic capacitor",
+  "predicted_rul_groups_hours": {
+    "Short": [
+      0,
+      1500
+    ],
+    "Medium": [
+      1500,
+      3000
+    ],
+    "Long": [
+      3000,
+      null
+    ]
+  },
+  "error_margins_hours": {
+    "Short": 131.82604398319756,
+    "Medium": 377.299057412155,
+    "Long": 1480.738422669373
+  },
+  "calibration_counts": {
+    "Short": 168,
+    "Medium": 90,
+    "Long": 100
+  },
+  "eol_thresholds": {
+    "C_ratio_min": 0.8,
+    "ESR_ratio_max": 2.0,
+    "Leakage_ratio_max": 5.0,
+    "Case_Strain_Index_max": 1.0
+  },
+  "independent_synthetic_test": {
+    "test_seeds": [
+      9701,
+      9702,
+      9703,
+      9704,
+      9705
+    ],
+    "test_predictions": 890,
+    "overall_coverage_percent": 92.13483146067416,
+    "group_coverage_percent": {
+      "Short": 91.09947643979058,
+      "Medium": 87.79527559055119,
+      "Long": 98.03149606299213
+    }
+  },
+  "real_world_validated": false,
+  "warning": "Synthetic-data demonstration only. Not calibrated or validated for real aluminum electrolytic capacitors."
+}
