@@ -1,4 +1,4 @@
-"""Descriptive assessment of uploaded AEC measurements (CapLife AI v0.6).
+"""Descriptive assessment of uploaded AEC measurements (CapLife AI v0.7).
 
 Does not call GRU inference, compute RUL, apply EOL thresholds, or fabricate data.
 Compatible with pandas and numpy versions in the existing CapLife AI project.
@@ -118,6 +118,8 @@ def _esr_comparability(group: pd.DataFrame) -> str:
     Only comparisons at the same recorded frequency and temperature are
     considered documented; if neither is documented, flag as provisional.
     """
+    if "ESR_ohm" not in group:
+        return "not measured"
     observed = group[group["ESR_ohm"].notna()]
     if observed.empty:
         return "not measured"
