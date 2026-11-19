@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from caplife.config import FEATURES, SEQ_LEN
+from caplife.config import EOL_THRESHOLDS, FEATURES, SEQ_LEN
 from caplife.data import DataValidationError, validate_measurements
 from caplife.predict import assess_capacitor, load_engine
 from caplife.trend import assess_trend
@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parent
 DEMO_DATA = ROOT / "sample_data" / "demo_capacitors.csv"
 TEMPLATE_DATA = ROOT / "sample_data" / "upload_template.csv"
 ARTIFACTS = ROOT / "artifacts"
+UNCERTAINTY_JSON = ARTIFACTS / "trend_uncertainty_synthetic_v0_5.json"
 
 st.set_page_config(
     page_title="CapLife AI — AEC RUL Prototype",
@@ -46,11 +47,72 @@ except (FileNotFoundError, RuntimeError, ValueError, json.JSONDecodeError):
     st.code("python -m caplife.train --root .", language="bash")
     st.stop()
 
+@st.cache_data(show_spinner=False)
+def load_synthetic_calibration():
+    """Read and validate the saved *synthetic-only* interval calibration.
+
+    The JSON does NOT give calibrated intervals for real uploaded AEC data.
+    """
+    try:
+        artifact = json.loads(UNCERTAINTY_JSON.read_text(encoding="utf-8"))
+        if artifact["version"] != "v0.5-synthetic-demo":
+            raise ValueError("Unexpected calibration artifact version")
+        if artifact["method"] != "group-specific split conformal":
+            raise ValueError("Unexpected calibration method")
+        if artifact["prediction_engine"] != "multi-indicator threshold trend":
+            raise ValueError("Calibration was not made for the trend engine")
+        if artifact["real_world_validated"] is not False:
+            raise ValueError("Invalid synthetic-only calibration provenance")
+        expected_groups = {"Short": [0, 1500], "Medium": [1500, 3000], "Long": [3000, None]}
+        if artifact["predicted_rul_groups_hours"] != expected_groups:
+            raise ValueError("Predicted-RUL grouping differs from this app")
+        for name, expected_threshold in EOL_THRESHOLDS.items():
+            actual_threshold = float(artifact["eol_thresholds"][name])
+            if not np.isclose(actual_threshold, expected_threshold, atol=0, rtol=1e-10):
+                raise ValueError("Current illustrative EOL thresholds differ from calibration")
+        for group in expected_groups:
+            margin = float(artifact["error_margins_hours"][group])
+            if not np.isfinite(margin) or margin < 0:
+                raise ValueError("Invalid uncertainty margin")
+        if not np.isclose(float(artifact["target_coverage"]), 0.90):
+            raise ValueError("Unexpected calibration coverage target")
+        return artifact, None
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        return None, str(exc)
+
+
+synthetic_calibration, calibration_issue = load_synthetic_calibration()
+
+
+def synthetic_interval_for_trend(trend_rul, *, bundled_demo, eol_causes, training_warnings):
+    """Create an illustrative interval only in the matching demo context."""
+    if (not bundled_demo or synthetic_calibration is None or eol_causes
+            or training_warnings or trend_rul is None):
+        return None
+    prediction = float(trend_rul)
+    if not np.isfinite(prediction) or prediction < 0:
+        return None
+    if prediction <= 1500:
+        group = "Short"
+    elif prediction <= 3000:
+        group = "Medium"
+    else:
+        group = "Long"
+    margin = float(synthetic_calibration["error_margins_hours"][group])
+    return {
+        "lower": max(0.0, prediction - margin),
+        "upper": prediction + margin,
+        "margin": margin,
+        "group": group,
+    }
+
+
 with st.sidebar:
     st.header("About this prototype")
     st.write("**AI engine:** GRU recurrent neural network")
     st.write(f"**Historical window:** {SEQ_LEN} measurements")
     st.write("**Source:** simulated AEC aging only")
+    st.caption("v0.5: synthetic-only trend intervals; not valid for real AEC measurements")
     st.divider()
     st.subheader("Upload data specification")
     st.write(
@@ -193,8 +255,9 @@ if result_is_current:
     for warning in result["warnings"]:
         st.error("Outside training range — do not rely on prediction: " + warning)
     st.caption(
-        "**These are uncalibrated estimates.** No confidence interval or validated "
-        "health score is available. The model is trained only on synthetic histories."
+        "The GRU estimate is **uncalibrated**. A separate trend interval is available "
+        "only for bundled synthetic demonstration data; no validated real-AEC "
+        "uncertainty interval or health score is available."
     )
 
     # The mathematical baseline and the GRU receive the same available history.
@@ -246,6 +309,57 @@ if result_is_current:
         else:
             st.caption(f"Experimental disagreement band: **{disagreement_label}**")
 
+    # Step 99: synthetic-only interval. Disabled for any uploaded dataset.
+    trend_interval = synthetic_interval_for_trend(
+        trend_rul,
+        bundled_demo=(file is None),
+        eol_causes=result["eol_causes"],
+        training_warnings=result["warnings"],
+    )
+    st.markdown("**Experimental uncertainty for the threshold-trend estimate**")
+    if file is not None:
+        st.info(
+            "No calibrated interval is provided for uploaded datasets. "
+            "The saved uncertainty margins were obtained from invented synthetic histories "
+            "and must not be applied to real capacitor measurements."
+        )
+    elif calibration_issue:
+        st.warning(
+            "Synthetic interval unavailable because the calibration artifact is missing "
+            "or incompatible. The GRU and trend estimates remain available."
+        )
+    elif result["eol_causes"]:
+        st.caption("No forecasting interval at an already-triggered illustrative EOL threshold.")
+    elif result["warnings"]:
+        st.warning(
+            "Synthetic interval withheld because inputs fall outside the model's "
+            "documented training ranges."
+        )
+    elif trend_interval is None:
+        st.caption("The trend RUL is not estimable, so no interval can be displayed.")
+    else:
+        lower_col, upper_col = st.columns(2)
+        lower_col.metric("Trend interval lower bound (DEMO)", f"{trend_interval['lower']:,.0f} h")
+        upper_col.metric("Trend interval upper bound (DEMO)", f"{trend_interval['upper']:,.0f} h")
+        st.caption(
+            f"Predicted-life group: **{trend_interval['group']}** · "
+            f"synthetic error margin: ±{trend_interval['margin']:,.0f} h · "
+            "nominal calibration target: 90%."
+        )
+        st.warning(
+            "**Synthetic-only interval; NOT a validated confidence statement for this "
+            "individual capacitor.** The 90% target was calibrated from one randomly "
+            "sampled pre-EOL observation per simulated capacitor. It does not establish "
+            "90% coverage for a manually selected hour, multiple time points from one "
+            "capacitor, changed operating conditions, or any real AEC dataset."
+        )
+        observed_coverage = synthetic_calibration.get("independent_synthetic_test", {}).get("overall_coverage_percent")
+        if observed_coverage is not None:
+            st.caption(
+                f"Prior independent-simulator test: {float(observed_coverage):.2f}% overall "
+                "coverage across synthetic sampled observations; group coverage differed."
+            )
+
     with st.expander("Show each indicator's mathematical threshold-crossing estimate"):
         indicator_labels = {
             "C_ratio": "Capacitance ratio",
@@ -285,6 +399,19 @@ if result_is_current:
         ),
         "Relative_disagreement_percent": (
             round(100 * relative_disagreement, 2) if relative_disagreement is not None else None
+        ),
+        "Trend_synthetic_interval_lower_hours": (
+            round(trend_interval["lower"], 2) if trend_interval else None
+        ),
+        "Trend_synthetic_interval_upper_hours": (
+            round(trend_interval["upper"], 2) if trend_interval else None
+        ),
+        "Trend_synthetic_interval_group": (
+            trend_interval["group"] if trend_interval else None
+        ),
+        "Trend_synthetic_interval_scope": (
+            "Demonstration-only; calibrated on one random observation per synthetic capacitor"
+            if trend_interval else "Not applicable / withheld"
         ),
         "Threshold_status": result["status"],
         "Triggered_demo_thresholds": "; ".join(result["eol_causes"]),
@@ -391,8 +518,23 @@ def make_prediction_trajectory(cap_history, through_hour, model, model_metadata,
             100 * abs_disagreement / max(500.0, (predicted_rul + trend_rul) / 2)
             if np.isfinite(abs_disagreement) else np.nan
         )
+        point_interval = synthetic_interval_for_trend(
+            trend_rul if np.isfinite(trend_rul) else None,
+            bundled_demo=show_reference,
+            eol_causes=assessment["eol_causes"],
+            training_warnings=assessment["warnings"],
+        )
         rows.append({
             "Prediction_hour": float(assessment["hours_observed"]),
+            "Trend_synthetic_lower_RUL_hours": (
+                point_interval["lower"] if point_interval else np.nan
+            ),
+            "Trend_synthetic_upper_RUL_hours": (
+                point_interval["upper"] if point_interval else np.nan
+            ),
+            "Trend_synthetic_interval_group": (
+                point_interval["group"] if point_interval else None
+            ),
             "Predicted_RUL_hours": predicted_rul,
             "Trend_RUL_hours": trend_rul,
             "Trend_limiting_indicator": trend_assessment["limiting_indicator"],
@@ -524,6 +666,12 @@ if trajectory_is_current:
             "One or more evaluation times fall outside the synthetic training "
             "ranges. Do not interpret these estimates as reliable."
         )
+    if file is None and synthetic_calibration is not None:
+        st.caption(
+            "The downloadable trajectory contains synthetic-only illustrative trend "
+            "interval bounds where eligible. **These are not calibrated to provide "
+            "90% simultaneous coverage across a capacitor's history.**"
+        )
     with st.expander("View time-by-time predictions"):
         st.dataframe(trajectory, use_container_width=True, hide_index=True)
     st.download_button(
@@ -537,6 +685,6 @@ else:
 
 st.divider()
 st.caption(
-    "CapLife AI v0.4 · GRU + illustrative multi-indicator trend · "
-    "Synthetic-only demonstration; no real-world validation or calibrated uncertainty"
+    "CapLife AI v0.5 · GRU + illustrative multi-indicator trend + "
+    "synthetic-only trend intervals · No calibrated uncertainty for real capacitors"
 )
