@@ -12,6 +12,7 @@ import streamlit as st
 from caplife.config import FEATURES, SEQ_LEN
 from caplife.data import DataValidationError, validate_measurements
 from caplife.predict import assess_capacitor, load_engine
+from caplife.trend import assess_trend
 
 
 ROOT = Path(__file__).resolve().parent
@@ -151,18 +152,22 @@ st.caption(
 if st.button("Analyze capacitor", type="primary", use_container_width=True):
     try:
         assessment = assess_capacitor(history_to_show, net, metadata)
+        trend_assessment = assess_trend(history_to_show, window_size=SEQ_LEN)
     except (DataValidationError, ValueError) as exc:
         st.error(f"Could not assess this capacitor: {exc}")
         st.stop()
 
     st.session_state["last_assessment"] = assessment
+    st.session_state["last_trend_assessment"] = trend_assessment
     st.session_state["last_assessed_cap"] = selected
     st.session_state["last_data_tag"] = current_tag
     st.session_state["last_prediction_hour"] = prediction_hour
 
 result = st.session_state.get("last_assessment")
+trend_result = st.session_state.get("last_trend_assessment")
 result_is_current = (
     result is not None
+    and isinstance(trend_result, dict)
     and st.session_state.get("last_assessed_cap") == selected
     and st.session_state.get("last_data_tag") == current_tag
     and st.session_state.get("last_prediction_hour") == prediction_hour
@@ -171,7 +176,7 @@ result_is_current = (
 st.subheader("3 · RUL assessment")
 if result_is_current:
     m1, m2, m3 = st.columns(3)
-    m1.metric("Estimated remaining life (DEMO)", f"{result['rul_hours']:,.0f} h")
+    m1.metric("GRU remaining life (DEMO)", f"{result['rul_hours']:,.0f} h")
     m2.metric("Age at prediction", f"{result['hours_observed']:,.0f} h")
     m3.metric(
         "Age + estimated RUL (DEMO)",
@@ -191,11 +196,96 @@ if result_is_current:
         "**These are uncalibrated estimates.** No confidence interval or validated "
         "health score is available. The model is trained only on synthetic histories."
     )
+
+    # The mathematical baseline and the GRU receive the same available history.
+    st.markdown("**Compare the two prediction methods**")
+    trend_rul = trend_result["rul_hours"] if trend_result is not None else None
+    gru_rul = float(result["rul_hours"])
+    absolute_disagreement = None
+    relative_disagreement = None
+    disagreement_label = "Not estimable"
+
+    if trend_rul is not None:
+        trend_rul = float(trend_rul)
+        absolute_disagreement = abs(gru_rul - trend_rul)
+        relative_disagreement = (
+            absolute_disagreement / max(500.0, (gru_rul + trend_rul) / 2)
+        )
+        # Experimental thresholds; not failure probabilities or confidence levels.
+        if relative_disagreement <= 0.10:
+            disagreement_label = "Low"
+        elif relative_disagreement <= 0.30:
+            disagreement_label = "Moderate"
+        else:
+            disagreement_label = "High"
+
+    c_gru, c_trend, c_disagreement = st.columns(3)
+    c_gru.metric("GRU RUL (DEMO)", f"{gru_rul:,.0f} h")
+    c_trend.metric(
+        "Threshold-trend RUL (DEMO)",
+        f"{trend_rul:,.0f} h" if trend_rul is not None else "Not estimable",
+    )
+    c_disagreement.metric(
+        "Model disagreement (DEMO)",
+        f"{relative_disagreement * 100:,.1f}%" if relative_disagreement is not None else "N/A",
+    )
+
+    if result["eol_causes"]:
+        st.info("Both displayed zero-hour estimates come from the illustrative EOL rule, not from forecasting.")
+    elif trend_rul is None:
+        st.info(
+            "The recent indicator trends do not produce an approaching threshold "
+            "crossing. An unestimated trend RUL does not mean infinite or safe lifetime."
+        )
+    else:
+        limiting = trend_result["limiting_indicator"]
+        st.write(f"**Predicted limiting indicator (trend):** `{limiting}`")
+        st.write(f"**Absolute model disagreement:** {absolute_disagreement:,.0f} hours")
+        if disagreement_label == "High":
+            st.warning("High model disagreement (experimental warning); the two estimates conflict substantially.")
+        else:
+            st.caption(f"Experimental disagreement band: **{disagreement_label}**")
+
+    with st.expander("Show each indicator's mathematical threshold-crossing estimate"):
+        indicator_labels = {
+            "C_ratio": "Capacitance ratio",
+            "ESR_ratio": "ESR ratio",
+            "Leakage_ratio": "Leakage ratio",
+            "Case_Strain_Index": "Case strain index (hypothetical)",
+        }
+        detail_rows = [
+            {
+                "Degradation indicator": indicator_labels.get(name, name),
+                "Time to illustrative EOL threshold": (
+                    f"{hours:,.0f} h" if hours is not None else "Not estimable"
+                ),
+            }
+            for name, hours in trend_result["indicator_rul_hours"].items()
+        ]
+        st.dataframe(pd.DataFrame(detail_rows), hide_index=True, use_container_width=True)
+        st.caption(trend_result["message"])
+
+    st.caption(
+        "The trend linearly extrapolates the latest six measurements toward the "
+        "simulator's four **illustrative** EOL thresholds; the GRU is trained on "
+        "synthetic data. Neither method is validated on real capacitors. "
+        "Disagreement is NOT calibrated uncertainty or a health probability."
+    )
+
     report = pd.DataFrame([{
         "Cap_ID": result["cap_id"],
         "Prediction_hour": prediction_hour,
         "Age_hours": result["hours_observed"],
         "Demo_predicted_RUL_hours": round(result["rul_hours"], 2),
+        "GRU_RUL_hours": round(gru_rul, 2),
+        "Threshold_trend_RUL_hours": (round(trend_rul, 2) if trend_rul is not None else None),
+        "Trend_limiting_indicator": trend_result["limiting_indicator"],
+        "Model_disagreement_hours": (
+            round(absolute_disagreement, 2) if absolute_disagreement is not None else None
+        ),
+        "Relative_disagreement_percent": (
+            round(100 * relative_disagreement, 2) if relative_disagreement is not None else None
+        ),
         "Threshold_status": result["status"],
         "Triggered_demo_thresholds": "; ".join(result["eol_causes"]),
         "Out_of_training_range": "; ".join(result["warnings"]),
@@ -283,6 +373,7 @@ def make_prediction_trajectory(cap_history, through_hour, model, model_metadata,
             end_idx - sequence_length + 1:end_idx + 1
         ][["Cap_ID", *FEATURES]]
         assessment = assess_capacitor(recent, model, model_metadata)
+        trend_assessment = assess_trend(recent, window_size=sequence_length)
         actual_rul = np.nan
         if show_reference and "RUL_hours" in chronological.columns:
             reference_value = chronological.iloc[end_idx]["RUL_hours"]
@@ -290,13 +381,31 @@ def make_prediction_trajectory(cap_history, through_hour, model, model_metadata,
                 actual_rul = float(reference_value)
 
         predicted_rul = float(assessment["rul_hours"])
+        trend_rul = trend_assessment["rul_hours"]
+        trend_rul = float(trend_rul) if trend_rul is not None else np.nan
         from_gru = not bool(assessment["eol_causes"])
+        abs_disagreement = (
+            abs(predicted_rul - trend_rul) if np.isfinite(trend_rul) else np.nan
+        )
+        relative_disagreement = (
+            100 * abs_disagreement / max(500.0, (predicted_rul + trend_rul) / 2)
+            if np.isfinite(abs_disagreement) else np.nan
+        )
         rows.append({
             "Prediction_hour": float(assessment["hours_observed"]),
             "Predicted_RUL_hours": predicted_rul,
+            "Trend_RUL_hours": trend_rul,
+            "Trend_limiting_indicator": trend_assessment["limiting_indicator"],
+            "Absolute_disagreement_hours": abs_disagreement,
+            "Relative_disagreement_percent": relative_disagreement,
             "Reference_RUL_hours": actual_rul,
             "Absolute_error_hours": (
                 abs(predicted_rul - actual_rul) if np.isfinite(actual_rul) else np.nan
+            ),
+            "Trend_absolute_error_hours": (
+                abs(trend_rul - actual_rul)
+                if np.isfinite(trend_rul) and np.isfinite(actual_rul)
+                else np.nan
             ),
             "Prediction_source": "GRU" if from_gru else "Toy EOL rule (0 h)",
             "Outside_demo_training_range": bool(assessment["warnings"]),
@@ -365,12 +474,16 @@ if trajectory_is_current:
     )
     if reference_is_known:
         comparison = trajectory.set_index("Prediction_hour")[[
-            "Reference_RUL_hours", "Predicted_RUL_hours"
-        ]]
+            "Reference_RUL_hours", "Predicted_RUL_hours", "Trend_RUL_hours"
+        ]].rename(columns={
+            "Predicted_RUL_hours": "GRU RUL (DEMO)",
+            "Trend_RUL_hours": "Threshold-trend RUL (DEMO)",
+            "Reference_RUL_hours": "Synthetic reference RUL",
+        })
         st.line_chart(comparison)
         st.caption(
             "Reference RUL comes from the simulated eventual EOL and is used ONLY "
-            "for evaluation. Predicted RUL uses data available at each prediction hour."
+            "for evaluation. GRU and trend predictions use data available at each prediction hour."
         )
         # Do not let automatic zero at the toy EOL artificially improve GRU metrics.
         scored = trajectory.loc[
@@ -388,16 +501,21 @@ if trajectory_is_current:
             a.metric("Mean absolute error (DEMO)", f"{mae:,.0f} h")
             b.metric("RMSE (DEMO)", f"{rmse:,.0f} h")
             c.metric("GRU evaluation points", f"{len(scored):,}")
+            trend_scored = scored.loc[scored["Trend_RUL_hours"].notna()]
+            if not trend_scored.empty:
+                trend_mae = float(trend_scored["Trend_absolute_error_hours"].mean())
+                st.metric("Threshold-trend MAE (DEMO)", f"{trend_mae:,.0f} h")
             st.caption(
                 "Errors summarize correlated time points from ONE simulated "
                 "capacitor, not independent test cases. EOL rule-generated zero "
-                "predictions and known-zero reference points are excluded."
+                "predictions and known-zero reference points are excluded. "
+                "Trend and GRU MAEs may cover different counts if some trend estimates are unavailable."
             )
         else:
             st.warning("No pre-EOL GRU estimates are available for error scoring.")
     else:
         st.line_chart(
-            trajectory.set_index("Prediction_hour")[["Predicted_RUL_hours"]]
+            trajectory.set_index("Prediction_hour")[["Predicted_RUL_hours", "Trend_RUL_hours"]]
         )
         st.caption("Only demonstration predictions can be shown; no error metrics are available.")
 
@@ -419,6 +537,6 @@ else:
 
 st.divider()
 st.caption(
-    "CapLife AI v0.3 · GRU sequence regressor · "
+    "CapLife AI v0.4 · GRU + illustrative multi-indicator trend · "
     "Synthetic-only demonstration; no real-world validation or calibrated uncertainty"
 )
