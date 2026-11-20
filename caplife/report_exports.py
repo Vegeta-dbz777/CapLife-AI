@@ -1,6 +1,6 @@
 """CapLife AI research-only downloads: CSV, XLSX, and PDF.
 
-All three outputs are generated in memory from the same already-validated v0.7
+All three outputs are generated in memory from the same already-validated v0.8
 experimental report. Never infer EOL, RUL, health, uncertainty, or missing data.
 """
 from __future__ import annotations
@@ -17,6 +17,8 @@ INDICATORS = (
     ("ESR", "ESR_change_percent", "Observed_Change_percent", "%"),
     ("Leakage current", "Leakage_change_percent", "Observed_Change_percent", "%"),
     ("Case expansion", "Case_expansion_change_um", "Observed_Change_um", "µm"),
+    ("H₂ generated (measured)", "H2_measured_change_mL_STP", "Observed_Change_mL_STP", "mL at STP"),
+    ("Internal pressure (measured)", "Pressure_measured_change_kPa", "Observed_Change_kPa", "kPa abs change"),
 )
 GRAPH_CHANNELS = (
     ("C_ratio", "Capacitance / C₀", "ratio"),
@@ -24,6 +26,17 @@ GRAPH_CHANNELS = (
     ("Leakage_ratio", "Leakage / initial leakage", "ratio"),
     ("Case_Expansion_um", "Case expansion", "µm"),
 )
+EXTRA_MEASURED_GRAPHS = (
+    ("H2_Generated_mL_STP", "Measured H₂ generated (STP)", "mL at STP"),
+    ("Pressure_Abs_kPa", "Measured internal pressure", "kPa absolute"),
+)
+
+def _graph_channels_for(history: pd.DataFrame):
+    # Old four-indicator uploads still produce exactly four measurement charts.
+    additional = tuple(item for item in EXTRA_MEASURED_GRAPHS
+                       if item[0] in history and history[item[0]].notna().any())
+    return GRAPH_CHANNELS + additional
+
 DISCLAIMER = (
     "RESEARCH PROTOTYPE — DESCRIPTIVE MEASUREMENTS ONLY. "
     "No validated capacitor health, end-of-life, remaining-life, confidence interval, "
@@ -32,7 +45,7 @@ DISCLAIMER = (
 )
 
 
-def summary_table(report: dict, audit: dict) -> pd.DataFrame:
+def summary_table(report: dict, audit: dict, selected_cap=None, gas_scenario=None, assumptions=None) -> pd.DataFrame:
     """One row per capacitor. Flattened summary suitable for a single CSV file."""
     summaries = audit["summary"].copy()
     changes = report["changes"]
@@ -40,6 +53,19 @@ def summary_table(report: dict, audit: dict) -> pd.DataFrame:
         per_cap = changes.loc[changes["Indicator"] == label, ["Cap_ID", origin, "Status"]].copy()
         per_cap.rename(columns={origin: destination, "Status": destination + "_status"}, inplace=True)
         summaries = summaries.merge(per_cap, on="Cap_ID", how="left", validate="one_to_one")
+    if gas_scenario is not None and len(gas_scenario):
+        # Calculated scenario is explicitly tied to the selected capacitor; NEVER
+        # silently propagate its estimated values to other uploaded capacitors.
+        cap = str(selected_cap)
+        last = gas_scenario.iloc[-1]
+        summaries["Scenario_H2_generated_mL_STP_est"] = np.where(
+            summaries["Cap_ID"] == cap, float(last["H2_Generated_mL_STP_est"]), np.nan)
+        summaries["Scenario_Pressure_abs_kPa_est"] = np.where(
+            summaries["Cap_ID"] == cap, float(last["Pressure_Abs_kPa_est"]), np.nan)
+        summaries["Scenario_Pressure_change_kPa_est"] = np.where(
+            summaries["Cap_ID"] == cap, float(last["Pressure_Change_From_Initial_kPa_est"]), np.nan)
+        summaries["Scenario_Provenance"] = np.where(
+            summaries["Cap_ID"] == cap, "Assumption-based physics estimate; NOT measured", "")
     return summaries
 
 
@@ -58,9 +84,9 @@ def _csv_safe(frame: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-def csv_report_bytes(report: dict, audit: dict) -> bytes:
+def csv_report_bytes(report: dict, audit: dict, selected_cap=None, gas_scenario=None, assumptions=None) -> bytes:
     """A plain CSV of per-capacitor results; detailed histories remain in the ZIP/XLSX."""
-    table = _csv_safe(summary_table(report, audit))
+    table = _csv_safe(summary_table(report, audit, selected_cap, gas_scenario, assumptions))
     return table.to_csv(index=False, na_rep="").encode("utf-8-sig")
 
 
@@ -80,8 +106,8 @@ def _xlsx_value(value):
     return value
 
 
-def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str) -> bytes:
-    """Detailed multi-tab workbook with four measurement scatter plots."""
+def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=None, assumptions=None) -> bytes:
+    """Detailed multi-tab workbook with 4–6 recorded measurement plots."""
     import xlsxwriter
 
     memory = BytesIO()
@@ -101,7 +127,7 @@ def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str) -> bytes:
     overview.set_column("A:A", 25)
     overview.set_column("B:M", 15)
     overview.merge_range("A1:M2", "CapLife AI  /  Experimental measurement report", title)
-    overview.merge_range("A3:M3", "Version 0.7 • research-only descriptive assessment", banner)
+    overview.merge_range("A3:M3", "Version 0.8 • six-indicator research-only descriptive assessment", banner)
     overview.set_row(0, 22)
     overview.set_row(1, 26)
     overview.write("A5", "CAPACITORS", header)
@@ -111,7 +137,7 @@ def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str) -> bytes:
     overview.write("A6", int(report["measurements"]["Cap_ID"].nunique()), big_value)
     overview.write("D6", len(report["measurements"]), big_value)
     overview.write("G6", selected_cap, big_value)
-    recorded = sum(report["measurements"][c].notna().any() for c in ("Capacitance_uF", "ESR_ohm", "Leakage_uA", "Case_Expansion_um") if c in report["measurements"])
+    recorded = sum(report["measurements"][c].notna().any() for c in ("Capacitance_uF", "ESR_ohm", "Leakage_uA", "Case_Expansion_um", "H2_Generated_mL_STP", "Pressure_Abs_kPa") if c in report["measurements"])
     overview.write("K6", int(recorded), big_value)
     overview.merge_range("A8:M10", DISCLAIMER, note_box)
     overview.set_row(7, 28)
@@ -123,7 +149,7 @@ def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str) -> bytes:
     overview.freeze_panes(3, 0)
 
     sheets = [
-        ("Summary", summary_table(report, audit)),
+        ("Summary", summary_table(report, audit, selected_cap, gas_scenario, assumptions)),
         ("Measurements", report["measurements"]),
         ("Quality", report["quality"]),
         ("Observed Changes", report["changes"]),
@@ -163,8 +189,9 @@ def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str) -> bytes:
         raise ValueError("Selected capacitor is absent from the validated report.")
     chart_data = wb.add_worksheet("Chart Data")
     chart_data.hide_gridlines(2)
-    cols = ["Hours", *[x[0] for x in GRAPH_CHANNELS]]
-    chart_data.set_column("A:E", 25)
+    channels = _graph_channels_for(history)
+    cols = ["Hours", *[x[0] for x in channels]]
+    chart_data.set_column(0, len(cols) - 1, 25)
     for j, col in enumerate(cols):
         chart_data.write(0, j, col, header)
         if col not in history.columns:
@@ -179,7 +206,7 @@ def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str) -> bytes:
     chart_sheet.set_column("A:R", 11)
     chart_sheet.merge_range("A1:R2", f"Recorded degradation trends  /  {selected_cap}", title)
     chart_sheet.merge_range("A3:R3", "Actual measurement points only • blanks are not interpolated • no EOL or RUL estimate", muted)
-    for channel_idx, (col, label, unit) in enumerate(GRAPH_CHANNELS, start=1):
+    for channel_idx, (col, label, unit) in enumerate(channels, start=1):
         plot = wb.add_chart({"type": "scatter", "subtype": "marker_only"})
         plot.add_series({
             "name": label,
@@ -194,8 +221,58 @@ def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str) -> bytes:
         plot.set_chartarea({"border": {"none": True}})
         plot.set_plotarea({"border": {"color": "#CDD8E0"}})
         plot.set_size({"width": 530, "height": 286})
-        chart_sheet.insert_chart("A5" if channel_idx == 1 else "J5" if channel_idx == 2 else "A22" if channel_idx == 3 else "J22", plot)
-    chart_sheet.merge_range("A40:R42", DISCLAIMER, note_box)
+        chart_positions = ("A5", "J5", "A22", "J22", "A39", "J39")
+        chart_sheet.insert_chart(chart_positions[channel_idx - 1], plot)
+    note_start = 57 if len(channels) > 4 else 40
+    chart_sheet.merge_range(f"A{note_start}:R{note_start+2}", DISCLAIMER, note_box)
+
+    if gas_scenario is not None and len(gas_scenario):
+        # The calculated scenario has its own worksheets and line charts;
+        # these cannot be mistaken for direct sensor observations.
+        scenario = gas_scenario.copy()
+        gas_sheet = wb.add_worksheet("Physics Scenario")
+        gas_sheet.hide_gridlines(2)
+        gas_sheet.freeze_panes(1, 0)
+        gas_sheet.set_tab_color("#9D6B20")
+        for colidx, col in enumerate(scenario.columns):
+            gas_sheet.write(0, colidx, col, header)
+            gas_sheet.set_column(colidx, colidx, 26 if colidx else 18)
+        for rowidx, record in enumerate(scenario.itertuples(index=False, name=None), start=1):
+            for colidx, value in enumerate(record):
+                converted = _xlsx_value(value)
+                if converted is not None:
+                    gas_sheet.write(rowidx, colidx, converted, body)
+        if len(scenario):
+            gas_sheet.autofilter(0, 0, len(scenario), len(scenario.columns)-1)
+        assumption_sheet = wb.add_worksheet("Scenario Assumptions")
+        assumption_sheet.hide_gridlines(2)
+        assumption_sheet.set_column("A:A", 43)
+        assumption_sheet.set_column("B:B", 24)
+        assumption_sheet.merge_range("A1:D2", "Assumption-based physics preview — NOT sensor measurements", title)
+        assumption_sheet.write("A4", "Selected capacitor", header)
+        assumption_sheet.write("B4", selected_cap, body)
+        for idx, (name, value) in enumerate(sorted((assumptions or {}).items()), start=5):
+            assumption_sheet.write(idx-1, 0, str(name), body)
+            assumption_sheet.write(idx-1, 1, _xlsx_value(value), body)
+        assumption_sheet.merge_range("A13:D17", "Faraday-law conversion assumes an unverified fraction of leakage current generates H₂. A fixed fraction is retained in a rigid headspace. The result is hypothetical and has NOT been calibrated or validated against physical gas/pressure measurements. No EOL or RUL prediction.", note_box)
+        physics_chart_sheet = wb.add_worksheet("Physics Charts")
+        physics_chart_sheet.hide_gridlines(2)
+        physics_chart_sheet.set_column("A:R", 11)
+        physics_chart_sheet.merge_range("A1:R2", f"Assumption-based gas / pressure scenario  /  {selected_cap}", title)
+        physics_chart_sheet.merge_range("A3:R3", "Calculated values ONLY — not measured, not validated, no vent limit or RUL", muted)
+        time_col = scenario.columns.get_loc("Hours")
+        for xpos, column, label in (("A5", "H2_Generated_mL_STP_est", "Calculated H₂ generated (mL at STP)"), ("J5", "Pressure_Abs_kPa_est", "Calculated absolute pressure (kPa)")):
+            if column not in scenario:
+                continue
+            val_col = scenario.columns.get_loc(column)
+            line = wb.add_chart({"type": "scatter", "subtype": "straight_with_markers"})
+            line.add_series({"name": label, "categories": ["Physics Scenario", 1, time_col, len(scenario), time_col], "values": ["Physics Scenario", 1, val_col, len(scenario), val_col], "line": {"color": "#C98222", "width": 2}, "marker": {"type": "circle", "size": 5}})
+            line.set_title({"name": label})
+            line.set_x_axis({"name": "Operating hours"})
+            line.set_legend({"none": True})
+            line.set_size({"width": 530, "height": 290})
+            physics_chart_sheet.insert_chart(xpos, line)
+        physics_chart_sheet.merge_range("A24:R28", "This is a deterministic assumption-based estimate, not a measured 5th/6th channel or a real-world RUL prediction. The gas headspace, current fraction, retention fraction and initial pressure are user assumptions.", note_box)
     wb.close()
     return memory.getvalue()
 
@@ -204,7 +281,7 @@ def _pdf_txt(value) -> str:
     """Plain text safe to include in ReportLab paragraphs."""
     if value is None or (not isinstance(value, str) and pd.isna(value)):
         return "—"
-    return escape(str(value)[:140])
+    return escape(str(value)[:140].replace("₂", "2").replace("₀", "0"))
 
 
 def _fmt(value, suffix="") -> str:
@@ -219,9 +296,11 @@ def _fmt(value, suffix="") -> str:
 def _trend_png(history: pd.DataFrame) -> bytes:
     from matplotlib.figure import Figure
 
-    fig = Figure(figsize=(11.7, 5.5), dpi=140, facecolor="white")
-    axes = fig.subplots(2, 2)
-    for ax, (col, label, unit) in zip(axes.flat, GRAPH_CHANNELS):
+    channels = _graph_channels_for(history)
+    extra = len(channels) > 4
+    fig = Figure(figsize=(11.7, 7.4 if extra else 5.5), dpi=140, facecolor="white")
+    axes = fig.subplots(3 if extra else 2, 2)
+    for ax, (col, label, unit) in zip(axes.flat, channels):
         valid = history[["Hours", col]].dropna() if col in history.columns else history.iloc[0:0][["Hours"]]
         if not valid.empty:
             ax.scatter(valid["Hours"], valid[col], s=28, color="#24759A", zorder=3)
@@ -235,13 +314,13 @@ def _trend_png(history: pd.DataFrame) -> bytes:
         ax.tick_params(labelsize=8)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-    fig.subplots_adjust(hspace=.48, wspace=.29, left=.08, right=.98, bottom=.11, top=.94)
+    fig.subplots_adjust(hspace=.57 if extra else .48, wspace=.29, left=.08, right=.98, bottom=.10, top=.94)
     stream = BytesIO()
     fig.savefig(stream, format="png", dpi=130)
     return stream.getvalue()
 
 
-def pdf_report_bytes(report: dict, audit: dict, selected_cap: str) -> bytes:
+def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=None, assumptions=None) -> bytes:
     """Print-ready A4 landscape report. Summary covers all caps, plots selected cap."""
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER
@@ -265,17 +344,18 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str) -> bytes:
     styles.add(ParagraphStyle(name="CapSub", parent=styles["Normal"], fontSize=9, textColor=colors.HexColor("#46728A"), spaceAfter=12))
     story = []
     story.append(Paragraph("CapLife AI / Measurement assessment", styles["CapTitle"]))
-    story.append(Paragraph("Experimental measurements (v0.7)  |  Descriptive research report  |  No real-world lifetime prediction", styles["CapSub"]))
+    story.append(Paragraph("Experimental measurements (v0.8)  |  Descriptive research report  |  No real-world lifetime prediction", styles["CapSub"]))
     n_caps = int(report["measurements"]["Cap_ID"].nunique())
     n_rows = len(report["measurements"])
-    n_rec = int(sum(report["measurements"][c].notna().any() for c in ("Capacitance_uF", "ESR_ohm", "Leakage_uA", "Case_Expansion_um") if c in report["measurements"]))
+    n_rec = int(sum(report["measurements"][c].notna().any() for c in ("Capacitance_uF", "ESR_ohm", "Leakage_uA", "Case_Expansion_um", "H2_Generated_mL_STP", "Pressure_Abs_kPa") if c in report["measurements"]))
     cards = Table([[f"CAPACITORS  {n_caps}", f"MEASUREMENT ROWS  {n_rows:,}", f"RECORDED CHANNELS  {n_rec}", f"PLOT DETAIL  {_pdf_txt(selected_cap)}"]], colWidths=[usable_width/4]*4, rowHeights=[35])
     cards.setStyle(TableStyle([("BACKGROUND", (0,0),(-1,-1), colors.HexColor("#E8F2F7")),("TEXTCOLOR",(0,0),(-1,-1),colors.HexColor("#173C59")),("FONTNAME",(0,0),(-1,-1),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,-1),9),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),10)]))
     story.extend([cards, Spacer(1, 8), Paragraph(escape(DISCLAIMER), styles["CapBody"])])
     story.append(Paragraph("All-capacitor observed changes", styles["CapHead"]))
-    summary = summary_table(report, audit)
-    headings = ["Capacitor", "Points", "Coverage", "C change", "ESR change", "Leakage", "Expansion", "Readiness"]
-    widths = [112, 42, 58, 71, 71, 71, 70, usable_width-495]
+    summary = summary_table(report, audit, selected_cap, gas_scenario, assumptions)
+    headings = ["Capacitor", "Points", "Coverage", "C change", "ESR change", "Leakage", "Expansion", "H2 measured", "Pressure measured", "Readiness"]
+    fixed_widths = [91, 39, 53, 65, 65, 65, 65, 71, 74]
+    widths = fixed_widths + [usable_width - sum(fixed_widths)]
     cells = [[Paragraph(_pdf_txt(x), styles["CapBold"]) for x in headings]]
     for _, r in summary.iterrows():
         cells.append([
@@ -286,6 +366,8 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str) -> bytes:
             _fmt(r["ESR_change_percent"], "%"),
             _fmt(r["Leakage_change_percent"], "%"),
             _fmt(r["Case_expansion_change_um"], " µm"),
+            _fmt(r["H2_measured_change_mL_STP"], " mL"),
+            _fmt(r["Pressure_measured_change_kPa"], " kPa"),
             Paragraph(_pdf_txt(r["Data_readiness"]), styles["CapCell"]),
         ])
     t = Table(cells, colWidths=widths, repeatRows=1, hAlign="LEFT")
@@ -329,12 +411,8 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str) -> bytes:
             ))
         if len(actions_for_cap) > 5:
             story.append(Paragraph("Further recommendations are available in the Excel report.", styles["CapBody"]))
-    if report.get("warnings"):
-        story.append(Paragraph("Measurement caveats", styles["CapHead"]))
-        for warning in report["warnings"][:5]:
-            story.append(Paragraph("• " + _pdf_txt(warning), styles["CapBody"]))
-        if len(report["warnings"]) > 5:
-            story.append(Paragraph("Additional caveats omitted from this PDF; see the Excel report.", styles["CapBody"]))
+    # Keep caveats with the measured chart page to avoid a nearly blank spillover
+    # sheet when six channels add extra rows to the overview and quality table.
     story.append(PageBreak())
 
     history = report["measurements"].loc[report["measurements"]["Cap_ID"] == selected_cap].sort_values("Hours")
@@ -344,8 +422,9 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str) -> bytes:
     story.append(Paragraph("Observed data only. Points are not connected or interpolated across gaps.", styles["CapSub"]))
     plot_bytes = _trend_png(history)
     from reportlab.lib.utils import ImageReader
-    plot_width = usable_width * 0.78
-    plot_img = Image(BytesIO(plot_bytes), width=plot_width, height=plot_width * 5.5 / 11.7, hAlign="CENTER")
+    extra_plots = len(_graph_channels_for(history)) > 4
+    plot_width = usable_width * (0.67 if extra_plots else 0.78)
+    plot_img = Image(BytesIO(plot_bytes), width=plot_width, height=plot_width * (7.4 if extra_plots else 5.5) / 11.7, hAlign="CENTER")
     story.append(plot_img)
     story.append(Spacer(1, 4))
     story.append(Paragraph("Operating and test conditions recorded", styles["CapHead"]))
@@ -368,6 +447,42 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str) -> bytes:
         story.append(Paragraph("No operating or test conditions were documented in the uploaded data.", styles["CapBody"]))
     story.append(Spacer(1, 5))
     story.append(Paragraph("Research limitations: Test-condition comparability, baseline quality, sensor calibration, and provenance require independent review. This PDF reports no capacitor health or RUL.", styles["CapBody"]))
+
+    if gas_scenario is not None and len(gas_scenario):
+        story.append(PageBreak())
+        story.append(Paragraph("Physics scenario / assumptions only", styles["CapTitle"]))
+        story.append(Paragraph(
+            "Calculated hydrogen and pressure. These are NOT sensor measurements, and no RUL or vent-opening threshold is inferred.",
+            styles["CapSub"],
+        ))
+        assumption_pairs = list(sorted((assumptions or {}).items()))
+        scenario_info = [[Paragraph("Scenario input", styles["CapBold"]), Paragraph("Assumed value", styles["CapBold"])]]
+        scenario_info += [[Paragraph(_pdf_txt(name), styles["CapCell"]), Paragraph(_pdf_txt(value), styles["CapCell"])]
+                          for name, value in assumption_pairs]
+        scenario_table = Table(scenario_info, colWidths=[usable_width/2]*2, hAlign="LEFT")
+        scenario_table.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#D9EAF3")),
+                                         ("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,colors.HexColor("#F5F8FB")]),
+                                         ("BOTTOMPADDING",(0,0),(-1,-1),4), ("TOPPADDING",(0,0),(-1,-1),4)]))
+        story.append(scenario_table)
+        from matplotlib.figure import Figure
+        fig = Figure(figsize=(10, 3), dpi=120)
+        ax1, ax2 = fig.subplots(1, 2)
+        ax1.plot(gas_scenario["Hours"], gas_scenario["H2_Generated_mL_STP_est"], "o-", color="#C98222")
+        ax1.set_title("Calculated H2 formed at STP", fontsize=11)
+        ax1.set_ylabel("mL at 0 C and 1 atm")
+        ax2.plot(gas_scenario["Hours"], gas_scenario["Pressure_Abs_kPa_est"], "o-", color="#C98222")
+        ax2.set_title("Calculated internal pressure", fontsize=11)
+        ax2.set_ylabel("kPa absolute")
+        for ax in (ax1, ax2):
+            ax.set_xlabel("Operating hours")
+            ax.grid(alpha=.25)
+        fig.subplots_adjust(wspace=.38, left=.07, right=.97, bottom=.20, top=.83)
+        plot_buf = BytesIO()
+        fig.savefig(plot_buf, format="png")
+        story.append(Spacer(1, 10))
+        story.append(Image(BytesIO(plot_buf.getvalue()), width=usable_width*.87, height=usable_width*.87*.30, hAlign="CENTER"))
+        story.append(Spacer(1, 6))
+        story.append(Paragraph("Model limits: Constant retention and headspace volume; leakage is not directly hydrogen-producing current. No diffusion kinetics, gas dissolution, venting, or validated internal-gas calibration. Keep these estimates separate from direct measurements.", styles["CapBody"]))
 
     def footer(canvas, document):
         canvas.saveState()
