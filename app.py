@@ -1,4 +1,4 @@
-"""CapLife AI — v0.7 descriptive research-data audit + preserved synthetic GRU demo."""
+"""CapLife AI — v0.8 six-indicator descriptive audit + preserved synthetic GRU demo."""
 from __future__ import annotations
 
 import hashlib
@@ -42,12 +42,12 @@ with st.sidebar:
     st.subheader("Workflow")
     workflow = st.radio(
         "Choose an assessment mode",
-        ("Experimental measurements (v0.7)", "Synthetic RUL demonstration (v0.5)"),
+        ("Experimental measurements (v0.8)", "Synthetic RUL demonstration (v0.5)"),
         key="caplife_workflow_v07",
     )
     st.divider()
 
-if workflow == "Experimental measurements (v0.7)":
+if workflow == "Experimental measurements (v0.8)":
     from io import BytesIO
     from caplife.real_data import (
         RealDataValidationError,
@@ -68,12 +68,14 @@ if workflow == "Experimental measurements (v0.7)":
     st.download_button(
         "Download real-data CSV template",
         data=blank_template_csv(),
-        file_name="CapLife_Real_Data_Template_v0_6.csv",
+        file_name="CapLife_Real_Data_Template_v0_8.csv",
         mime="text/csv",
     )
     st.caption(
         "Measured columns: Capacitance_uF, ESR_ohm, Leakage_uA, "
-        "Case_Expansion_um. Optional: environmental, electrical, and ESR test conditions. "
+        "Case_Expansion_um, H2_Generated_mL_STP, Pressure_Abs_kPa. "
+        "The final two channels are optional DIRECT measurements: H₂ must be cumulative volume at 0°C/1 atm; pressure must be absolute kPa, not gauge. "
+        "Optional: environmental, electrical, and ESR test conditions. "
         "Units must match the column names; do not upload normalized GRU features as raw measurements."
     )
     upload_real = st.file_uploader(
@@ -116,7 +118,7 @@ if workflow == "Experimental measurements (v0.7)":
     metrics[1].metric("Measurement rows", f"{len(readings):,}")
     metrics[2].metric("Measured channels", str(sum(
         c in uploaded_frame and uploaded_frame[c].notna().any()
-        for c in ("Capacitance_uF", "ESR_ohm", "Leakage_uA", "Case_Expansion_um")
+        for c in ("Capacitance_uF", "ESR_ohm", "Leakage_uA", "Case_Expansion_um", "H2_Generated_mL_STP", "Pressure_Abs_kPa")
     )))
     st.success("Basic data checks passed. This does not establish measurement validity or real-world reliability.")
     for warning in warnings:
@@ -174,8 +176,26 @@ if workflow == "Experimental measurements (v0.7)":
                         f"Missing / unavailable at {preview} h"
                         + (" (more omitted)" if len(missing_hours) > 12 else "")
                     )
+    # Two additional measured channels. Missing channels remain missing;
+    # no assumed physics output is passed off as sensor data.
+    present_measured_gas = [
+        ("H2_Generated_mL_STP", "Measured H₂ generation (mL at 0°C, 1 atm)"),
+        ("Pressure_Abs_kPa", "Measured internal absolute pressure (kPa)"),
+    ]
+    if any(col in cap_rows and cap_rows[col].notna().any() for col, _ in present_measured_gas):
+        st.markdown("**Additional directly measured indicators (if recorded)**")
+        mleft, mright = st.columns(2)
+        for place, (column, label) in zip((mleft, mright), present_measured_gas):
+            with place:
+                st.markdown(f"**{label}**")
+                if column in cap_rows and cap_rows[column].notna().any():
+                    st.scatter_chart(cap_rows[["Hours", column]].dropna(), x="Hours", y=column, height=240)
+                else:
+                    st.caption("No direct measurements supplied for this channel.")
     with st.expander("View processed measurements"):
         st.dataframe(cap_rows, hide_index=True, use_container_width=True)
+    gas_df = None
+    scenario_params = None
     # v0.8 PREVIEW: optional assumption-based calculation; never treated as a measurement.
     st.subheader("4A · H₂ generation and internal pressure (v0.8 physics preview)")
     st.caption(
@@ -240,6 +260,15 @@ if workflow == "Experimental measurements (v0.7)":
                 "No missing values are invented or interpolated."
             )
         else:
+            scenario_params = {
+                "headspace_ml": float(assumed_headspace),
+                "initial_pressure_abs_kpa": float(assumed_initial_p),
+                "h2_current_fraction": float(assumed_h2_fraction),
+                "retained_fraction": float(assumed_retained),
+                "reference_H2_volume": "0 C, 1 atm",
+                "input_provenance": "Measured leakage-current history; estimated hydrogen and pressure",
+                "model_status": "UNVALIDATED hypothetical physics scenario; NOT directly measured",
+            }
             last = gas_df.iloc[-1]
             indicators = st.columns(3)
             indicators[0].metric(
@@ -284,9 +313,9 @@ if workflow == "Experimental measurements (v0.7)":
                     "readings. η and retention are assumptions, not inferred physical constants."
                 )
             st.info(
-                "This scenario is shown **only on the website** at this step. "
-                "Existing v0.7 CSV/XLSX/PDF assessment downloads stay measurement-only; "
-                "gas/pressure exports will be addressed separately."
+                "This is an **assumption-based estimate**, not measured H₂/pressure. "
+                "When you download a report, the scenario will be included in separately "
+                "labeled columns or sheets/pages, never merged into raw measurements."
             )
 
     st.subheader("5 · Download your assessment")
@@ -300,32 +329,44 @@ if workflow == "Experimental measurements (v0.7)":
         key="caplife_report_format_v07",
     )
     if chosen_format == "CSV (.csv)":
-        st.caption("One row per capacitor with observed changes and data-readiness results. For full measurement histories, use Excel or the advanced CSV bundle.")
-        output_bytes = csv_report_bytes(real_report, audit)
+        st.caption("One row per capacitor with measured changes; estimated gas/pressure summary columns are added ONLY if the optional physics scenario was enabled. For full histories, use Excel or the advanced CSV bundle.")
+        output_bytes = csv_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params)
         extension = "csv"
         mime_type = "text/csv"
     elif chosen_format == "Excel (.xlsx)":
-        st.caption("Complete multi-sheet assessment, raw measurement histories, and four charts for the capacitor selected above.")
-        output_bytes = xlsx_report_bytes(real_report, audit, cap_choice)
+        st.caption("Multi-sheet assessment, measured histories and up to six observed-indicator charts. If enabled, physics estimates appear on separately labeled sheets.")
+        output_bytes = xlsx_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params)
         extension = "xlsx"
         mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     else:
-        st.caption("Printable research report: all-capacitor summary plus four observed-degradation plots for the capacitor selected above.")
-        output_bytes = pdf_report_bytes(real_report, audit, cap_choice)
+        st.caption("Printable research report with observed data and optional separately labeled physics scenario page.")
+        output_bytes = pdf_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params)
         extension = "pdf"
         mime_type = "application/pdf"
     st.download_button(
         f"Download {chosen_format} assessment",
         data=output_bytes,
-        file_name=f"CapLife_AI_v0_7_Assessment.{extension}",
+        file_name=f"CapLife_AI_v0_8_Assessment.{extension}",
         mime=mime_type,
         type="primary",
     )
     with st.expander("Advanced: download every assessment table as separate CSV files (ZIP)"):
+        original_zip = assessment_zip_with_readiness_bytes(real_report, audit)
+        if gas_df is not None:
+            # Add explicitly named assumption-based files without altering the
+            # existing measured and audit CSVs or inventing readings.
+            from zipfile import ZIP_DEFLATED, ZipFile
+            with BytesIO() as new_zip_buf:
+                with ZipFile(BytesIO(original_zip), "r") as original, ZipFile(new_zip_buf, "w", ZIP_DEFLATED) as archive:
+                    for filename in original.namelist():
+                        archive.writestr(filename, original.read(filename))
+                    archive.writestr("hypothetical_H2_pressure_scenario_estimates.csv", gas_df.to_csv(index=False))
+                    archive.writestr("hypothetical_H2_pressure_scenario_assumptions.json", json.dumps(scenario_params, indent=2))
+                original_zip = new_zip_buf.getvalue()
         st.download_button(
             "Download complete CSV package (ZIP)",
-            data=assessment_zip_with_readiness_bytes(real_report, audit),
-            file_name="CapLife_v0_7_Measurement_Readiness.zip",
+            data=original_zip,
+            file_name="CapLife_v0_8_Measurement_and_Physics.zip",
             mime="application/zip",
         )
     st.info(
@@ -335,7 +376,7 @@ if workflow == "Experimental measurements (v0.7)":
         "The uploaded file is processed by the web-app server; check hosting/privacy "
         "policies before submitting confidential experiments."
     )
-    st.caption("CapLife AI v0.7 · descriptive research-data audit only · no neural-network prediction")
+    st.caption("CapLife AI v0.8 · six-indicator observation plus optional hypothetical physics · no real-data neural-network prediction")
     st.stop()
 
 # Previous synthetic RUL page is intentionally preserved below this line.
