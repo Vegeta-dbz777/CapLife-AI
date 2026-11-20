@@ -176,13 +176,45 @@ if workflow == "Experimental measurements (v0.7)":
                     )
     with st.expander("View processed measurements"):
         st.dataframe(cap_rows, hide_index=True, use_container_width=True)
-    st.subheader("5 · Download assessment package")
-    st.download_button(
-        "Download all-capacitor assessment (ZIP)",
-        data=assessment_zip_with_readiness_bytes(real_report, audit),
-        file_name="CapLife_v0_7_Measurement_Readiness.zip",
-        mime="application/zip",
+    st.subheader("5 · Download your assessment")
+    from caplife.report_exports import csv_report_bytes, xlsx_report_bytes, pdf_report_bytes
+
+    chosen_format = st.radio(
+        "Choose one file format",
+        ("CSV (.csv)", "Excel (.xlsx)", "PDF (.pdf)"),
+        horizontal=True,
+        index=1,
+        key="caplife_report_format_v07",
     )
+    if chosen_format == "CSV (.csv)":
+        st.caption("One row per capacitor with observed changes and data-readiness results. For full measurement histories, use Excel or the advanced CSV bundle.")
+        output_bytes = csv_report_bytes(real_report, audit)
+        extension = "csv"
+        mime_type = "text/csv"
+    elif chosen_format == "Excel (.xlsx)":
+        st.caption("Complete multi-sheet assessment, raw measurement histories, and four charts for the capacitor selected above.")
+        output_bytes = xlsx_report_bytes(real_report, audit, cap_choice)
+        extension = "xlsx"
+        mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    else:
+        st.caption("Printable research report: all-capacitor summary plus four observed-degradation plots for the capacitor selected above.")
+        output_bytes = pdf_report_bytes(real_report, audit, cap_choice)
+        extension = "pdf"
+        mime_type = "application/pdf"
+    st.download_button(
+        f"Download {chosen_format} assessment",
+        data=output_bytes,
+        file_name=f"CapLife_AI_v0_7_Assessment.{extension}",
+        mime=mime_type,
+        type="primary",
+    )
+    with st.expander("Advanced: download every assessment table as separate CSV files (ZIP)"):
+        st.download_button(
+            "Download complete CSV package (ZIP)",
+            data=assessment_zip_with_readiness_bytes(real_report, audit),
+            file_name="CapLife_v0_7_Measurement_Readiness.zip",
+            mime="application/zip",
+        )
     st.info(
         "**Limitations:** This mode does not determine health, EOL, RUL, uncertainty "
         "intervals, or maintenance actions. A complete dataset can still have inaccurate "
