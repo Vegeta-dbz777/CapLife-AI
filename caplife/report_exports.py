@@ -1,7 +1,8 @@
 """CapLife AI research-only downloads: CSV, XLSX, and PDF.
 
-All three outputs are generated in memory from the same already-validated v0.8
-experimental report. Never infer EOL, RUL, health, uncertainty, or missing data.
+Exports use the validated descriptive-measurement parser. Optional v0.9 rate
+appendices are descriptive calculations only; never infer EOL, RUL, health,
+uncertainty or fill missing data.
 """
 from __future__ import annotations
 
@@ -117,8 +118,8 @@ def _xlsx_value(value):
     return value
 
 
-def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=None, assumptions=None) -> bytes:
-    """Detailed multi-tab workbook with 4–6 recorded measurement plots."""
+def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=None, assumptions=None, rate_report=None) -> bytes:
+    """Detailed workbook; optional distinct descriptive rate tables and charts."""
     import xlsxwriter
 
     memory = BytesIO()
@@ -138,7 +139,7 @@ def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario
     overview.set_column("A:A", 25)
     overview.set_column("B:M", 15)
     overview.merge_range("A1:M2", "CapLife AI  /  Experimental measurement report", title)
-    overview.merge_range("A3:M3", "Version 0.8 • six-indicator research-only descriptive assessment", banner)
+    overview.merge_range("A3:M3", "v0.9 rates appendix • descriptive measurements only" if rate_report is not None else "Version 0.8 • six-indicator research-only descriptive assessment", banner)
     overview.set_row(0, 22)
     overview.set_row(1, 26)
     overview.write("A5", "CAPACITORS", header)
@@ -168,6 +169,13 @@ def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario
         ("Review Actions", audit["actions"]),
         ("Operating Conditions", audit["conditions"]),
     ]
+    if rate_report is not None:
+        # Append only; the original measurement, audit and scenario sheets remain intact.
+        sheets.extend([
+            ("Rate Summary", rate_report["summary"]),
+            ("Interval Rates", rate_report["intervals"]),
+            ("Rate Acceleration", rate_report["accelerations"]),
+        ])
     for tab, df in sheets:
         sheet = wb.add_worksheet(tab)
         sheet.hide_gridlines(2)
@@ -193,6 +201,50 @@ def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario
                 sheet.set_row(ri, None, None, {"level": 0})
         if len(df) and len(df.columns):
             sheet.autofilter(0, 0, len(df), len(df.columns) - 1)
+
+    if rate_report is not None:
+        from caplife.degradation_rates import CHANNELS
+        # Each chart references the full-precision values in its corresponding
+        # worksheet.  Rows for a given capacitor/indicator are contiguous in the
+        # rate calculator's output.  Never chart hypothetical physics estimates.
+        for chart_tab, data_tab, rows_key, x_key, y_key, suffix in (
+            ("Rate Charts", "Interval Rates", "intervals", "Midpoint_Hour", "Rate_per_hour", "/hour"),
+            ("Acceleration Charts", "Rate Acceleration", "accelerations", "At_Hours", "Acceleration_per_hour2", "/hour^2"),
+        ):
+            plot_sheet = wb.add_worksheet(chart_tab)
+            plot_sheet.hide_gridlines(2)
+            plot_sheet.set_tab_color("#4195A1")
+            plot_sheet.set_column("A:R", 11)
+            plot_sheet.merge_range("A1:R2", f"Observed {chart_tab.lower()}  /  {selected_cap}", title)
+            plot_sheet.merge_range("A3:R3", "DESCRIPTIVE ONLY • adjacent recorded observations • no interpolation, EOL, health score, or RUL", muted)
+            table = rate_report[rows_key].reset_index(drop=True)
+            if len(table):
+                x_col, y_col = table.columns.get_loc(x_key), table.columns.get_loc(y_key)
+                for index, (sensor, label, unit) in enumerate(CHANNELS):
+                    mask = ((table["Cap_ID"].astype(str) == str(selected_cap)) &
+                            (table["Indicator"] == label))
+                    position = np.flatnonzero(mask.to_numpy())
+                    if len(position) == 0:
+                        continue
+                    first, last = int(position[0]) + 1, int(position[-1]) + 1
+                    if len(position) != last - first + 1:
+                        raise ValueError("Rate records must be grouped by capacitor and indicator.")
+                    plot = wb.add_chart({"type": "scatter", "subtype": "marker_only"})
+                    plot.add_series({
+                        "name": label,
+                        "categories": [data_tab, first, x_col, last, x_col],
+                        "values": [data_tab, first, y_col, last, y_col],
+                        "marker": {"type": "circle", "size": 5,
+                                   "border": {"color": blue}, "fill": {"color": blue}},
+                    })
+                    plot.set_title({"name": label})
+                    plot.set_x_axis({"name": "Operating hour", "min": 0})
+                    plot.set_y_axis({"name": f"{unit}{suffix}", "num_font": {"size": 9}})
+                    plot.set_legend({"none": True})
+                    plot.set_chartarea({"border": {"none": True}})
+                    plot.set_size({"width": 530, "height": 286})
+                    plot_sheet.insert_chart(("A5", "J5", "A22", "J22", "A39", "J39")[index], plot)
+            plot_sheet.merge_range("A57:R60", "Derived rates and accelerations are based only on directly recorded adjacent measurements and may reflect operating conditions or measurement error, not aging alone. Missing readings are not bridged, and inconsistent ESR test conditions suppress ESR rates. All input data may be illustrative; no health or RUL prediction.", note_box)
 
     history = report["measurements"].loc[report["measurements"]["Cap_ID"] == selected_cap].sort_values("Hours")
     if history.empty:
@@ -331,7 +383,52 @@ def _trend_png(history: pd.DataFrame) -> bytes:
     return stream.getvalue()
 
 
-def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=None, assumptions=None) -> bytes:
+
+def _rates_png(table: pd.DataFrame, selected_cap: str, *, acceleration: bool) -> bytes:
+    """Six separate unit-aware mini-charts from observed interval calculations."""
+    from matplotlib.figure import Figure
+    from caplife.degradation_rates import CHANNELS
+    from matplotlib.ticker import MaxNLocator
+
+    x_field = "At_Hours" if acceleration else "Midpoint_Hour"
+    y_field = "Acceleration_per_hour2" if acceleration else "Rate_per_hour"
+    suffix = "/h²" if acceleration else "/h"
+    fig = Figure(figsize=(11.7, 4.9), dpi=145, facecolor="white")
+    axes = fig.subplots(3, 2)
+    for ax, (_, name, unit) in zip(axes.flat, CHANNELS):
+        subset = table.loc[(table["Cap_ID"].astype(str) == str(selected_cap)) &
+                           (table["Indicator"] == name)]
+        if len(subset):
+            ax.scatter(subset[x_field], subset[y_field], s=17, color="#24759A", zorder=3)
+            ax.set_xlim(left=0)
+            ax.ticklabel_format(axis="y", style="sci", scilimits=(-3, 3), useMathText=True)
+            ax.yaxis.get_offset_text().set_fontsize(7)
+        else:
+            ax.text(.5, .5, "No valid adjacent readings", transform=ax.transAxes,
+                    ha="center", va="center", fontsize=8, color="#728393")
+        ax.set_title(name.replace(" (directly measured)", ""), fontsize=9.7,
+                     color="#172B45", weight="bold")
+        ax.set_ylabel(f"{unit}{suffix}", fontsize=7.5)
+        ax.set_xlabel("Operating hour", fontsize=7.5)
+        ax.grid(alpha=.22)
+        ax.tick_params(labelsize=7)
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+    fig.subplots_adjust(left=.07, right=.985, top=.94, bottom=.10, hspace=1.00, wspace=.37)
+    stream = BytesIO()
+    fig.savefig(stream, format="png", dpi=145)
+    return stream.getvalue()
+
+
+def _small_rate(value):
+    """Consistent compact representation that preserves tiny nonzero results."""
+    if value is None or pd.isna(value):
+        return "—"
+    return f"{float(value):+.4g}"
+
+
+def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=None, assumptions=None, rate_report=None) -> bytes:
     """Print-ready A4 landscape report. Summary covers all caps, plots selected cap."""
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER
@@ -355,7 +452,7 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=
     styles.add(ParagraphStyle(name="CapSub", parent=styles["Normal"], fontSize=9, textColor=colors.HexColor("#46728A"), spaceAfter=12))
     story = []
     story.append(Paragraph("CapLife AI / Measurement assessment", styles["CapTitle"]))
-    story.append(Paragraph("Experimental measurements (v0.8)  |  Descriptive research report  |  No real-world lifetime prediction", styles["CapSub"]))
+    story.append(Paragraph("Experimental measurements  |  Descriptive v0.9 rates appendix" if rate_report is not None else "Experimental measurements (v0.8)  |  Descriptive research report  |  No real-world lifetime prediction", styles["CapSub"]))
     n_caps = int(report["measurements"]["Cap_ID"].nunique())
     n_rows = len(report["measurements"])
     n_rec = int(sum(report["measurements"][c].notna().any() for c in ("Capacitance_uF", "ESR_ohm", "Leakage_uA", "Case_Expansion_um", "H2_Generated_mL_STP", "Pressure_Abs_kPa") if c in report["measurements"]))
@@ -416,12 +513,13 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=
     actions_for_cap = audit["actions"].loc[audit["actions"]["Cap_ID"] == selected_cap]
     if not actions_for_cap.empty:
         story.append(Paragraph("Research documentation priorities", styles["CapHead"]))
-        for _, action in actions_for_cap.head(5).iterrows():
+        max_pdf_actions = 3 if rate_report is not None else 5
+        for _, action in actions_for_cap.head(max_pdf_actions).iterrows():
             story.append(Paragraph(
                 f"<b>{_pdf_txt(action['Category'])}:</b> {_pdf_txt(action['Recommendation'])}",
                 styles["CapBody"],
             ))
-        if len(actions_for_cap) > 5:
+        if len(actions_for_cap) > max_pdf_actions:
             story.append(Paragraph("Further recommendations are available in the Excel report.", styles["CapBody"]))
     # Keep caveats with the measured chart page to avoid a nearly blank spillover
     # sheet when six channels add extra rows to the overview and quality table.
@@ -498,6 +596,70 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=
         story.append(Image(BytesIO(plot_buf.getvalue()), width=usable_width*.87, height=usable_width*.87*.30, hAlign="CENTER"))
         story.append(Spacer(1, 6))
         story.append(Paragraph("Model limits: Constant retention and headspace volume; leakage is not directly hydrogen-producing current. No diffusion kinetics, gas dissolution, venting, or validated internal-gas calibration. Keep these estimates separate from direct measurements.", styles["CapBody"]))
+
+    if rate_report is not None:
+        selected_summary = rate_report["summary"].loc[
+            rate_report["summary"]["Cap_ID"].astype(str) == str(selected_cap)]
+        story.append(PageBreak())
+        story.append(Paragraph(f"Observed degradation rates / {_pdf_txt(selected_cap)}", styles["CapTitle"]))
+        story.append(Paragraph(
+            "v0.9 descriptive appendix | Measured adjacent points only | No extrapolated lifespan, EOL, or health classification",
+            styles["CapSub"],
+        ))
+        labels = ["Indicator", "Unit", "Readings", "Intervals", "Accel.",
+                  "Average rate/h", "Latest rate/h", "Latest accel./h²"]
+        rate_rows = [[Paragraph(_pdf_txt(x), styles["CapBold"]) for x in labels]]
+        for _, r in selected_summary.iterrows():
+            rate_rows.append([
+                Paragraph(_pdf_txt(str(r["Indicator"]).replace(" (directly measured)", "")), styles["CapCell"]),
+                Paragraph(_pdf_txt(r["Unit"]), styles["CapCell"]),
+                str(int(r["Available_readings"])), str(int(r["Valid_intervals"])),
+                str(int(r["Valid_accelerations"])), _small_rate(r["Time_weighted_rate_per_hour"]),
+                _small_rate(r["Latest_rate_per_hour"]), _small_rate(r["Latest_acceleration_per_hour2"]),
+            ])
+        rate_table = Table(rate_rows, colWidths=[171, 65, 54, 48, 47, 114, 116, usable_width-615],
+                           repeatRows=1, hAlign="LEFT")
+        rate_table.setStyle(TableStyle([
+            ("BACKGROUND", (0,0),(-1,0), colors.HexColor("#D9EAF3")),
+            ("ROWBACKGROUNDS", (0,1),(-1,-1),[colors.white, colors.HexColor("#F5F8FB")]),
+            ("FONTSIZE", (0,1),(-1,-1), 8),
+            ("VALIGN", (0,0),(-1,-1), "MIDDLE"),
+            ("TOPPADDING", (0,0),(-1,-1), 5),
+            ("BOTTOMPADDING", (0,0),(-1,-1), 5),
+        ]))
+        story.append(rate_table)
+        story.append(Spacer(1, 5))
+        story.append(Paragraph("Observed interval rates (one dot per valid measurement interval)", styles["CapHead"]))
+        chart = _rates_png(rate_report["intervals"], selected_cap, acceleration=False)
+        story.append(Image(BytesIO(chart), width=usable_width * .78,
+                           height=usable_width * .78 * 4.9 / 11.7, hAlign="CENTER"))
+        # Avoid orphaning a short caveat on a separate PDF page; the appendix
+        # subtitle and the next page already explain these limitations.
+        story.append(PageBreak())
+        story.append(Paragraph(f"Rate acceleration / {_pdf_txt(selected_cap)}", styles["CapTitle"]))
+        story.append(Paragraph(
+            "Change of consecutive observed rates divided by the separation between interval midpoints; "
+            "units are indicator per hour squared.", styles["CapSub"],
+        ))
+        acceleration_img = _rates_png(rate_report["accelerations"], selected_cap, acceleration=True)
+        story.append(Image(BytesIO(acceleration_img), width=usable_width * .90,
+                           height=usable_width * .90 * 4.9 / 11.7, hAlign="CENTER"))
+        story.append(Spacer(1, 10))
+        story.append(Paragraph("Interpretation and limitations", styles["CapHead"]))
+        story.append(Paragraph(
+            "A positive acceleration means the measured change rate became more positive; "
+            "a negative acceleration means it became more negative. Neither sign alone means "
+            "that a capacitor has failed, recovered, or reached a maintenance threshold. "
+            "No missing-value bridging, smoothing, future forecasting, or RUL is performed.",
+            styles["CapBody"],
+        ))
+        selected_warnings = [w for w in rate_report.get("warnings", [])
+                             if str(w).startswith(str(selected_cap) + ":")]
+        if selected_warnings:
+            story.append(Spacer(1, 8))
+            story.append(Paragraph("Data qualification", styles["CapHead"]))
+            for warning in selected_warnings[:3]:
+                story.append(Paragraph(_pdf_txt(warning), styles["CapBody"]))
 
     def footer(canvas, document):
         canvas.saveState()
