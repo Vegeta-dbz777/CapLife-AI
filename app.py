@@ -411,8 +411,8 @@ if workflow == "Experimental measurements (v0.8)":
         "alone is not a failure or health classification."
     )
     st.caption(
-        "This experimental v0.9 preview is additional to the verified v0.8 "
-        "CSV/Excel/PDF assessment exports below, which remain unchanged. "
+        "This v0.9 preview adds descriptive rates to the Excel/PDF downloads. "
+        "CSV measured histories remain unchanged; the separate rate CSV is above. "
         "Rates have not been validated for health inference."
     )
 
@@ -451,15 +451,15 @@ if workflow == "Experimental measurements (v0.8)":
         extension = "csv"
         mime_type = "text/csv"
     elif chosen_format == "Excel (.xlsx)":
-        st.caption("Multi-sheet assessment, measured histories and up to six observed-indicator charts. If enabled, physics estimates appear on separately labeled sheets.")
-        output_bytes = xlsx_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params)
-        export_basename = "CapLife_AI_v0_8_Assessment"
+        st.caption("Includes measured histories, six-indicator rate/acceleration tables and separate charts; optional physics estimates remain separately labeled.")
+        output_bytes = xlsx_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params, rate_report=rate_report)
+        export_basename = "CapLife_AI_v0_9_Assessment"
         extension = "xlsx"
         mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     else:
-        st.caption("Printable research report with observed data and optional separately labeled physics scenario page.")
-        output_bytes = pdf_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params)
-        export_basename = "CapLife_AI_v0_8_Assessment"
+        st.caption("Includes descriptive rate and acceleration appendices for the selected capacitor, plus optional separately labeled physics scenario.")
+        output_bytes = pdf_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params, rate_report=rate_report)
+        export_basename = "CapLife_AI_v0_9_Assessment"
         extension = "pdf"
         mime_type = "application/pdf"
     st.download_button(
