@@ -176,6 +176,119 @@ if workflow == "Experimental measurements (v0.7)":
                     )
     with st.expander("View processed measurements"):
         st.dataframe(cap_rows, hide_index=True, use_container_width=True)
+    # v0.8 PREVIEW: optional assumption-based calculation; never treated as a measurement.
+    st.subheader("4A · H₂ generation and internal pressure (v0.8 physics preview)")
+    st.caption(
+        "Explore how **assumed** hydrogen production from a fraction of measured leakage "
+        "current could change gas quantity and internal pressure over the recorded history. "
+        "This is **not** a pressure measurement, vent-opening model, EOL assessment, or RUL prediction."
+    )
+    show_gas_preview = st.checkbox(
+        "Enable assumption-based H₂ / pressure scenario",
+        value=False,
+        key="caplife_gas_scenario_v08",
+    )
+    if show_gas_preview:
+        from caplife.gas_pressure import (
+            GasPressureInputError, calculate_h2_pressure_history,
+        )
+        with st.expander("Physics assumptions — please review before interpreting", expanded=True):
+            st.write(
+                "**Leakage current is not equivalent to hydrogen-generation current.** "
+                "This preview uses a user-selected assumed fraction of leakage current; "
+                "it then assumes a fixed fraction of generated hydrogen stays in the gas space. "
+                "Core_C is used as an assumed gas-temperature proxy. The gas is ideal and the gas space is fixed; the model does not describe "
+                "electrolyte vapor, diffusion, dissolution, venting, swelling, or actual gas chemistry. "
+                "Values shown are a *scenario*, not experimentally validated quantities."
+            )
+            scenario_left, scenario_right = st.columns(2)
+            with scenario_left:
+                assumed_headspace = st.number_input(
+                    "Assumed internal free-gas volume (mL)",
+                    min_value=0.01, value=5.0, step=0.5,
+                    key="caplife_gas_space_ml_v08",
+                )
+                assumed_h2_fraction = st.slider(
+                    "Assumed fraction of leakage current producing H₂",
+                    0.0, 1.0, 0.10, 0.05,
+                    key="caplife_gas_h2_fraction_v08",
+                )
+            with scenario_right:
+                assumed_initial_p = st.number_input(
+                    "Assumed initial absolute pressure (kPa; NOT gauge)",
+                    min_value=0.01, value=101.325, step=1.0,
+                    key="caplife_gas_initial_p_v08",
+                )
+                assumed_retained = st.slider(
+                    "Assumed fraction of formed H₂ retained in gas space",
+                    0.0, 1.0, 0.50, 0.05,
+                    key="caplife_gas_retention_v08",
+                )
+        try:
+            gas_df = calculate_h2_pressure_history(
+                cap_rows,
+                headspace_ml=assumed_headspace,
+                initial_pressure_abs_kpa=assumed_initial_p,
+                h2_current_fraction=assumed_h2_fraction,
+                retained_fraction=assumed_retained,
+            )
+        except GasPressureInputError as exc:
+            st.info(f"Gas/pressure scenario unavailable for this capacitor: {exc}")
+            st.caption(
+                "For this first preview, the selected capacitor must have a 0-hour reading "
+                "and complete Leakage_uA and Core_C readings at each recorded time. "
+                "No missing values are invented or interpolated."
+            )
+        else:
+            last = gas_df.iloc[-1]
+            indicators = st.columns(3)
+            indicators[0].metric(
+                "Calculated H₂ formed (STP equivalent)",
+                f"{last['H2_Generated_mL_STP_est']:.3g} mL",
+            )
+            indicators[1].metric(
+                "Calculated pressure (absolute)",
+                f"{last['Pressure_Abs_kPa_est']:.1f} kPa",
+            )
+            indicators[2].metric(
+                "Calculated pressure change from initial",
+                f"{last['Pressure_Change_From_Initial_kPa_est']:+.1f} kPa",
+            )
+            st.caption(
+                "H₂ volume is expressed at 0°C and 1 atm. The pressure model uses the "
+                "assumed physical headspace, not the STP gas volume. Thermal pressure "
+                "changes of the initial gas are included. Positive pressure change is "
+                "not necessarily only caused by H₂."
+            )
+            chart_left, chart_right = st.columns(2)
+            with chart_left:
+                st.markdown("**Calculated H₂ formed and retained over time (mmol)**")
+                st.line_chart(
+                    gas_df.set_index("Hours")[[
+                        "H2_Generated_mmol_est", "H2_Retained_mmol_est"
+                    ]], height=260,
+                )
+            with chart_right:
+                st.markdown("**Calculated internal pressure over time (absolute kPa)**")
+                st.line_chart(
+                    gas_df.set_index("Hours")["Pressure_Abs_kPa_est"],
+                    height=260,
+                )
+            with st.expander("Inspect calculation table and equations"):
+                st.dataframe(gas_df, hide_index=True, use_container_width=True)
+                st.latex(r"Q(t) = \int_0^t I_{\rm leakage}(\tau) \, d\tau")
+                st.latex(r"n_{H_2,\rm generated}(t) = \eta \frac{Q(t)}{2F}")
+                st.latex(r"P_{\rm abs}(t) = P_0\frac{T(t)}{T_0} + \frac{n_{H_2,\rm retained}(t) R T(t)}{V_{\rm headspace}}")
+                st.caption(
+                    "The integral uses trapezoidal approximation between observed leakage "
+                    "readings. η and retention are assumptions, not inferred physical constants."
+                )
+            st.info(
+                "This scenario is shown **only on the website** at this step. "
+                "Existing v0.7 CSV/XLSX/PDF assessment downloads stay measurement-only; "
+                "gas/pressure exports will be addressed separately."
+            )
+
     st.subheader("5 · Download your assessment")
     from caplife.report_exports import csv_report_bytes, xlsx_report_bytes, pdf_report_bytes
 
