@@ -1,4 +1,4 @@
-"""Descriptive assessment of uploaded AEC measurements (CapLife AI v0.7).
+"""Descriptive assessment of uploaded AEC measurements (CapLife AI v0.8).
 
 Does not call GRU inference, compute RUL, apply EOL thresholds, or fabricate data.
 Compatible with pandas and numpy versions in the existing CapLife AI project.
@@ -16,11 +16,14 @@ MEASUREMENTS = {
     "ESR_ohm": ("ESR", "Ω"),
     "Leakage_uA": ("Leakage current", "µA"),
     "Case_Expansion_um": ("Case expansion", "µm"),
+    "H2_Generated_mL_STP": ("H₂ generated (measured)", "mL at 0°C, 1 atm"),
+    "Pressure_Abs_kPa": ("Internal pressure (measured)", "kPa absolute"),
 }
 OPTIONAL_COLUMNS = (
     "Capacitance_uF", "ESR_ohm", "Leakage_uA", "Ambient_C",
     "Core_C", "Voltage_V", "Rated_V", "Ripple_A", "Ripple_Hz",
     "ESR_Test_Hz", "ESR_Test_Temp_C", "Case_Expansion_um",
+    "H2_Generated_mL_STP", "Pressure_Abs_kPa",
 )
 TEMPLATE_COLUMNS = (*REQUIRED_COLUMNS, *OPTIONAL_COLUMNS)
 RATIO_COLUMNS = {
@@ -70,7 +73,7 @@ def validate_real_measurements(raw: pd.DataFrame) -> pd.DataFrame:
     if missing:
         raise RealDataValidationError("Missing required column(s): " + ", ".join(missing))
     if not any(col in raw for col in MEASUREMENTS):
-        raise RealDataValidationError("Supply at least one measured degradation indicator (C, ESR, leakage, or expansion).")
+        raise RealDataValidationError("Supply at least one measured degradation indicator (C, ESR, leakage, expansion, H2, or pressure).")
 
     # Drop unrecognized and user-supplied derived columns to avoid exporting
     # untrusted spreadsheet formulas or relying on precomputed ratios.
@@ -89,8 +92,8 @@ def validate_real_measurements(raw: pd.DataFrame) -> pd.DataFrame:
     if df["Hours"].isna().any() or (df["Hours"] < 0).any():
         raise RealDataValidationError("Hours must be present and nonnegative for every row.")
 
-    positive = ("Capacitance_uF", "ESR_ohm", "Rated_V", "ESR_Test_Hz", "Ripple_Hz")
-    nonnegative = ("Leakage_uA", "Ripple_A", "Voltage_V")
+    positive = ("Capacitance_uF", "ESR_ohm", "Rated_V", "ESR_Test_Hz", "Ripple_Hz", "Pressure_Abs_kPa")
+    nonnegative = ("Leakage_uA", "Ripple_A", "Voltage_V", "H2_Generated_mL_STP")
     for col in positive:
         if col in df and df[col].notna().any() and (df[col].dropna() <= 0).any():
             raise RealDataValidationError(f"{col} must be positive when provided.")
@@ -183,6 +186,7 @@ def assess_real_measurements(raw: pd.DataFrame) -> dict:
                 "Unit": unit, "First_Hour": np.nan, "Last_Hour": np.nan,
                 "First_Value": np.nan, "Last_Value": np.nan,
                 "Observed_Change_percent": np.nan, "Observed_Change_um": np.nan,
+                "Observed_Change_mL_STP": np.nan, "Observed_Change_kPa": np.nan,
                 "Status": "Not available",
             }
             if available < 2:
@@ -207,6 +211,12 @@ def assess_real_measurements(raw: pd.DataFrame) -> dict:
             if col == "Case_Expansion_um":
                 change["Observed_Change_um"] = float(last[col] - baseline)
                 change["Status"] = "Observed expansion change only (not EOL)"
+            elif col == "H2_Generated_mL_STP":
+                change["Observed_Change_mL_STP"] = float(last[col] - baseline)
+                change["Status"] = "Measured H₂ change only (not EOL)"
+            elif col == "Pressure_Abs_kPa":
+                change["Observed_Change_kPa"] = float(last[col] - baseline)
+                change["Status"] = "Measured absolute pressure change only (not EOL)"
             elif col == "ESR_ohm" and esr_state == "inconsistent":
                 change["Status"] = "Incomparable ESR test conditions; change withheld"
             elif baseline <= 0:
@@ -223,6 +233,11 @@ def assess_real_measurements(raw: pd.DataFrame) -> dict:
                 )
             change_rows.append(change)
 
+    # Measured gas values are never substituted with physics-derived estimates.
+    if "H2_Generated_mL_STP" in df and df["H2_Generated_mL_STP"].notna().any():
+        warnings.append("H₂ input is interpreted as cumulative generated hydrogen in mL at 0°C and 1 atm; verify measurement method and gas reference conditions.")
+    if "Pressure_Abs_kPa" in df and df["Pressure_Abs_kPa"].notna().any():
+        warnings.append("Pressure input is interpreted as absolute kPa (not gauge); verify reference pressure and sensor calibration.")
     return {
         "measurements": df,
         "quality": pd.DataFrame(quality_rows),
@@ -250,7 +265,7 @@ def assessment_zip_bytes(result: dict) -> bytes:
             ("measurement_quality.csv", "quality"),
             ("observed_degradation.csv", "changes"),
         ):
-            archive.writestr(filename, result[key].to_csv(index=False).encode("utf-8-sig"))
+            archive.writestr(filename, result[key].to_csv(index=False))
         archive.writestr("README.txt", readme)
         if result["warnings"]:
             archive.writestr("measurement_warnings.txt", "\n".join(result["warnings"]) + "\n")
