@@ -318,6 +318,104 @@ if workflow == "Experimental measurements (v0.8)":
                 "labeled columns or sheets/pages, never merged into raw measurements."
             )
 
+    # v0.9: descriptive rates from six direct measurement channels only.
+    # This module NEVER consumes hypothetical H2 / pressure scenario outputs.
+    from caplife.degradation_rates import calculate_degradation_rates
+    st.subheader("4B · Six-indicator degradation rates (v0.9 preview)")
+    st.caption(
+        "Rate = observed change divided by elapsed hours. Acceleration = change in "
+        "successive interval rates divided by elapsed midpoint time. Both use "
+        "measured points only: missing readings are never filled or bridged. "
+        "No health score, failure threshold, RUL, or forecasting is calculated."
+    )
+    rate_report = calculate_degradation_rates(readings)
+    rate_summary = rate_report["summary"].loc[
+        lambda df: df["Cap_ID"] == cap_choice
+    ]
+    # Display very small accelerations in scientific notation without
+    # incorrectly rounding a nonzero value to zero.
+    rate_summary_display = rate_summary.copy()
+    for numeric_column in (
+        "Time_weighted_rate_per_hour", "Latest_rate_per_hour",
+        "Latest_acceleration_per_hour2",
+    ):
+        rate_summary_display[numeric_column] = rate_summary_display[numeric_column].map(
+            lambda value: "—" if pd.isna(value) else f"{value:+.5g}"
+        )
+    st.dataframe(rate_summary_display, hide_index=True, use_container_width=True)
+    for warning in rate_report["warnings"]:
+        if str(cap_choice) in warning:
+            st.warning(warning)
+    with st.expander("View interval-by-interval rates for all six indicators", expanded=False):
+        rate_rows = rate_report["intervals"].loc[
+            lambda df: df["Cap_ID"] == cap_choice
+        ]
+        two_cols = st.columns(2)
+        for chart_idx, (_, display_name, unit) in enumerate((
+            ("Capacitance_uF", "Capacitance", "µF"),
+            ("ESR_ohm", "ESR", "Ω"),
+            ("Leakage_uA", "Leakage current", "µA"),
+            ("Case_Expansion_um", "Case expansion", "µm"),
+            ("H2_Generated_mL_STP", "H₂ generated (directly measured)", "mL STP"),
+            ("Pressure_Abs_kPa", "Internal absolute pressure (directly measured)", "kPa absolute"),
+        )):
+            with two_cols[chart_idx % 2]:
+                st.markdown(f"**{display_name}: {unit}/h**")
+                present = rate_rows.loc[rate_rows["Indicator"] == display_name]
+                if present.empty:
+                    st.caption("Insufficient adjacent comparable measurements.")
+                else:
+                    st.scatter_chart(
+                        present[["Midpoint_Hour", "Rate_per_hour"]],
+                        x="Midpoint_Hour", y="Rate_per_hour", height=220,
+                    )
+        st.caption(
+            "Dots represent rates between adjacent recorded timestamps, plotted at "
+            "interval midpoints. They are NOT continuously measured rates. "
+            "Each graph uses its own units and scale."
+        )
+        st.dataframe(rate_rows.round(10), hide_index=True, use_container_width=True)
+    with st.expander("Inspect rate acceleration calculations", expanded=False):
+        accel_rows = rate_report["accelerations"].loc[
+            lambda df: df["Cap_ID"] == cap_choice
+        ]
+        st.caption(
+            "Acceleration here means a change in *measurement rate*, not mechanical "
+            "acceleration. It requires three consecutive nonmissing readings "
+            "and has units of indicator per hour squared. Negative capacitance "
+            "acceleration can indicate faster loss, but neither sign is a health verdict."
+        )
+        if accel_rows.empty:
+            st.info("No comparable three-point sequences are available for this capacitor.")
+        else:
+            chosen_indicator = st.selectbox(
+                "Indicator for rate-acceleration chart",
+                sorted(accel_rows["Indicator"].unique()),
+                key="caplife_v09_accel_indicator",
+            )
+            accel_subset = accel_rows.loc[accel_rows["Indicator"] == chosen_indicator]
+            st.scatter_chart(
+                accel_subset[["At_Hours", "Acceleration_per_hour2"]],
+                x="At_Hours", y="Acceleration_per_hour2", height=250,
+            )
+            st.dataframe(accel_rows.round(12), hide_index=True, use_container_width=True)
+    st.download_button(
+        "Download observed interval-rate table (CSV)",
+        data=rate_report["intervals"].to_csv(index=False).encode("utf-8-sig"),
+        file_name="CapLife_v0_9_Observed_Interval_Rates.csv", mime="text/csv",
+        key="caplife_v09_rate_csv",
+    )
+    st.caption(
+        "Rates and changes may reflect ambient/core temperature, voltage, load, "
+        "measurement methods, or test conditions—not only aging. A slope sign "
+        "alone is not a failure or health classification."
+    )
+    st.caption(
+        "This experimental v0.9 preview is additional to the verified v0.8 "
+        "CSV/Excel/PDF assessment exports below, which remain unchanged. "
+        "Rates have not been validated for health inference."
+    )
+
     st.subheader("5 · Download your assessment")
     from caplife.report_exports import csv_report_bytes, csv_measurement_history_bytes, xlsx_report_bytes, pdf_report_bytes
 
