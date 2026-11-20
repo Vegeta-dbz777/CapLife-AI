@@ -319,7 +319,7 @@ if workflow == "Experimental measurements (v0.8)":
             )
 
     st.subheader("5 · Download your assessment")
-    from caplife.report_exports import csv_report_bytes, xlsx_report_bytes, pdf_report_bytes
+    from caplife.report_exports import csv_report_bytes, csv_measurement_history_bytes, xlsx_report_bytes, pdf_report_bytes
 
     chosen_format = st.radio(
         "Choose one file format",
@@ -329,24 +329,45 @@ if workflow == "Experimental measurements (v0.8)":
         key="caplife_report_format_v07",
     )
     if chosen_format == "CSV (.csv)":
-        st.caption("One row per capacitor with measured changes; estimated gas/pressure summary columns are added ONLY if the optional physics scenario was enabled. For full histories, use Excel or the advanced CSV bundle.")
-        output_bytes = csv_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params)
+        csv_content = st.radio(
+            "What should the CSV contain?",
+            ("Complete measured history (all capacitors)", "Per-capacitor assessment summary"),
+            horizontal=True,
+            key="caplife_csv_content_v08",
+        )
+        if csv_content.startswith("Complete measured history"):
+            st.caption(
+                "Every recorded measurement row, including all available six indicators "
+                "and their baseline-normalized ratios. Physics scenario estimates are "
+                "never mixed into the measured history."
+            )
+            output_bytes = csv_measurement_history_bytes(real_report)
+            export_basename = "CapLife_AI_v0_8_Measured_History"
+        else:
+            st.caption(
+                "One row per capacitor with observed changes. If enabled, assumption-based "
+                "gas/pressure results appear in clearly named estimate columns."
+            )
+            output_bytes = csv_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params)
+            export_basename = "CapLife_AI_v0_8_Assessment_Summary"
         extension = "csv"
         mime_type = "text/csv"
     elif chosen_format == "Excel (.xlsx)":
         st.caption("Multi-sheet assessment, measured histories and up to six observed-indicator charts. If enabled, physics estimates appear on separately labeled sheets.")
         output_bytes = xlsx_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params)
+        export_basename = "CapLife_AI_v0_8_Assessment"
         extension = "xlsx"
         mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     else:
         st.caption("Printable research report with observed data and optional separately labeled physics scenario page.")
         output_bytes = pdf_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params)
+        export_basename = "CapLife_AI_v0_8_Assessment"
         extension = "pdf"
         mime_type = "application/pdf"
     st.download_button(
         f"Download {chosen_format} assessment",
         data=output_bytes,
-        file_name=f"CapLife_AI_v0_8_Assessment.{extension}",
+        file_name=f"{export_basename}.{extension}",
         mime=mime_type,
         type="primary",
     )
