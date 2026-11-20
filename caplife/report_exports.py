@@ -85,9 +85,20 @@ def _csv_safe(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def csv_report_bytes(report: dict, audit: dict, selected_cap=None, gas_scenario=None, assumptions=None) -> bytes:
-    """A plain CSV of per-capacitor results; detailed histories remain in the ZIP/XLSX."""
+    """A plain CSV summary with one row per capacitor; legacy behavior preserved."""
     table = _csv_safe(summary_table(report, audit, selected_cap, gas_scenario, assumptions))
     return table.to_csv(index=False, na_rep="").encode("utf-8-sig")
+
+
+def csv_measurement_history_bytes(report: dict) -> bytes:
+    """A complete CSV of all observed rows for every capacitor.
+
+    Raw measured values and normalized ratios are retained as supplied/derived
+    by the validated measurement pipeline. Hypothetical physics estimates are
+    never appended to this measured-history file.
+    """
+    measured = report["measurements"].sort_values(["Cap_ID", "Hours"], kind="stable")
+    return _csv_safe(measured).to_csv(index=False, na_rep="").encode("utf-8-sig")
 
 
 def _xlsx_value(value):
@@ -145,7 +156,7 @@ def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario
     overview.write("A12", "All-capacitor summary", header)
     overview.merge_range("A13:M14", "The full summary is on the Summary sheet; the Charts sheet shows recorded points for the selected capacitor. None of these outputs is a prognostic result.", muted)
     overview.write("A17", "Limitations", header)
-    overview.merge_range("A18:M21", "Percentage changes require a measured hour-zero baseline. ESR comparisons depend on consistent documented test conditions. Test and operating conditions, sensor calibration, and provenance require independent review. The CSV file contains the flattened summary; the XLSX file contains all detailed tables.", muted)
+    overview.merge_range("A18:M21", "Percentage changes require a measured hour-zero baseline. ESR comparisons depend on consistent documented test conditions. Test and operating conditions, sensor calibration, and provenance require independent review. The CSV download offers either the complete measured history or a per-capacitor summary; the XLSX file contains the detailed tables.", muted)
     overview.freeze_panes(3, 0)
 
     sheets = [
@@ -354,7 +365,8 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=
     story.append(Paragraph("All-capacitor observed changes", styles["CapHead"]))
     summary = summary_table(report, audit, selected_cap, gas_scenario, assumptions)
     headings = ["Capacitor", "Points", "Coverage", "C change", "ESR change", "Leakage", "Expansion", "H2 measured", "Pressure measured", "Readiness"]
-    fixed_widths = [91, 39, 53, 65, 65, 65, 65, 71, 74]
+    # Allow common descriptive IDs to fit on one line while retaining readiness space.
+    fixed_widths = [124, 39, 50, 62, 62, 62, 65, 69, 74]
     widths = fixed_widths + [usable_width - sum(fixed_widths)]
     cells = [[Paragraph(_pdf_txt(x), styles["CapBold"]) for x in headings]]
     for _, r in summary.iterrows():
@@ -423,7 +435,10 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=
     plot_bytes = _trend_png(history)
     from reportlab.lib.utils import ImageReader
     extra_plots = len(_graph_channels_for(history)) > 4
-    plot_width = usable_width * (0.67 if extra_plots else 0.78)
+    # Six measured plots need to share the page with operating conditions and
+    # the research-limitations notice. 0.62 fits all three without orphaning
+    # a single paragraph on a nearly empty extra page.
+    plot_width = usable_width * (0.62 if extra_plots else 0.78)
     plot_img = Image(BytesIO(plot_bytes), width=plot_width, height=plot_width * (7.4 if extra_plots else 5.5) / 11.7, hAlign="CENTER")
     story.append(plot_img)
     story.append(Spacer(1, 4))
