@@ -50,8 +50,10 @@ with st.sidebar:
 if workflow == "Experimental measurements (v0.8)":
     from io import BytesIO
     from caplife.real_data import (
+        REFERENCE_AGE_COLUMNS,
         RealDataValidationError,
         assess_real_measurements,
+        assess_reference_age_measurements,
         blank_template_csv,
     )
     from caplife.readiness import (
@@ -60,28 +62,45 @@ if workflow == "Experimental measurements (v0.8)":
     )
 
     st.subheader("1 · Upload experimental measurements")
-    st.write(
-        "Upload one CSV containing one or multiple capacitor histories. "
-        "Only **Cap_ID** and **Hours** and at least one measured degradation "
-        "indicator are required. Keep unavailable measurements blank."
+    reference_age_format = "Reference-age CSV (ES14 format)"
+    measurement_format = st.radio(
+        "CSV format", ("CapLife measurement template", reference_age_format),
+        horizontal=True, key="caplife_measurement_format",
     )
-    st.download_button(
-        "Download real-data CSV template",
-        data=blank_template_csv(),
-        file_name="CapLife_Real_Data_Template_v0_8.csv",
-        mime="text/csv",
-    )
-    st.caption(
-        "Measured columns: Capacitance_uF, ESR_ohm, Leakage_uA, "
-        "Case_Expansion_um, H2_Generated_mL_STP, Pressure_Abs_kPa. "
-        "The final two channels are optional DIRECT measurements: H₂ must be cumulative volume at 0°C/1 atm; pressure must be absolute kPa, not gauge. "
-        "Optional: environmental, electrical, and ESR test conditions. "
-        "Units must match the column names; do not upload normalized GRU features as raw measurements."
-    )
+    reference_age = measurement_format == reference_age_format
+    if reference_age:
+        st.caption("Required columns: " + ", ".join(REFERENCE_AGE_COLUMNS))
+        st.caption(
+            "In the ES14 sample, Age_h is NASA reference aging time and Resistance_Ohm "
+            "is the real part of impedance measured near 10 kHz."
+        )
+    else:
+        st.write(
+            "Upload one CSV containing one or multiple capacitor histories. "
+            "Only **Cap_ID** and **Hours** and at least one measured degradation "
+            "indicator are required. Keep unavailable measurements blank."
+        )
+        st.download_button(
+            "Download real-data CSV template",
+            data=blank_template_csv(),
+            file_name="CapLife_Real_Data_Template_v0_8.csv",
+            mime="text/csv",
+        )
+        st.caption(
+            "Measured columns: Capacitance_uF, ESR_ohm, Leakage_uA, "
+            "Case_Expansion_um, H2_Generated_mL_STP, Pressure_Abs_kPa. "
+            "The final two channels are optional DIRECT measurements: H₂ must be cumulative volume at 0°C/1 atm; pressure must be absolute kPa, not gauge. "
+            "Optional: environmental, electrical, and ESR test conditions. "
+            "Units must match the column names; do not upload normalized GRU features as raw measurements."
+        )
     upload_real = st.file_uploader(
-        "Upload real-data CSV (8 MB maximum)", type=["csv"], key="caplife_real_csv_v06"
+        "Upload real-data CSV (8 MB maximum)", type=["csv"],
+        key="caplife_reference_age_csv" if reference_age else "caplife_real_csv_v06",
     )
     if upload_real is None:
+        if reference_age:
+            st.info("Upload your reference-age CSV to see one summary and a measured history for each capacitor.")
+            st.stop()
         st.info(
             "Choose a CSV to view measurement completeness, recorded changes, and graphs. "
             "The synthetic GRU is **not** run in this mode."
@@ -101,11 +120,45 @@ if workflow == "Experimental measurements (v0.8)":
         st.error("This prototype accepts at most 8 MB per uploaded file.")
         st.stop()
     try:
-        uploaded_frame = pd.read_csv(BytesIO(upload_real.getvalue()), low_memory=False, dtype={"Cap_ID": str})
-        real_report = assess_real_measurements(uploaded_frame)
+        uploaded_frame = pd.read_csv(
+            BytesIO(upload_real.getvalue()), low_memory=False, dtype={"Cap_ID": str},
+            keep_default_na=not reference_age,
+            float_precision="round_trip" if reference_age else None,
+        )
+        if reference_age:
+            summary, history = assess_reference_age_measurements(uploaded_frame)
+        else:
+            real_report = assess_real_measurements(uploaded_frame)
     except (RealDataValidationError, ValueError, pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeError) as exc:
         st.error(f"Upload could not be assessed: {exc}")
         st.info("Correct the source CSV and upload it again. No values were generated to replace missing readings.")
+        st.stop()
+
+    if reference_age:
+        st.subheader("2 · Measured health summary")
+        total_caps, total_rows = st.columns(2)
+        total_caps.metric("Capacitors", len(summary))
+        total_rows.metric("Measurement rows", f"{len(uploaded_frame):,}")
+        st.caption(
+            "Changes are relative to each capacitor’s earliest recorded age. "
+            "Readings at the same age are summarized by their median."
+        )
+        st.dataframe(summary.round(2), hide_index=True, use_container_width=True)
+        st.download_button(
+            "Download measured-health summary", data=summary.to_csv(index=False),
+            file_name="caplife_measured_health.csv", mime="text/csv",
+        )
+
+        st.subheader("3 · Measured history")
+        cap_choice = st.selectbox("Capacitor ID", summary["Cap_ID"].tolist())
+        cap_rows = history.loc[history["Cap_ID"].eq(cap_choice)].rename(columns={
+            "Age_h": "Reference age (h)",
+            "Capacitance_loss_pct": "Capacitance loss (%)",
+            "Resistance_change_pct": "Resistance change (%)",
+        })
+        for chart, metric in zip(st.columns(2), ("Capacitance loss (%)", "Resistance change (%)")):
+            with chart:
+                st.scatter_chart(cap_rows, x="Reference age (h)", y=metric, height=280)
         st.stop()
 
     readings = real_report["measurements"]

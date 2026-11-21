@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 REQUIRED_COLUMNS = ("Cap_ID", "Hours")
+REFERENCE_AGE_COLUMNS = ("Cap_ID", "Age_h", "Capacitance_uF", "Resistance_Ohm")
 MEASUREMENTS = {
     "Capacitance_uF": ("Capacitance", "µF"),
     "ESR_ohm": ("ESR", "Ω"),
@@ -55,6 +56,58 @@ def _valid_numeric_series(series: pd.Series, column: str) -> pd.Series:
     return parsed.astype(float)
 
 
+def _validate_capacitor_ids(series: pd.Series) -> pd.Series:
+    ids = series.astype("string").str.strip()
+    if ids.isna().any() or ids.eq("").any():
+        raise RealDataValidationError("Cap_ID must not be blank.")
+    # Protect downloaded CSV from spreadsheet formula injection through IDs.
+    if ids.str.startswith(("=", "+", "-", "@"), na=False).any():
+        raise RealDataValidationError("Cap_ID may not begin with =, +, -, or @.")
+    return ids.astype(str)
+
+
+def assess_reference_age_measurements(raw: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Summarize reference-age readings using the median at each recorded age."""
+    if raw.empty:
+        raise RealDataValidationError("The CSV contains no measurement rows.")
+    if len(raw) > 100_000:
+        raise RealDataValidationError("Maximum 100,000 rows per upload in this prototype.")
+    if not isinstance(raw.index, pd.RangeIndex):
+        raise RealDataValidationError("CSV rows must match the header column count.")
+    if raw.columns.duplicated().any():
+        raise RealDataValidationError("Duplicate CSV column headers are not supported.")
+    missing = [column for column in REFERENCE_AGE_COLUMNS if column not in raw]
+    if missing:
+        raise RealDataValidationError("Missing required column(s): " + ", ".join(missing))
+
+    signals = ["Capacitance_uF", "Resistance_Ohm"]
+    measurements = raw.loc[:, list(REFERENCE_AGE_COLUMNS)].copy()
+    measurements["Cap_ID"] = _validate_capacitor_ids(measurements["Cap_ID"])
+    for column in ("Age_h", *signals):
+        measurements[column] = _valid_numeric_series(measurements[column], column)
+        if measurements[column].isna().any():
+            raise RealDataValidationError(f"{column} must be present for every row.")
+    if measurements["Age_h"].lt(0).any():
+        raise RealDataValidationError("Age_h must be nonnegative.")
+    if measurements[signals].le(0).any().any():
+        raise RealDataValidationError("Capacitance and resistance must be positive.")
+
+    history = measurements.groupby(["Cap_ID", "Age_h"], sort=True, as_index=False)[signals].median()
+    by_capacitor = history.groupby("Cap_ID", sort=True)
+    if by_capacitor.size().lt(2).any():
+        raise RealDataValidationError("Each capacitor needs readings at two or more distinct ages.")
+
+    ratios = history[signals] / by_capacitor[signals].transform("first")
+    history["Capacitance_loss_pct"] = 100 * (1 - ratios["Capacitance_uF"])
+    history["Resistance_change_pct"] = 100 * (ratios["Resistance_Ohm"] - 1)
+    metrics = ["Capacitance_loss_pct", "Resistance_change_pct"]
+    summary = history.groupby("Cap_ID", sort=True)[["Age_h", *metrics]].last()
+    summary = summary.rename(columns={"Age_h": "Latest_age_h"})
+    summary.insert(0, "Baseline_age_h", by_capacitor["Age_h"].first())
+    summary["RUL_status"] = "No validated estimate"
+    return summary.reset_index(), history
+
+
 def validate_real_measurements(raw: pd.DataFrame) -> pd.DataFrame:
     """Check identity, timeline, units' numeric formats and physical sign limits.
 
@@ -78,13 +131,7 @@ def validate_real_measurements(raw: pd.DataFrame) -> pd.DataFrame:
     # Drop unrecognized and user-supplied derived columns to avoid exporting
     # untrusted spreadsheet formulas or relying on precomputed ratios.
     df = raw[[c for c in TEMPLATE_COLUMNS if c in raw]].copy()
-    ids = df["Cap_ID"].astype("string").str.strip()
-    if ids.isna().any() or ids.eq("").any():
-        raise RealDataValidationError("Cap_ID must not be blank.")
-    # Protect downloaded CSV from spreadsheet formula injection through IDs.
-    if ids.str.startswith(("=", "+", "-", "@"), na=False).any():
-        raise RealDataValidationError("Cap_ID may not begin with =, +, -, or @.")
-    df["Cap_ID"] = ids.astype(str)
+    df["Cap_ID"] = _validate_capacitor_ids(df["Cap_ID"])
     present = ["Hours", *(c for c in OPTIONAL_COLUMNS if c in df)]
     for col in present:
         df[col] = _valid_numeric_series(df[col], col)
