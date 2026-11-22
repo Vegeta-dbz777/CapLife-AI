@@ -93,3 +93,9 @@ def test_choosing_a_page_in_one_sidebar_list_clears_the_other():
     assert not app.exception
     assert app.sidebar.radio(key=RESEARCH_KEY).value is None
     assert app.header[0].value == "Six-parameter health and remaining-life prediction"
+
+
+def test_csv_format_options_explain_what_each_file_holds():
+    app = open_workspace("Analyze measurements")
+    captions = app.radio(key="caplife_measurement_format").proto.captions
+    assert captions[0].startswith("Up to six parameters") and "NASA" in captions[1]
