@@ -62,7 +62,7 @@ if workflow == "Public-data neural experiment":
         f"capacitance loss within {horizon} hours? Each model learns from one study and is "
         f"tested on capacitors from the other."
     )
-    st.info("The simple trend scored better than the neural network in both study transfers.")
+    st.info("The simple trend scored better than the neural network in both original EOS-2 and PoFINN transfers.")
     study = st.selectbox("Held-out study", list(benchmark["results"]))
     result = benchmark["results"][study]
     predictions = pd.DataFrame(result["predictions"])
@@ -118,7 +118,7 @@ if workflow == "Public-data neural experiment":
             es10_scores = pd.DataFrame(es10["summary"])
             st.write(
                 "Here the models train on both primary studies and are tested on NASA ES10. "
-                "The recorded ES10 histories stayed below the 20% mark. This check can reveal "
+                "The ES10 capacitance readings near 100 Hz stayed below the 20% mark. This check can reveal "
                 "false alerts. Estimating missed crossings requires a cohort with observed crossings."
             )
             st.dataframe(es10_scores[["method", "resolved", "unresolved", "false_alerts", "brier_score"]]
@@ -137,6 +137,27 @@ if workflow == "Public-data neural experiment":
         )
         for name, url in benchmark["sources"].items():
             st.markdown(f"- [{name}]({url})")
+    with st.expander("Extended public-data validation"):
+        validation_bytes = (ARTIFACTS / "release_validation.json").read_bytes()
+        validation = json.loads(validation_bytes)
+        outcomes = validation["scenarios"]["primary"]["held_out"]
+        methods = validation["methods"]
+        rows = [
+            {"Held-out experiment": experiment, "Capacitors in experiment": scores["devices_in_experiment"],
+             "Capacitors with forecasts": scores["capacitors"],
+             "Resolved windows": scores["resolved"],
+             **{methods[method]: entry["brier"] for method, entry in scores["by_method"].items()}}
+            for experiment, scores in outcomes.items()
+        ]
+        st.dataframe(pd.DataFrame(rows).round(3), hide_index=True)
+        st.caption(
+            "The NASA ES10, ES12 and ES14 cohorts were held out together. Lower Brier scores "
+            "mean better forecasts. Each capacitor contributes equal weight to its experiment's score."
+        )
+        st.download_button(
+            "Download extended validation results", validation_bytes,
+            "caplife_release_validation.json", mime="application/json",
+        )
     st.stop()
 
 if workflow == "Public-data forecast benchmark":
@@ -285,6 +306,7 @@ if workflow == "Experimental measurements (v0.8)":
         assess_real_measurements,
         assess_reference_age_measurements,
         blank_template_csv,
+        read_experimental_csv,
     )
     from caplife.readiness import (
         audit_measurement_readiness,
@@ -350,11 +372,7 @@ if workflow == "Experimental measurements (v0.8)":
         st.error("This prototype accepts at most 8 MB per uploaded file.")
         st.stop()
     try:
-        uploaded_frame = pd.read_csv(
-            BytesIO(upload_real.getvalue()), low_memory=False, dtype={"Cap_ID": str},
-            keep_default_na=not reference_age,
-            float_precision="round_trip" if reference_age else None,
-        )
+        uploaded_frame = read_experimental_csv(upload_real.getvalue(), reference_age)
         if reference_age:
             summary, history = assess_reference_age_measurements(uploaded_frame)
         else:
@@ -376,8 +394,10 @@ if workflow == "Experimental measurements (v0.8)":
             status = observed_capacitance_threshold(capacitance_history, threshold)
             st.dataframe(status.round(2), hide_index=True)
             st.caption(
-                "The two ages bracket the first recorded threshold crossing. "
-                "This threshold describes capacitance loss and can differ from the device's service-life criterion."
+                "The last below-threshold reading and the first at or above it bracket the first recorded crossing. "
+                "Confirmation requires two consecutive available readings at or above the threshold. "
+                "A later reading below the threshold reveals a reversal. These are measurements of "
+                "capacitance loss. The device's service-life criterion may differ."
             )
             st.download_button("Download measured threshold status", status.to_csv(index=False),
                                "caplife_observed_threshold.csv", mime="text/csv")

@@ -1,0 +1,4885 @@
+{
+  "sources": {
+    "NASA EOS-2": "https://data.nasa.gov/dataset/capacitor-electrical-stress-2",
+    "PoFINN": "https://github.com/Anurag-Dutta/PoFINN/blob/6fe0fa7dd3df31b2dd62bd148182cb85f19494c7/DATA/data_combined.csv",
+    "NASA ES10/12/14": "https://data.phmsociety.org/nasa/#12-capacitor-electrical-stress"
+  },
+  "methods": {
+    "persistence": "Below-threshold persistence",
+    "trend": "Three-reading linear trend",
+    "robust": "Recent median-slope trend",
+    "calibrated_trend": "Logistic calibration of projected loss",
+    "neural": "Capacitance and rates neural network",
+    "neural_projected": "Projection-based neural network"
+  },
+  "cohort_ages": {
+    "NASA EOS-2": {
+      "devices": 6,
+      "start_h": 0.0,
+      "end_h": 194.0,
+      "first_crossings_h": {
+        "C1": null,
+        "C2": 194.0,
+        "C3": 194.0,
+        "C4": 171.0,
+        "C5": 194.0,
+        "C6": 194.0
+      }
+    },
+    "PoFINN": {
+      "devices": 8,
+      "start_h": 0.0,
+      "end_h": 560.0,
+      "first_crossings_h": {
+        "C1": 142.0,
+        "C2": 238.0,
+        "C3": 334.0,
+        "C4": 238.0,
+        "C5": 238.0,
+        "C6": 118.0,
+        "C7": 238.0,
+        "C8": 190.0
+      }
+    },
+    "NASA ES10": {
+      "devices": 8,
+      "start_h": 0.0,
+      "end_h": 5105.5,
+      "first_crossings_h": {
+        "ES10C1": null,
+        "ES10C2": null,
+        "ES10C3": null,
+        "ES10C4": null,
+        "ES10C5": null,
+        "ES10C6": null,
+        "ES10C7": null,
+        "ES10C8": null
+      }
+    },
+    "NASA ES12": {
+      "devices": 8,
+      "start_h": 0.0,
+      "end_h": 5105.5,
+      "first_crossings_h": {
+        "ES12C1": null,
+        "ES12C2": null,
+        "ES12C3": null,
+        "ES12C4": null,
+        "ES12C5": null,
+        "ES12C6": null,
+        "ES12C7": null,
+        "ES12C8": null
+      }
+    },
+    "NASA ES14": {
+      "devices": 8,
+      "start_h": 0.0,
+      "end_h": 5105.5,
+      "first_crossings_h": {
+        "ES14C1": 23.0,
+        "ES14C2": null,
+        "ES14C3": 317.0,
+        "ES14C4": 38.3333,
+        "ES14C5": 1258.0,
+        "ES14C6": 23.0,
+        "ES14C7": null,
+        "ES14C8": 1341.0
+      }
+    }
+  },
+  "alternative_first_crossings_h": {
+    "NASA ES10": {
+      "ES10C1": null,
+      "ES10C2": null,
+      "ES10C3": null,
+      "ES10C4": null,
+      "ES10C5": null,
+      "ES10C6": 279.0,
+      "ES10C7": null,
+      "ES10C8": null
+    },
+    "NASA ES12": {
+      "ES12C1": 38.3333,
+      "ES12C2": 279.0,
+      "ES12C3": 38.3333,
+      "ES12C4": 23.0,
+      "ES12C5": 23.0,
+      "ES12C6": 23.0,
+      "ES12C7": 23.0,
+      "ES12C8": 23.0
+    },
+    "NASA ES14": {
+      "ES14C1": 23.0,
+      "ES14C2": 23.0,
+      "ES14C3": 23.0,
+      "ES14C4": 23.0,
+      "ES14C5": 105.0,
+      "ES14C6": 23.0,
+      "ES14C7": 23.0,
+      "ES14C8": 23.0
+    }
+  },
+  "scenarios": {
+    "primary": {
+      "horizon_h": 48,
+      "threshold_pct": 20,
+      "two_consecutive_readings": false,
+      "use_fitted_capacitance_in_multivoltage_experiment": false,
+      "equal_experiment_training_weight": false,
+      "held_out": {
+        "NASA EOS-2": {
+          "capacitors": 6,
+          "resolved": 39,
+          "unresolved": 8,
+          "positive_origins": 15,
+          "crossing_devices": 5,
+          "by_method": {
+            "persistence": {
+              "brier": 0.369048,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 15
+            },
+            "trend": {
+              "brier": 0.150794,
+              "true_alerts": 9,
+              "false_alerts": 0,
+              "missed_crossings": 6
+            },
+            "robust": {
+              "brier": 0.174603,
+              "true_alerts": 8,
+              "false_alerts": 0,
+              "missed_crossings": 7
+            },
+            "calibrated_trend": {
+              "brier": 0.252537,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 15
+            },
+            "neural": {
+              "brier": 0.303573,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 15
+            },
+            "neural_projected": {
+              "brier": 0.259779,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 15
+            }
+          },
+          "cohorts": {
+            "NASA EOS-2": {
+              "capacitors": 6,
+              "resolved": 39,
+              "unresolved": 8,
+              "positive_origins": 15,
+              "crossing_devices": 5,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.369048,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15
+                },
+                "trend": {
+                  "brier": 0.150794,
+                  "true_alerts": 9,
+                  "false_alerts": 0,
+                  "missed_crossings": 6
+                },
+                "robust": {
+                  "brier": 0.174603,
+                  "true_alerts": 8,
+                  "false_alerts": 0,
+                  "missed_crossings": 7
+                },
+                "calibrated_trend": {
+                  "brier": 0.252537,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15
+                },
+                "neural": {
+                  "brier": 0.303573,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15
+                },
+                "neural_projected": {
+                  "brier": 0.259779,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 0,
+            "neural_projected": 0
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 35,
+                "devices": 6,
+                "mean_score": 0.052621,
+                "observed_frequency": 0.302632
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 4,
+                "devices": 4,
+                "mean_score": 0.35706,
+                "observed_frequency": 1.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 39,
+                "devices": 6,
+                "mean_score": 0.049405,
+                "observed_frequency": 0.369048
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 35,
+                "devices": 6,
+                "mean_score": 0.039111,
+                "observed_frequency": 0.302632
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 4,
+                "devices": 4,
+                "mean_score": 0.430529,
+                "observed_frequency": 1.0
+              }
+            ]
+          },
+          "devices_in_experiment": 6
+        },
+        "PoFINN": {
+          "capacitors": 8,
+          "resolved": 89,
+          "unresolved": 0,
+          "positive_origins": 16,
+          "crossing_devices": 8,
+          "by_method": {
+            "persistence": {
+              "brier": 0.190923,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            },
+            "trend": {
+              "brier": 0.185714,
+              "true_alerts": 12,
+              "false_alerts": 12,
+              "missed_crossings": 4
+            },
+            "robust": {
+              "brier": 0.309449,
+              "true_alerts": 14,
+              "false_alerts": 22,
+              "missed_crossings": 2
+            },
+            "calibrated_trend": {
+              "brier": 0.158277,
+              "true_alerts": 0,
+              "false_alerts": 3,
+              "missed_crossings": 16
+            },
+            "neural": {
+              "brier": 0.158015,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            },
+            "neural_projected": {
+              "brier": 0.186934,
+              "true_alerts": 0,
+              "false_alerts": 8,
+              "missed_crossings": 16
+            }
+          },
+          "cohorts": {
+            "PoFINN": {
+              "capacitors": 8,
+              "resolved": 89,
+              "unresolved": 0,
+              "positive_origins": 16,
+              "crossing_devices": 8,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.190923,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                },
+                "trend": {
+                  "brier": 0.185714,
+                  "true_alerts": 12,
+                  "false_alerts": 12,
+                  "missed_crossings": 4
+                },
+                "robust": {
+                  "brier": 0.309449,
+                  "true_alerts": 14,
+                  "false_alerts": 22,
+                  "missed_crossings": 2
+                },
+                "calibrated_trend": {
+                  "brier": 0.158277,
+                  "true_alerts": 0,
+                  "false_alerts": 3,
+                  "missed_crossings": 16
+                },
+                "neural": {
+                  "brier": 0.158015,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                },
+                "neural_projected": {
+                  "brier": 0.186934,
+                  "true_alerts": 0,
+                  "false_alerts": 8,
+                  "missed_crossings": 16
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 0,
+            "neural_projected": 0
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 81,
+                "devices": 8,
+                "mean_score": 0.117063,
+                "observed_frequency": 0.19492
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 5,
+                "devices": 5,
+                "mean_score": 0.364097,
+                "observed_frequency": 0.275229
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 3,
+                "devices": 3,
+                "mean_score": 0.547403,
+                "observed_frequency": 0.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 83,
+                "devices": 8,
+                "mean_score": 0.117785,
+                "observed_frequency": 0.207488
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 6,
+                "devices": 5,
+                "mean_score": 0.306505,
+                "observed_frequency": 0.0
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 75,
+                "devices": 8,
+                "mean_score": 0.139609,
+                "observed_frequency": 0.215179
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 6,
+                "devices": 4,
+                "mean_score": 0.305238,
+                "observed_frequency": 0.173841
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 8,
+                "devices": 8,
+                "mean_score": 0.66296,
+                "observed_frequency": 0.0
+              }
+            ]
+          },
+          "devices_in_experiment": 8
+        },
+        "NASA ES10/12/14": {
+          "capacitors": 22,
+          "resolved": 1375,
+          "unresolved": 1,
+          "positive_origins": 8,
+          "crossing_devices": 4,
+          "by_method": {
+            "persistence": {
+              "brier": 0.058228,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 8
+            },
+            "trend": {
+              "brier": 0.068077,
+              "true_alerts": 4,
+              "false_alerts": 81,
+              "missed_crossings": 4
+            },
+            "robust": {
+              "brier": 0.072421,
+              "true_alerts": 3,
+              "false_alerts": 79,
+              "missed_crossings": 5
+            },
+            "calibrated_trend": {
+              "brier": 0.054177,
+              "true_alerts": 1,
+              "false_alerts": 31,
+              "missed_crossings": 7
+            },
+            "neural": {
+              "brier": 0.152638,
+              "true_alerts": 4,
+              "false_alerts": 190,
+              "missed_crossings": 4
+            },
+            "neural_projected": {
+              "brier": 0.153531,
+              "true_alerts": 6,
+              "false_alerts": 354,
+              "missed_crossings": 2
+            }
+          },
+          "cohorts": {
+            "NASA ES10": {
+              "capacitors": 8,
+              "resolved": 552,
+              "unresolved": 0,
+              "positive_origins": 0,
+              "crossing_devices": 0,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.0,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "trend": {
+                  "brier": 0.023551,
+                  "true_alerts": 0,
+                  "false_alerts": 13,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": 0.012681,
+                  "true_alerts": 0,
+                  "false_alerts": 7,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.016204,
+                  "true_alerts": 0,
+                  "false_alerts": 4,
+                  "missed_crossings": 0
+                },
+                "neural": {
+                  "brier": 0.021397,
+                  "true_alerts": 0,
+                  "false_alerts": 11,
+                  "missed_crossings": 0
+                },
+                "neural_projected": {
+                  "brier": 0.014505,
+                  "true_alerts": 0,
+                  "false_alerts": 7,
+                  "missed_crossings": 0
+                }
+              }
+            },
+            "NASA ES12": {
+              "capacitors": 8,
+              "resolved": 552,
+              "unresolved": 0,
+              "positive_origins": 0,
+              "crossing_devices": 0,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.0,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "trend": {
+                  "brier": 0.068841,
+                  "true_alerts": 0,
+                  "false_alerts": 38,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": 0.081522,
+                  "true_alerts": 0,
+                  "false_alerts": 45,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.061204,
+                  "true_alerts": 0,
+                  "false_alerts": 18,
+                  "missed_crossings": 0
+                },
+                "neural": {
+                  "brier": 0.13655,
+                  "true_alerts": 0,
+                  "false_alerts": 78,
+                  "missed_crossings": 0
+                },
+                "neural_projected": {
+                  "brier": 0.200848,
+                  "true_alerts": 0,
+                  "false_alerts": 152,
+                  "missed_crossings": 0
+                }
+              }
+            },
+            "NASA ES14": {
+              "capacitors": 6,
+              "resolved": 271,
+              "unresolved": 1,
+              "positive_origins": 8,
+              "crossing_devices": 4,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.213502,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 8
+                },
+                "trend": {
+                  "brier": 0.126427,
+                  "true_alerts": 4,
+                  "false_alerts": 30,
+                  "missed_crossings": 4
+                },
+                "robust": {
+                  "brier": 0.139941,
+                  "true_alerts": 3,
+                  "false_alerts": 27,
+                  "missed_crossings": 5
+                },
+                "calibrated_trend": {
+                  "brier": 0.095437,
+                  "true_alerts": 1,
+                  "false_alerts": 9,
+                  "missed_crossings": 7
+                },
+                "neural": {
+                  "brier": 0.349076,
+                  "true_alerts": 4,
+                  "false_alerts": 101,
+                  "missed_crossings": 4
+                },
+                "neural_projected": {
+                  "brier": 0.27581,
+                  "true_alerts": 6,
+                  "false_alerts": 195,
+                  "missed_crossings": 2
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 1339,
+            "neural_projected": 18
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 1121,
+                "devices": 21,
+                "mean_score": 0.154852,
+                "observed_frequency": 0.005316
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 222,
+                "devices": 20,
+                "mean_score": 0.307831,
+                "observed_frequency": 0.052012
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 20,
+                "devices": 17,
+                "mean_score": 0.558906,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 12,
+                "devices": 12,
+                "mean_score": 0.937653,
+                "observed_frequency": 0.820845
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 793,
+                "devices": 22,
+                "mean_score": 0.086286,
+                "observed_frequency": 0.079919
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 388,
+                "devices": 16,
+                "mean_score": 0.363805,
+                "observed_frequency": 0.023547
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 157,
+                "devices": 14,
+                "mean_score": 0.601898,
+                "observed_frequency": 0.018909
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 37,
+                "devices": 21,
+                "mean_score": 0.888356,
+                "observed_frequency": 0.119044
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 613,
+                "devices": 12,
+                "mean_score": 0.097741,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 402,
+                "devices": 16,
+                "mean_score": 0.387593,
+                "observed_frequency": 0.014512
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 326,
+                "devices": 19,
+                "mean_score": 0.607932,
+                "observed_frequency": 0.019381
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 34,
+                "devices": 15,
+                "mean_score": 0.843384,
+                "observed_frequency": 0.677903
+              }
+            ]
+          },
+          "devices_in_experiment": 24
+        }
+      }
+    },
+    "shorter_horizon": {
+      "horizon_h": 24,
+      "threshold_pct": 20,
+      "two_consecutive_readings": false,
+      "use_fitted_capacitance_in_multivoltage_experiment": false,
+      "equal_experiment_training_weight": false,
+      "held_out": {
+        "NASA EOS-2": {
+          "capacitors": 6,
+          "resolved": 37,
+          "unresolved": 10,
+          "positive_origins": 6,
+          "crossing_devices": 5,
+          "by_method": {
+            "persistence": {
+              "brier": 0.166667,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 6
+            },
+            "trend": {
+              "brier": 0.027778,
+              "true_alerts": 5,
+              "false_alerts": 0,
+              "missed_crossings": 1
+            },
+            "robust": {
+              "brier": 0.055556,
+              "true_alerts": 4,
+              "false_alerts": 0,
+              "missed_crossings": 2
+            },
+            "calibrated_trend": {
+              "brier": 0.103084,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 6
+            },
+            "neural": {
+              "brier": 0.141657,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 6
+            },
+            "neural_projected": {
+              "brier": 0.105994,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 6
+            }
+          },
+          "cohorts": {
+            "NASA EOS-2": {
+              "capacitors": 6,
+              "resolved": 37,
+              "unresolved": 10,
+              "positive_origins": 6,
+              "crossing_devices": 5,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.166667,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 6
+                },
+                "trend": {
+                  "brier": 0.027778,
+                  "true_alerts": 5,
+                  "false_alerts": 0,
+                  "missed_crossings": 1
+                },
+                "robust": {
+                  "brier": 0.055556,
+                  "true_alerts": 4,
+                  "false_alerts": 0,
+                  "missed_crossings": 2
+                },
+                "calibrated_trend": {
+                  "brier": 0.103084,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 6
+                },
+                "neural": {
+                  "brier": 0.141657,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 6
+                },
+                "neural_projected": {
+                  "brier": 0.105994,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 6
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 0,
+            "neural_projected": 0
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 34,
+                "devices": 6,
+                "mean_score": 0.020575,
+                "observed_frequency": 0.090909
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 3,
+                "devices": 3,
+                "mean_score": 0.312642,
+                "observed_frequency": 1.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 37,
+                "devices": 6,
+                "mean_score": 0.030444,
+                "observed_frequency": 0.166667
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 34,
+                "devices": 6,
+                "mean_score": 0.023845,
+                "observed_frequency": 0.090909
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 3,
+                "devices": 3,
+                "mean_score": 0.320026,
+                "observed_frequency": 1.0
+              }
+            ]
+          },
+          "devices_in_experiment": 6
+        },
+        "PoFINN": {
+          "capacitors": 8,
+          "resolved": 89,
+          "unresolved": 0,
+          "positive_origins": 8,
+          "crossing_devices": 8,
+          "by_method": {
+            "persistence": {
+              "brier": 0.095461,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 8
+            },
+            "trend": {
+              "brier": 0.06942,
+              "true_alerts": 4,
+              "false_alerts": 2,
+              "missed_crossings": 4
+            },
+            "robust": {
+              "brier": 0.072545,
+              "true_alerts": 4,
+              "false_alerts": 2,
+              "missed_crossings": 4
+            },
+            "calibrated_trend": {
+              "brier": 0.075111,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 8
+            },
+            "neural": {
+              "brier": 0.080585,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 8
+            },
+            "neural_projected": {
+              "brier": 0.07301,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 8
+            }
+          },
+          "cohorts": {
+            "PoFINN": {
+              "capacitors": 8,
+              "resolved": 89,
+              "unresolved": 0,
+              "positive_origins": 8,
+              "crossing_devices": 8,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.095461,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 8
+                },
+                "trend": {
+                  "brier": 0.06942,
+                  "true_alerts": 4,
+                  "false_alerts": 2,
+                  "missed_crossings": 4
+                },
+                "robust": {
+                  "brier": 0.072545,
+                  "true_alerts": 4,
+                  "false_alerts": 2,
+                  "missed_crossings": 4
+                },
+                "calibrated_trend": {
+                  "brier": 0.075111,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 8
+                },
+                "neural": {
+                  "brier": 0.080585,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 8
+                },
+                "neural_projected": {
+                  "brier": 0.07301,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 8
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 0,
+            "neural_projected": 0
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 89,
+                "devices": 8,
+                "mean_score": 0.060146,
+                "observed_frequency": 0.095461
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 89,
+                "devices": 8,
+                "mean_score": 0.054203,
+                "observed_frequency": 0.095461
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 89,
+                "devices": 8,
+                "mean_score": 0.054574,
+                "observed_frequency": 0.095461
+              }
+            ]
+          },
+          "devices_in_experiment": 8
+        },
+        "NASA ES10/12/14": {
+          "capacitors": 22,
+          "resolved": 1372,
+          "unresolved": 4,
+          "positive_origins": 4,
+          "crossing_devices": 4,
+          "by_method": {
+            "persistence": {
+              "brier": 0.050519,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 4
+            },
+            "trend": {
+              "brier": 0.043105,
+              "true_alerts": 3,
+              "false_alerts": 54,
+              "missed_crossings": 1
+            },
+            "robust": {
+              "brier": 0.049439,
+              "true_alerts": 2,
+              "false_alerts": 54,
+              "missed_crossings": 2
+            },
+            "calibrated_trend": {
+              "brier": 0.026036,
+              "true_alerts": 1,
+              "false_alerts": 13,
+              "missed_crossings": 3
+            },
+            "neural": {
+              "brier": 0.074915,
+              "true_alerts": 0,
+              "false_alerts": 32,
+              "missed_crossings": 4
+            },
+            "neural_projected": {
+              "brier": 0.041145,
+              "true_alerts": 2,
+              "false_alerts": 39,
+              "missed_crossings": 2
+            }
+          },
+          "cohorts": {
+            "NASA ES10": {
+              "capacitors": 8,
+              "resolved": 552,
+              "unresolved": 0,
+              "positive_origins": 0,
+              "crossing_devices": 0,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.0,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "trend": {
+                  "brier": 0.007246,
+                  "true_alerts": 0,
+                  "false_alerts": 4,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": 0.003623,
+                  "true_alerts": 0,
+                  "false_alerts": 2,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.002556,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "neural": {
+                  "brier": 0.01393,
+                  "true_alerts": 0,
+                  "false_alerts": 10,
+                  "missed_crossings": 0
+                },
+                "neural_projected": {
+                  "brier": 0.001434,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                }
+              }
+            },
+            "NASA ES12": {
+              "capacitors": 8,
+              "resolved": 552,
+              "unresolved": 0,
+              "positive_origins": 0,
+              "crossing_devices": 0,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.0,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "trend": {
+                  "brier": 0.056159,
+                  "true_alerts": 0,
+                  "false_alerts": 31,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": 0.057971,
+                  "true_alerts": 0,
+                  "false_alerts": 32,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.028198,
+                  "true_alerts": 0,
+                  "false_alerts": 8,
+                  "missed_crossings": 0
+                },
+                "neural": {
+                  "brier": 0.034851,
+                  "true_alerts": 0,
+                  "false_alerts": 15,
+                  "missed_crossings": 0
+                },
+                "neural_projected": {
+                  "brier": 0.042621,
+                  "true_alerts": 0,
+                  "false_alerts": 25,
+                  "missed_crossings": 0
+                }
+              }
+            },
+            "NASA ES14": {
+              "capacitors": 6,
+              "resolved": 268,
+              "unresolved": 4,
+              "positive_origins": 4,
+              "crossing_devices": 4,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.185236,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 4
+                },
+                "trend": {
+                  "brier": 0.073511,
+                  "true_alerts": 3,
+                  "false_alerts": 19,
+                  "missed_crossings": 1
+                },
+                "robust": {
+                  "brier": 0.099152,
+                  "true_alerts": 2,
+                  "false_alerts": 20,
+                  "missed_crossings": 2
+                },
+                "calibrated_trend": {
+                  "brier": 0.054461,
+                  "true_alerts": 1,
+                  "false_alerts": 5,
+                  "missed_crossings": 3
+                },
+                "neural": {
+                  "brier": 0.209648,
+                  "true_alerts": 0,
+                  "false_alerts": 7,
+                  "missed_crossings": 4
+                },
+                "neural_projected": {
+                  "brier": 0.092125,
+                  "true_alerts": 2,
+                  "false_alerts": 14,
+                  "missed_crossings": 2
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 1336,
+            "neural_projected": 19
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 1280,
+                "devices": 21,
+                "mean_score": 0.093941,
+                "observed_frequency": 0.000903
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 78,
+                "devices": 19,
+                "mean_score": 0.32934,
+                "observed_frequency": 0.07133
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 11,
+                "devices": 10,
+                "mean_score": 0.640363,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 3,
+                "devices": 3,
+                "mean_score": 0.914006,
+                "observed_frequency": 0.916241
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 1247,
+                "devices": 22,
+                "mean_score": 0.076519,
+                "observed_frequency": 0.0548
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 93,
+                "devices": 12,
+                "mean_score": 0.31659,
+                "observed_frequency": 0.010875
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 9,
+                "devices": 7,
+                "mean_score": 0.579083,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 23,
+                "devices": 20,
+                "mean_score": 0.862136,
+                "observed_frequency": 0.0
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 1167,
+                "devices": 21,
+                "mean_score": 0.082092,
+                "observed_frequency": 0.000998
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 164,
+                "devices": 14,
+                "mean_score": 0.362558,
+                "observed_frequency": 0.028441
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 34,
+                "devices": 13,
+                "mean_score": 0.587245,
+                "observed_frequency": 0.029708
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 7,
+                "devices": 7,
+                "mean_score": 0.828799,
+                "observed_frequency": 0.868174
+              }
+            ]
+          },
+          "devices_in_experiment": 24
+        }
+      }
+    },
+    "longer_horizon": {
+      "horizon_h": 72,
+      "threshold_pct": 20,
+      "two_consecutive_readings": false,
+      "use_fitted_capacitance_in_multivoltage_experiment": false,
+      "equal_experiment_training_weight": false,
+      "held_out": {
+        "NASA EOS-2": {
+          "capacitors": 6,
+          "resolved": 38,
+          "unresolved": 9,
+          "positive_origins": 20,
+          "crossing_devices": 5,
+          "by_method": {
+            "persistence": {
+              "brier": 0.492063,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 20
+            },
+            "trend": {
+              "brier": 0.174603,
+              "true_alerts": 13,
+              "false_alerts": 0,
+              "missed_crossings": 7
+            },
+            "robust": {
+              "brier": 0.22619,
+              "true_alerts": 11,
+              "false_alerts": 0,
+              "missed_crossings": 9
+            },
+            "calibrated_trend": {
+              "brier": 0.33121,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 20
+            },
+            "neural": {
+              "brier": 0.386161,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 20
+            },
+            "neural_projected": {
+              "brier": 0.346485,
+              "true_alerts": 2,
+              "false_alerts": 0,
+              "missed_crossings": 18
+            }
+          },
+          "cohorts": {
+            "NASA EOS-2": {
+              "capacitors": 6,
+              "resolved": 38,
+              "unresolved": 9,
+              "positive_origins": 20,
+              "crossing_devices": 5,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.492063,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 20
+                },
+                "trend": {
+                  "brier": 0.174603,
+                  "true_alerts": 13,
+                  "false_alerts": 0,
+                  "missed_crossings": 7
+                },
+                "robust": {
+                  "brier": 0.22619,
+                  "true_alerts": 11,
+                  "false_alerts": 0,
+                  "missed_crossings": 9
+                },
+                "calibrated_trend": {
+                  "brier": 0.33121,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 20
+                },
+                "neural": {
+                  "brier": 0.386161,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 20
+                },
+                "neural_projected": {
+                  "brier": 0.346485,
+                  "true_alerts": 2,
+                  "false_alerts": 0,
+                  "missed_crossings": 18
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 0,
+            "neural_projected": 0
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 34,
+                "devices": 6,
+                "mean_score": 0.088165,
+                "observed_frequency": 0.438596
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 4,
+                "devices": 4,
+                "mean_score": 0.377307,
+                "observed_frequency": 1.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 35,
+                "devices": 6,
+                "mean_score": 0.055484,
+                "observed_frequency": 0.452991
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 3,
+                "devices": 3,
+                "mean_score": 0.296359,
+                "observed_frequency": 1.0
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 34,
+                "devices": 6,
+                "mean_score": 0.057069,
+                "observed_frequency": 0.438596
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 2,
+                "devices": 2,
+                "mean_score": 0.457697,
+                "observed_frequency": 1.0
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 2,
+                "devices": 2,
+                "mean_score": 0.529802,
+                "observed_frequency": 1.0
+              }
+            ]
+          },
+          "devices_in_experiment": 6
+        },
+        "PoFINN": {
+          "capacitors": 8,
+          "resolved": 88,
+          "unresolved": 1,
+          "positive_origins": 24,
+          "crossing_devices": 8,
+          "by_method": {
+            "persistence": {
+              "brier": 0.295312,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 24
+            },
+            "trend": {
+              "brier": 0.311458,
+              "true_alerts": 22,
+              "false_alerts": 23,
+              "missed_crossings": 2
+            },
+            "robust": {
+              "brier": 0.401042,
+              "true_alerts": 22,
+              "false_alerts": 31,
+              "missed_crossings": 2
+            },
+            "calibrated_trend": {
+              "brier": 0.249177,
+              "true_alerts": 0,
+              "false_alerts": 7,
+              "missed_crossings": 24
+            },
+            "neural": {
+              "brier": 0.244637,
+              "true_alerts": 0,
+              "false_alerts": 2,
+              "missed_crossings": 24
+            },
+            "neural_projected": {
+              "brier": 0.30152,
+              "true_alerts": 0,
+              "false_alerts": 14,
+              "missed_crossings": 24
+            }
+          },
+          "cohorts": {
+            "PoFINN": {
+              "capacitors": 8,
+              "resolved": 88,
+              "unresolved": 1,
+              "positive_origins": 24,
+              "crossing_devices": 8,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.295312,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 24
+                },
+                "trend": {
+                  "brier": 0.311458,
+                  "true_alerts": 22,
+                  "false_alerts": 23,
+                  "missed_crossings": 2
+                },
+                "robust": {
+                  "brier": 0.401042,
+                  "true_alerts": 22,
+                  "false_alerts": 31,
+                  "missed_crossings": 2
+                },
+                "calibrated_trend": {
+                  "brier": 0.249177,
+                  "true_alerts": 0,
+                  "false_alerts": 7,
+                  "missed_crossings": 24
+                },
+                "neural": {
+                  "brier": 0.244637,
+                  "true_alerts": 0,
+                  "false_alerts": 2,
+                  "missed_crossings": 24
+                },
+                "neural_projected": {
+                  "brier": 0.30152,
+                  "true_alerts": 0,
+                  "false_alerts": 14,
+                  "missed_crossings": 24
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 0,
+            "neural_projected": 0
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 78,
+                "devices": 8,
+                "mean_score": 0.158566,
+                "observed_frequency": 0.321364
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 3,
+                "devices": 2,
+                "mean_score": 0.3415,
+                "observed_frequency": 0.375
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 5,
+                "devices": 5,
+                "mean_score": 0.66196,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 2,
+                "devices": 2,
+                "mean_score": 0.770651,
+                "observed_frequency": 0.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 77,
+                "devices": 8,
+                "mean_score": 0.15522,
+                "observed_frequency": 0.342185
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 9,
+                "devices": 6,
+                "mean_score": 0.352781,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 2,
+                "devices": 2,
+                "mean_score": 0.535349,
+                "observed_frequency": 0.0
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 57,
+                "devices": 8,
+                "mean_score": 0.174925,
+                "observed_frequency": 0.361111
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 17,
+                "devices": 7,
+                "mean_score": 0.335841,
+                "observed_frequency": 0.359649
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 7,
+                "devices": 6,
+                "mean_score": 0.593581,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 7,
+                "devices": 7,
+                "mean_score": 0.779989,
+                "observed_frequency": 0.0
+              }
+            ]
+          },
+          "devices_in_experiment": 8
+        },
+        "NASA ES10/12/14": {
+          "capacitors": 22,
+          "resolved": 1374,
+          "unresolved": 2,
+          "positive_origins": 9,
+          "crossing_devices": 4,
+          "by_method": {
+            "persistence": {
+              "brier": 0.060684,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 9
+            },
+            "trend": {
+              "brier": 0.074062,
+              "true_alerts": 4,
+              "false_alerts": 86,
+              "missed_crossings": 5
+            },
+            "robust": {
+              "brier": 0.085335,
+              "true_alerts": 4,
+              "false_alerts": 96,
+              "missed_crossings": 5
+            },
+            "calibrated_trend": {
+              "brier": 0.097028,
+              "true_alerts": 1,
+              "false_alerts": 46,
+              "missed_crossings": 8
+            },
+            "neural": {
+              "brier": 0.27688,
+              "true_alerts": 7,
+              "false_alerts": 588,
+              "missed_crossings": 2
+            },
+            "neural_projected": {
+              "brier": 0.310006,
+              "true_alerts": 9,
+              "false_alerts": 768,
+              "missed_crossings": 0
+            }
+          },
+          "cohorts": {
+            "NASA ES10": {
+              "capacitors": 8,
+              "resolved": 552,
+              "unresolved": 0,
+              "positive_origins": 0,
+              "crossing_devices": 0,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.0,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "trend": {
+                  "brier": 0.027174,
+                  "true_alerts": 0,
+                  "false_alerts": 15,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": 0.025362,
+                  "true_alerts": 0,
+                  "false_alerts": 14,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.05904,
+                  "true_alerts": 0,
+                  "false_alerts": 12,
+                  "missed_crossings": 0
+                },
+                "neural": {
+                  "brier": 0.052217,
+                  "true_alerts": 0,
+                  "false_alerts": 16,
+                  "missed_crossings": 0
+                },
+                "neural_projected": {
+                  "brier": 0.070867,
+                  "true_alerts": 0,
+                  "false_alerts": 12,
+                  "missed_crossings": 0
+                }
+              }
+            },
+            "NASA ES12": {
+              "capacitors": 8,
+              "resolved": 552,
+              "unresolved": 0,
+              "positive_origins": 0,
+              "crossing_devices": 0,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.0,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "trend": {
+                  "brier": 0.070652,
+                  "true_alerts": 0,
+                  "false_alerts": 39,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": 0.092391,
+                  "true_alerts": 0,
+                  "false_alerts": 51,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.11013,
+                  "true_alerts": 0,
+                  "false_alerts": 24,
+                  "missed_crossings": 0
+                },
+                "neural": {
+                  "brier": 0.327257,
+                  "true_alerts": 0,
+                  "false_alerts": 351,
+                  "missed_crossings": 0
+                },
+                "neural_projected": {
+                  "brier": 0.446871,
+                  "true_alerts": 0,
+                  "false_alerts": 495,
+                  "missed_crossings": 0
+                }
+              }
+            },
+            "NASA ES14": {
+              "capacitors": 6,
+              "resolved": 270,
+              "unresolved": 2,
+              "positive_origins": 9,
+              "crossing_devices": 4,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.22251,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 9
+                },
+                "trend": {
+                  "brier": 0.141124,
+                  "true_alerts": 4,
+                  "false_alerts": 32,
+                  "missed_crossings": 5
+                },
+                "robust": {
+                  "brier": 0.155889,
+                  "true_alerts": 4,
+                  "false_alerts": 31,
+                  "missed_crossings": 5
+                },
+                "calibrated_trend": {
+                  "brier": 0.130209,
+                  "true_alerts": 1,
+                  "false_alerts": 10,
+                  "missed_crossings": 8
+                },
+                "neural": {
+                  "brier": 0.509261,
+                  "true_alerts": 7,
+                  "false_alerts": 221,
+                  "missed_crossings": 2
+                },
+                "neural_projected": {
+                  "brier": 0.446373,
+                  "true_alerts": 9,
+                  "false_alerts": 261,
+                  "missed_crossings": 0
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 1338,
+            "neural_projected": 23
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 473,
+                "devices": 10,
+                "mean_score": 0.221399,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 854,
+                "devices": 21,
+                "mean_score": 0.319117,
+                "observed_frequency": 0.025074
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 35,
+                "devices": 20,
+                "mean_score": 0.557793,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 12,
+                "devices": 12,
+                "mean_score": 0.893892,
+                "observed_frequency": 0.823689
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 513,
+                "devices": 22,
+                "mean_score": 0.123249,
+                "observed_frequency": 0.117826
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 266,
+                "devices": 21,
+                "mean_score": 0.383662,
+                "observed_frequency": 0.01635
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 444,
+                "devices": 16,
+                "mean_score": 0.626945,
+                "observed_frequency": 0.021595
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 151,
+                "devices": 21,
+                "mean_score": 0.827679,
+                "observed_frequency": 0.047992
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 352,
+                "devices": 8,
+                "mean_score": 0.184983,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 245,
+                "devices": 11,
+                "mean_score": 0.354009,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 501,
+                "devices": 16,
+                "mean_score": 0.660843,
+                "observed_frequency": 0.019398
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 276,
+                "devices": 21,
+                "mean_score": 0.803446,
+                "observed_frequency": 0.212608
+              }
+            ]
+          },
+          "devices_in_experiment": 24
+        }
+      }
+    },
+    "lower_threshold": {
+      "horizon_h": 48,
+      "threshold_pct": 18,
+      "two_consecutive_readings": false,
+      "use_fitted_capacitance_in_multivoltage_experiment": false,
+      "equal_experiment_training_weight": false,
+      "held_out": {
+        "NASA EOS-2": {
+          "capacitors": 6,
+          "resolved": 36,
+          "unresolved": 8,
+          "positive_origins": 15,
+          "crossing_devices": 5,
+          "by_method": {
+            "persistence": {
+              "brier": 0.404762,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 15
+            },
+            "trend": {
+              "brier": 0.162698,
+              "true_alerts": 9,
+              "false_alerts": 0,
+              "missed_crossings": 6
+            },
+            "robust": {
+              "brier": 0.246032,
+              "true_alerts": 6,
+              "false_alerts": 0,
+              "missed_crossings": 9
+            },
+            "calibrated_trend": {
+              "brier": 0.273801,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 15
+            },
+            "neural": {
+              "brier": 0.304761,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 15
+            },
+            "neural_projected": {
+              "brier": 0.295486,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 15
+            }
+          },
+          "cohorts": {
+            "NASA EOS-2": {
+              "capacitors": 6,
+              "resolved": 36,
+              "unresolved": 8,
+              "positive_origins": 15,
+              "crossing_devices": 5,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.404762,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15
+                },
+                "trend": {
+                  "brier": 0.162698,
+                  "true_alerts": 9,
+                  "false_alerts": 0,
+                  "missed_crossings": 6
+                },
+                "robust": {
+                  "brier": 0.246032,
+                  "true_alerts": 6,
+                  "false_alerts": 0,
+                  "missed_crossings": 9
+                },
+                "calibrated_trend": {
+                  "brier": 0.273801,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15
+                },
+                "neural": {
+                  "brier": 0.304761,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15
+                },
+                "neural_projected": {
+                  "brier": 0.295486,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 0,
+            "neural_projected": 0
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 33,
+                "devices": 6,
+                "mean_score": 0.099921,
+                "observed_frequency": 0.353448
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 3,
+                "devices": 3,
+                "mean_score": 0.281019,
+                "observed_frequency": 1.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 35,
+                "devices": 6,
+                "mean_score": 0.06757,
+                "observed_frequency": 0.390244
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 1,
+                "devices": 1,
+                "mean_score": 0.328122,
+                "observed_frequency": 1.0
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 33,
+                "devices": 6,
+                "mean_score": 0.060796,
+                "observed_frequency": 0.353448
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 3,
+                "devices": 3,
+                "mean_score": 0.292374,
+                "observed_frequency": 1.0
+              }
+            ]
+          },
+          "devices_in_experiment": 6
+        },
+        "PoFINN": {
+          "capacitors": 8,
+          "resolved": 79,
+          "unresolved": 0,
+          "positive_origins": 16,
+          "crossing_devices": 8,
+          "by_method": {
+            "persistence": {
+              "brier": 0.211619,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            },
+            "trend": {
+              "brier": 0.26555,
+              "true_alerts": 14,
+              "false_alerts": 17,
+              "missed_crossings": 2
+            },
+            "robust": {
+              "brier": 0.356514,
+              "true_alerts": 16,
+              "false_alerts": 25,
+              "missed_crossings": 0
+            },
+            "calibrated_trend": {
+              "brier": 0.16837,
+              "true_alerts": 0,
+              "false_alerts": 3,
+              "missed_crossings": 16
+            },
+            "neural": {
+              "brier": 0.147456,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            },
+            "neural_projected": {
+              "brier": 0.154311,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            }
+          },
+          "cohorts": {
+            "PoFINN": {
+              "capacitors": 8,
+              "resolved": 79,
+              "unresolved": 0,
+              "positive_origins": 16,
+              "crossing_devices": 8,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.211619,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                },
+                "trend": {
+                  "brier": 0.26555,
+                  "true_alerts": 14,
+                  "false_alerts": 17,
+                  "missed_crossings": 2
+                },
+                "robust": {
+                  "brier": 0.356514,
+                  "true_alerts": 16,
+                  "false_alerts": 25,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.16837,
+                  "true_alerts": 0,
+                  "false_alerts": 3,
+                  "missed_crossings": 16
+                },
+                "neural": {
+                  "brier": 0.147456,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                },
+                "neural_projected": {
+                  "brier": 0.154311,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 0,
+            "neural_projected": 0
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 66,
+                "devices": 8,
+                "mean_score": 0.184392,
+                "observed_frequency": 0.188715
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 10,
+                "devices": 7,
+                "mean_score": 0.328219,
+                "observed_frequency": 0.426677
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 3,
+                "devices": 3,
+                "mean_score": 0.521686,
+                "observed_frequency": 0.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 60,
+                "devices": 8,
+                "mean_score": 0.177401,
+                "observed_frequency": 0.087664
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 19,
+                "devices": 7,
+                "mean_score": 0.284761,
+                "observed_frequency": 0.555716
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 57,
+                "devices": 8,
+                "mean_score": 0.181596,
+                "observed_frequency": 0.050329
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 22,
+                "devices": 8,
+                "mean_score": 0.314563,
+                "observed_frequency": 0.587858
+              }
+            ]
+          },
+          "devices_in_experiment": 8
+        },
+        "NASA ES10/12/14": {
+          "capacitors": 21,
+          "resolved": 789,
+          "unresolved": 3,
+          "positive_origins": 21,
+          "crossing_devices": 11,
+          "by_method": {
+            "persistence": {
+              "brier": 0.13096,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 21
+            },
+            "trend": {
+              "brier": 0.219199,
+              "true_alerts": 4,
+              "false_alerts": 54,
+              "missed_crossings": 17
+            },
+            "robust": {
+              "brier": 0.249419,
+              "true_alerts": 3,
+              "false_alerts": 61,
+              "missed_crossings": 18
+            },
+            "calibrated_trend": {
+              "brier": 0.130263,
+              "true_alerts": 2,
+              "false_alerts": 29,
+              "missed_crossings": 19
+            },
+            "neural": {
+              "brier": 0.222717,
+              "true_alerts": 15,
+              "false_alerts": 116,
+              "missed_crossings": 6
+            },
+            "neural_projected": {
+              "brier": 0.247642,
+              "true_alerts": 20,
+              "false_alerts": 182,
+              "missed_crossings": 1
+            }
+          },
+          "cohorts": {
+            "NASA ES10": {
+              "capacitors": 8,
+              "resolved": 552,
+              "unresolved": 0,
+              "positive_origins": 0,
+              "crossing_devices": 0,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.0,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "trend": {
+                  "brier": 0.023551,
+                  "true_alerts": 0,
+                  "false_alerts": 13,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": 0.019928,
+                  "true_alerts": 0,
+                  "false_alerts": 11,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.029759,
+                  "true_alerts": 0,
+                  "false_alerts": 8,
+                  "missed_crossings": 0
+                },
+                "neural": {
+                  "brier": 0.033207,
+                  "true_alerts": 0,
+                  "false_alerts": 14,
+                  "missed_crossings": 0
+                },
+                "neural_projected": {
+                  "brier": 0.037636,
+                  "true_alerts": 0,
+                  "false_alerts": 9,
+                  "missed_crossings": 0
+                }
+              }
+            },
+            "NASA ES12": {
+              "capacitors": 8,
+              "resolved": 152,
+              "unresolved": 0,
+              "positive_origins": 14,
+              "crossing_devices": 7,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.15419,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 14
+                },
+                "trend": {
+                  "brier": 0.376408,
+                  "true_alerts": 2,
+                  "false_alerts": 24,
+                  "missed_crossings": 12
+                },
+                "robust": {
+                  "brier": 0.446653,
+                  "true_alerts": 2,
+                  "false_alerts": 33,
+                  "missed_crossings": 12
+                },
+                "calibrated_trend": {
+                  "brier": 0.223504,
+                  "true_alerts": 1,
+                  "false_alerts": 15,
+                  "missed_crossings": 13
+                },
+                "neural": {
+                  "brier": 0.285286,
+                  "true_alerts": 10,
+                  "false_alerts": 58,
+                  "missed_crossings": 4
+                },
+                "neural_projected": {
+                  "brier": 0.408412,
+                  "true_alerts": 13,
+                  "false_alerts": 98,
+                  "missed_crossings": 1
+                }
+              }
+            },
+            "NASA ES14": {
+              "capacitors": 5,
+              "resolved": 85,
+              "unresolved": 3,
+              "positive_origins": 7,
+              "crossing_devices": 4,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.346419,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 7
+                },
+                "trend": {
+                  "brier": 0.296077,
+                  "true_alerts": 2,
+                  "false_alerts": 17,
+                  "missed_crossings": 5
+                },
+                "robust": {
+                  "brier": 0.313934,
+                  "true_alerts": 1,
+                  "false_alerts": 17,
+                  "missed_crossings": 6
+                },
+                "calibrated_trend": {
+                  "brier": 0.144789,
+                  "true_alerts": 1,
+                  "false_alerts": 6,
+                  "missed_crossings": 6
+                },
+                "neural": {
+                  "brier": 0.4766,
+                  "true_alerts": 5,
+                  "false_alerts": 44,
+                  "missed_crossings": 2
+                },
+                "neural_projected": {
+                  "brier": 0.346111,
+                  "true_alerts": 7,
+                  "false_alerts": 75,
+                  "missed_crossings": 0
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 768,
+            "neural_projected": 20
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 626,
+                "devices": 16,
+                "mean_score": 0.170598,
+                "observed_frequency": 0.060908
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 132,
+                "devices": 18,
+                "mean_score": 0.311572,
+                "observed_frequency": 0.135038
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 21,
+                "devices": 17,
+                "mean_score": 0.547294,
+                "observed_frequency": 0.069421
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 10,
+                "devices": 10,
+                "mean_score": 0.856897,
+                "observed_frequency": 0.539259
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 558,
+                "devices": 20,
+                "mean_score": 0.086508,
+                "observed_frequency": 0.105135
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 100,
+                "devices": 17,
+                "mean_score": 0.377036,
+                "observed_frequency": 0.094873
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 96,
+                "devices": 13,
+                "mean_score": 0.621158,
+                "observed_frequency": 0.175169
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 35,
+                "devices": 19,
+                "mean_score": 0.811753,
+                "observed_frequency": 0.194304
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 487,
+                "devices": 8,
+                "mean_score": 0.135938,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 100,
+                "devices": 11,
+                "mean_score": 0.35377,
+                "observed_frequency": 0.050579
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 160,
+                "devices": 14,
+                "mean_score": 0.663116,
+                "observed_frequency": 0.149971
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 42,
+                "devices": 16,
+                "mean_score": 0.788468,
+                "observed_frequency": 0.370744
+              }
+            ]
+          },
+          "devices_in_experiment": 24
+        }
+      }
+    },
+    "higher_threshold": {
+      "horizon_h": 48,
+      "threshold_pct": 22,
+      "two_consecutive_readings": false,
+      "use_fitted_capacitance_in_multivoltage_experiment": false,
+      "equal_experiment_training_weight": false,
+      "held_out": {
+        "NASA EOS-2": {
+          "capacitors": 6,
+          "resolved": 34,
+          "unresolved": 14,
+          "positive_origins": 6,
+          "crossing_devices": 2,
+          "by_method": {
+            "persistence": {
+              "brier": 0.142857,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 6
+            },
+            "trend": {
+              "brier": 0.047619,
+              "true_alerts": 4,
+              "false_alerts": 0,
+              "missed_crossings": 2
+            },
+            "robust": {
+              "brier": 0.071429,
+              "true_alerts": 3,
+              "false_alerts": 0,
+              "missed_crossings": 3
+            },
+            "calibrated_trend": {
+              "brier": 0.10325,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 6
+            },
+            "neural": {
+              "brier": 0.123327,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 6
+            },
+            "neural_projected": {
+              "brier": 0.109324,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 6
+            }
+          },
+          "cohorts": {
+            "NASA EOS-2": {
+              "capacitors": 6,
+              "resolved": 34,
+              "unresolved": 14,
+              "positive_origins": 6,
+              "crossing_devices": 2,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.142857,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 6
+                },
+                "trend": {
+                  "brier": 0.047619,
+                  "true_alerts": 4,
+                  "false_alerts": 0,
+                  "missed_crossings": 2
+                },
+                "robust": {
+                  "brier": 0.071429,
+                  "true_alerts": 3,
+                  "false_alerts": 0,
+                  "missed_crossings": 3
+                },
+                "calibrated_trend": {
+                  "brier": 0.10325,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 6
+                },
+                "neural": {
+                  "brier": 0.123327,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 6
+                },
+                "neural_projected": {
+                  "brier": 0.109324,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 6
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 0,
+            "neural_projected": 0
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 33,
+                "devices": 6,
+                "mean_score": 0.034894,
+                "observed_frequency": 0.121951
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 1,
+                "devices": 1,
+                "mean_score": 0.351133,
+                "observed_frequency": 1.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 34,
+                "devices": 6,
+                "mean_score": 0.026097,
+                "observed_frequency": 0.142857
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 33,
+                "devices": 6,
+                "mean_score": 0.025128,
+                "observed_frequency": 0.121951
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 1,
+                "devices": 1,
+                "mean_score": 0.39107,
+                "observed_frequency": 1.0
+              }
+            ]
+          },
+          "devices_in_experiment": 6
+        },
+        "PoFINN": {
+          "capacitors": 8,
+          "resolved": 106,
+          "unresolved": 0,
+          "positive_origins": 16,
+          "crossing_devices": 8,
+          "by_method": {
+            "persistence": {
+              "brier": 0.163635,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            },
+            "trend": {
+              "brier": 0.213019,
+              "true_alerts": 12,
+              "false_alerts": 18,
+              "missed_crossings": 4
+            },
+            "robust": {
+              "brier": 0.259961,
+              "true_alerts": 13,
+              "false_alerts": 22,
+              "missed_crossings": 3
+            },
+            "calibrated_trend": {
+              "brier": 0.137654,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            },
+            "neural": {
+              "brier": 0.14006,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            },
+            "neural_projected": {
+              "brier": 0.134472,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            }
+          },
+          "cohorts": {
+            "PoFINN": {
+              "capacitors": 8,
+              "resolved": 106,
+              "unresolved": 0,
+              "positive_origins": 16,
+              "crossing_devices": 8,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.163635,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                },
+                "trend": {
+                  "brier": 0.213019,
+                  "true_alerts": 12,
+                  "false_alerts": 18,
+                  "missed_crossings": 4
+                },
+                "robust": {
+                  "brier": 0.259961,
+                  "true_alerts": 13,
+                  "false_alerts": 22,
+                  "missed_crossings": 3
+                },
+                "calibrated_trend": {
+                  "brier": 0.137654,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                },
+                "neural": {
+                  "brier": 0.14006,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                },
+                "neural_projected": {
+                  "brier": 0.134472,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 4,
+            "neural_projected": 4
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 103,
+                "devices": 8,
+                "mean_score": 0.070765,
+                "observed_frequency": 0.170298
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 3,
+                "devices": 3,
+                "mean_score": 0.270509,
+                "observed_frequency": 0.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 106,
+                "devices": 8,
+                "mean_score": 0.059538,
+                "observed_frequency": 0.163635
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 105,
+                "devices": 8,
+                "mean_score": 0.078269,
+                "observed_frequency": 0.165223
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 1,
+                "devices": 1,
+                "mean_score": 0.269965,
+                "observed_frequency": 0.0
+              }
+            ]
+          },
+          "devices_in_experiment": 8
+        },
+        "NASA ES10/12/14": {
+          "capacitors": 24,
+          "resolved": 1422,
+          "unresolved": 5,
+          "positive_origins": 6,
+          "crossing_devices": 3,
+          "by_method": {
+            "persistence": {
+              "brier": 0.055497,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 6
+            },
+            "trend": {
+              "brier": 0.069517,
+              "true_alerts": 4,
+              "false_alerts": 71,
+              "missed_crossings": 2
+            },
+            "robust": {
+              "brier": 0.072221,
+              "true_alerts": 3,
+              "false_alerts": 66,
+              "missed_crossings": 3
+            },
+            "calibrated_trend": {
+              "brier": 0.03528,
+              "true_alerts": 1,
+              "false_alerts": 17,
+              "missed_crossings": 5
+            },
+            "neural": {
+              "brier": 0.089774,
+              "true_alerts": 1,
+              "false_alerts": 37,
+              "missed_crossings": 5
+            },
+            "neural_projected": {
+              "brier": 0.057108,
+              "true_alerts": 3,
+              "false_alerts": 28,
+              "missed_crossings": 3
+            }
+          },
+          "cohorts": {
+            "NASA ES10": {
+              "capacitors": 8,
+              "resolved": 552,
+              "unresolved": 0,
+              "positive_origins": 0,
+              "crossing_devices": 0,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.0,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "trend": {
+                  "brier": 0.021739,
+                  "true_alerts": 0,
+                  "false_alerts": 12,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": 0.01087,
+                  "true_alerts": 0,
+                  "false_alerts": 6,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.005042,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "neural": {
+                  "brier": 0.01496,
+                  "true_alerts": 0,
+                  "false_alerts": 10,
+                  "missed_crossings": 0
+                },
+                "neural_projected": {
+                  "brier": 0.00308,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                }
+              }
+            },
+            "NASA ES12": {
+              "capacitors": 8,
+              "resolved": 552,
+              "unresolved": 0,
+              "positive_origins": 0,
+              "crossing_devices": 0,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.0,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "trend": {
+                  "brier": 0.059783,
+                  "true_alerts": 0,
+                  "false_alerts": 33,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": 0.057971,
+                  "true_alerts": 0,
+                  "false_alerts": 32,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.023391,
+                  "true_alerts": 0,
+                  "false_alerts": 8,
+                  "missed_crossings": 0
+                },
+                "neural": {
+                  "brier": 0.040564,
+                  "true_alerts": 0,
+                  "false_alerts": 15,
+                  "missed_crossings": 0
+                },
+                "neural_projected": {
+                  "brier": 0.039127,
+                  "true_alerts": 0,
+                  "false_alerts": 11,
+                  "missed_crossings": 0
+                }
+              }
+            },
+            "NASA ES14": {
+              "capacitors": 8,
+              "resolved": 318,
+              "unresolved": 5,
+              "positive_origins": 6,
+              "crossing_devices": 3,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.166492,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 6
+                },
+                "trend": {
+                  "brier": 0.127031,
+                  "true_alerts": 4,
+                  "false_alerts": 26,
+                  "missed_crossings": 2
+                },
+                "robust": {
+                  "brier": 0.147821,
+                  "true_alerts": 3,
+                  "false_alerts": 28,
+                  "missed_crossings": 3
+                },
+                "calibrated_trend": {
+                  "brier": 0.077407,
+                  "true_alerts": 1,
+                  "false_alerts": 9,
+                  "missed_crossings": 5
+                },
+                "neural": {
+                  "brier": 0.213798,
+                  "true_alerts": 1,
+                  "false_alerts": 12,
+                  "missed_crossings": 5
+                },
+                "neural_projected": {
+                  "brier": 0.129115,
+                  "true_alerts": 3,
+                  "false_alerts": 17,
+                  "missed_crossings": 3
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 1356,
+            "neural_projected": 21
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 1362,
+                "devices": 23,
+                "mean_score": 0.104045,
+                "observed_frequency": 0.011991
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 42,
+                "devices": 21,
+                "mean_score": 0.318425,
+                "observed_frequency": 0.091928
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 11,
+                "devices": 11,
+                "mean_score": 0.616326,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 7,
+                "devices": 7,
+                "mean_score": 0.933532,
+                "observed_frequency": 0.805458
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 1242,
+                "devices": 24,
+                "mean_score": 0.083422,
+                "observed_frequency": 0.057499
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 142,
+                "devices": 16,
+                "mean_score": 0.345651,
+                "observed_frequency": 0.035413
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 9,
+                "devices": 8,
+                "mean_score": 0.600116,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 29,
+                "devices": 23,
+                "mean_score": 0.837826,
+                "observed_frequency": 0.124253
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 1193,
+                "devices": 21,
+                "mean_score": 0.100449,
+                "observed_frequency": 0.004023
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 198,
+                "devices": 21,
+                "mean_score": 0.367506,
+                "observed_frequency": 0.034138
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 27,
+                "devices": 14,
+                "mean_score": 0.585619,
+                "observed_frequency": 0.127585
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 4,
+                "devices": 4,
+                "mean_score": 0.807886,
+                "observed_frequency": 0.877206
+              }
+            ]
+          },
+          "devices_in_experiment": 24
+        }
+      }
+    },
+    "repeated_crossing": {
+      "horizon_h": 48,
+      "threshold_pct": 20,
+      "two_consecutive_readings": true,
+      "use_fitted_capacitance_in_multivoltage_experiment": false,
+      "equal_experiment_training_weight": false,
+      "held_out": {
+        "NASA EOS-2": {
+          "capacitors": 6,
+          "resolved": 32,
+          "unresolved": 16,
+          "positive_origins": 3,
+          "crossing_devices": 1,
+          "by_method": {
+            "persistence": {
+              "brier": 0.071429,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 3
+            },
+            "trend": {
+              "brier": 0.02381,
+              "true_alerts": 2,
+              "false_alerts": 0,
+              "missed_crossings": 1
+            },
+            "robust": {
+              "brier": 0.02381,
+              "true_alerts": 2,
+              "false_alerts": 0,
+              "missed_crossings": 1
+            },
+            "calibrated_trend": {
+              "brier": 0.046532,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 3
+            },
+            "neural": {
+              "brier": 0.056325,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 3
+            },
+            "neural_projected": {
+              "brier": 0.047935,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 3
+            }
+          },
+          "cohorts": {
+            "NASA EOS-2": {
+              "capacitors": 6,
+              "resolved": 32,
+              "unresolved": 16,
+              "positive_origins": 3,
+              "crossing_devices": 1,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.071429,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 3
+                },
+                "trend": {
+                  "brier": 0.02381,
+                  "true_alerts": 2,
+                  "false_alerts": 0,
+                  "missed_crossings": 1
+                },
+                "robust": {
+                  "brier": 0.02381,
+                  "true_alerts": 2,
+                  "false_alerts": 0,
+                  "missed_crossings": 1
+                },
+                "calibrated_trend": {
+                  "brier": 0.046532,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 3
+                },
+                "neural": {
+                  "brier": 0.056325,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 3
+                },
+                "neural_projected": {
+                  "brier": 0.047935,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 3
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 0,
+            "neural_projected": 0
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 31,
+                "devices": 6,
+                "mean_score": 0.031569,
+                "observed_frequency": 0.04878
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 1,
+                "devices": 1,
+                "mean_score": 0.391422,
+                "observed_frequency": 1.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 31,
+                "devices": 6,
+                "mean_score": 0.0176,
+                "observed_frequency": 0.04878
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 1,
+                "devices": 1,
+                "mean_score": 0.267627,
+                "observed_frequency": 1.0
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 31,
+                "devices": 6,
+                "mean_score": 0.018181,
+                "observed_frequency": 0.04878
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 1,
+                "devices": 1,
+                "mean_score": 0.491695,
+                "observed_frequency": 1.0
+              }
+            ]
+          },
+          "devices_in_experiment": 6
+        },
+        "PoFINN": {
+          "capacitors": 8,
+          "resolved": 97,
+          "unresolved": 0,
+          "positive_origins": 16,
+          "crossing_devices": 8,
+          "by_method": {
+            "persistence": {
+              "brier": 0.173384,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            },
+            "trend": {
+              "brier": 0.202384,
+              "true_alerts": 15,
+              "false_alerts": 17,
+              "missed_crossings": 1
+            },
+            "robust": {
+              "brier": 0.327137,
+              "true_alerts": 16,
+              "false_alerts": 28,
+              "missed_crossings": 0
+            },
+            "calibrated_trend": {
+              "brier": 0.147564,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            },
+            "neural": {
+              "brier": 0.149707,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            },
+            "neural_projected": {
+              "brier": 0.142175,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            }
+          },
+          "cohorts": {
+            "PoFINN": {
+              "capacitors": 8,
+              "resolved": 97,
+              "unresolved": 0,
+              "positive_origins": 16,
+              "crossing_devices": 8,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.173384,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                },
+                "trend": {
+                  "brier": 0.202384,
+                  "true_alerts": 15,
+                  "false_alerts": 17,
+                  "missed_crossings": 1
+                },
+                "robust": {
+                  "brier": 0.327137,
+                  "true_alerts": 16,
+                  "false_alerts": 28,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.147564,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                },
+                "neural": {
+                  "brier": 0.149707,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                },
+                "neural_projected": {
+                  "brier": 0.142175,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 0,
+            "neural_projected": 0
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 95,
+                "devices": 8,
+                "mean_score": 0.064254,
+                "observed_frequency": 0.177557
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 2,
+                "devices": 2,
+                "mean_score": 0.267144,
+                "observed_frequency": 0.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 97,
+                "devices": 8,
+                "mean_score": 0.045176,
+                "observed_frequency": 0.173384
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 97,
+                "devices": 8,
+                "mean_score": 0.05516,
+                "observed_frequency": 0.173384
+              }
+            ]
+          },
+          "devices_in_experiment": 8
+        },
+        "NASA ES10/12/14": {
+          "capacitors": 24,
+          "resolved": 1444,
+          "unresolved": 4,
+          "positive_origins": 3,
+          "crossing_devices": 3,
+          "by_method": {
+            "persistence": {
+              "brier": 0.09375,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 3
+            },
+            "trend": {
+              "brier": 0.083724,
+              "true_alerts": 3,
+              "false_alerts": 88,
+              "missed_crossings": 0
+            },
+            "robust": {
+              "brier": 0.082287,
+              "true_alerts": 3,
+              "false_alerts": 86,
+              "missed_crossings": 0
+            },
+            "calibrated_trend": {
+              "brier": 0.032525,
+              "true_alerts": 2,
+              "false_alerts": 15,
+              "missed_crossings": 1
+            },
+            "neural": {
+              "brier": 0.115993,
+              "true_alerts": 1,
+              "false_alerts": 41,
+              "missed_crossings": 2
+            },
+            "neural_projected": {
+              "brier": 0.05475,
+              "true_alerts": 3,
+              "false_alerts": 42,
+              "missed_crossings": 0
+            }
+          },
+          "cohorts": {
+            "NASA ES10": {
+              "capacitors": 8,
+              "resolved": 552,
+              "unresolved": 0,
+              "positive_origins": 0,
+              "crossing_devices": 0,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.0,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "trend": {
+                  "brier": 0.023551,
+                  "true_alerts": 0,
+                  "false_alerts": 13,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": 0.012681,
+                  "true_alerts": 0,
+                  "false_alerts": 7,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.003959,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "neural": {
+                  "brier": 0.014116,
+                  "true_alerts": 0,
+                  "false_alerts": 10,
+                  "missed_crossings": 0
+                },
+                "neural_projected": {
+                  "brier": 0.001839,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                }
+              }
+            },
+            "NASA ES12": {
+              "capacitors": 8,
+              "resolved": 552,
+              "unresolved": 0,
+              "positive_origins": 0,
+              "crossing_devices": 0,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.0,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "trend": {
+                  "brier": 0.068841,
+                  "true_alerts": 0,
+                  "false_alerts": 38,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": 0.081522,
+                  "true_alerts": 0,
+                  "false_alerts": 45,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.019607,
+                  "true_alerts": 0,
+                  "false_alerts": 8,
+                  "missed_crossings": 0
+                },
+                "neural": {
+                  "brier": 0.04544,
+                  "true_alerts": 0,
+                  "false_alerts": 16,
+                  "missed_crossings": 0
+                },
+                "neural_projected": {
+                  "brier": 0.043193,
+                  "true_alerts": 0,
+                  "false_alerts": 25,
+                  "missed_crossings": 0
+                }
+              }
+            },
+            "NASA ES14": {
+              "capacitors": 8,
+              "resolved": 340,
+              "unresolved": 4,
+              "positive_origins": 3,
+              "crossing_devices": 3,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.28125,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 3
+                },
+                "trend": {
+                  "brier": 0.15878,
+                  "true_alerts": 3,
+                  "false_alerts": 37,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": 0.152658,
+                  "true_alerts": 3,
+                  "false_alerts": 34,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.074008,
+                  "true_alerts": 2,
+                  "false_alerts": 7,
+                  "missed_crossings": 1
+                },
+                "neural": {
+                  "brier": 0.288424,
+                  "true_alerts": 1,
+                  "false_alerts": 15,
+                  "missed_crossings": 2
+                },
+                "neural_projected": {
+                  "brier": 0.119218,
+                  "true_alerts": 3,
+                  "false_alerts": 17,
+                  "missed_crossings": 0
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 1407,
+            "neural_projected": 21
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 1392,
+                "devices": 22,
+                "mean_score": 0.086604,
+                "observed_frequency": 0.012021
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 35,
+                "devices": 20,
+                "mean_score": 0.312058,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 11,
+                "devices": 11,
+                "mean_score": 0.577607,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 6,
+                "devices": 6,
+                "mean_score": 0.937332,
+                "observed_frequency": 0.872038
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 1226,
+                "devices": 24,
+                "mean_score": 0.082488,
+                "observed_frequency": 0.098812
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 176,
+                "devices": 12,
+                "mean_score": 0.334468,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 16,
+                "devices": 10,
+                "mean_score": 0.577848,
+                "observed_frequency": 0.35291
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 26,
+                "devices": 21,
+                "mean_score": 0.868404,
+                "observed_frequency": 0.0
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 1223,
+                "devices": 21,
+                "mean_score": 0.084601,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 176,
+                "devices": 16,
+                "mean_score": 0.35294,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 33,
+                "devices": 14,
+                "mean_score": 0.582886,
+                "observed_frequency": 0.260343
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 12,
+                "devices": 10,
+                "mean_score": 0.851567,
+                "observed_frequency": 0.76374
+              }
+            ]
+          },
+          "devices_in_experiment": 24
+        }
+      }
+    },
+    "alternate_capacitance": {
+      "horizon_h": 48,
+      "threshold_pct": 20,
+      "two_consecutive_readings": false,
+      "use_fitted_capacitance_in_multivoltage_experiment": true,
+      "equal_experiment_training_weight": false,
+      "held_out": {
+        "NASA EOS-2": {
+          "capacitors": 6,
+          "resolved": 39,
+          "unresolved": 8,
+          "positive_origins": 15,
+          "crossing_devices": 5,
+          "by_method": {
+            "persistence": {
+              "brier": 0.369048,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 15
+            },
+            "trend": {
+              "brier": 0.150794,
+              "true_alerts": 9,
+              "false_alerts": 0,
+              "missed_crossings": 6
+            },
+            "robust": {
+              "brier": 0.174603,
+              "true_alerts": 8,
+              "false_alerts": 0,
+              "missed_crossings": 7
+            },
+            "calibrated_trend": {
+              "brier": 0.200372,
+              "true_alerts": 2,
+              "false_alerts": 0,
+              "missed_crossings": 13
+            },
+            "neural": {
+              "brier": 0.241687,
+              "true_alerts": 2,
+              "false_alerts": 0,
+              "missed_crossings": 13
+            },
+            "neural_projected": {
+              "brier": 0.210339,
+              "true_alerts": 4,
+              "false_alerts": 0,
+              "missed_crossings": 11
+            }
+          },
+          "cohorts": {
+            "NASA EOS-2": {
+              "capacitors": 6,
+              "resolved": 39,
+              "unresolved": 8,
+              "positive_origins": 15,
+              "crossing_devices": 5,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.369048,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15
+                },
+                "trend": {
+                  "brier": 0.150794,
+                  "true_alerts": 9,
+                  "false_alerts": 0,
+                  "missed_crossings": 6
+                },
+                "robust": {
+                  "brier": 0.174603,
+                  "true_alerts": 8,
+                  "false_alerts": 0,
+                  "missed_crossings": 7
+                },
+                "calibrated_trend": {
+                  "brier": 0.200372,
+                  "true_alerts": 2,
+                  "false_alerts": 0,
+                  "missed_crossings": 13
+                },
+                "neural": {
+                  "brier": 0.241687,
+                  "true_alerts": 2,
+                  "false_alerts": 0,
+                  "missed_crossings": 13
+                },
+                "neural_projected": {
+                  "brier": 0.210339,
+                  "true_alerts": 4,
+                  "false_alerts": 0,
+                  "missed_crossings": 11
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 0,
+            "neural_projected": 0
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 31,
+                "devices": 6,
+                "mean_score": 0.073518,
+                "observed_frequency": 0.216749
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 6,
+                "devices": 5,
+                "mean_score": 0.349002,
+                "observed_frequency": 1.0
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 2,
+                "devices": 2,
+                "mean_score": 0.518841,
+                "observed_frequency": 1.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 35,
+                "devices": 6,
+                "mean_score": 0.053952,
+                "observed_frequency": 0.302632
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 2,
+                "devices": 2,
+                "mean_score": 0.406554,
+                "observed_frequency": 1.0
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 2,
+                "devices": 2,
+                "mean_score": 0.530866,
+                "observed_frequency": 1.0
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 32,
+                "devices": 6,
+                "mean_score": 0.044689,
+                "observed_frequency": 0.239234
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 3,
+                "devices": 3,
+                "mean_score": 0.29537,
+                "observed_frequency": 1.0
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 4,
+                "devices": 4,
+                "mean_score": 0.648689,
+                "observed_frequency": 1.0
+              }
+            ]
+          },
+          "devices_in_experiment": 6
+        },
+        "PoFINN": {
+          "capacitors": 8,
+          "resolved": 89,
+          "unresolved": 0,
+          "positive_origins": 16,
+          "crossing_devices": 8,
+          "by_method": {
+            "persistence": {
+              "brier": 0.190923,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            },
+            "trend": {
+              "brier": 0.185714,
+              "true_alerts": 12,
+              "false_alerts": 12,
+              "missed_crossings": 4
+            },
+            "robust": {
+              "brier": 0.309449,
+              "true_alerts": 14,
+              "false_alerts": 22,
+              "missed_crossings": 2
+            },
+            "calibrated_trend": {
+              "brier": 0.15911,
+              "true_alerts": 0,
+              "false_alerts": 7,
+              "missed_crossings": 16
+            },
+            "neural": {
+              "brier": 0.110673,
+              "true_alerts": 3,
+              "false_alerts": 1,
+              "missed_crossings": 13
+            },
+            "neural_projected": {
+              "brier": 0.153658,
+              "true_alerts": 2,
+              "false_alerts": 7,
+              "missed_crossings": 14
+            }
+          },
+          "cohorts": {
+            "PoFINN": {
+              "capacitors": 8,
+              "resolved": 89,
+              "unresolved": 0,
+              "positive_origins": 16,
+              "crossing_devices": 8,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.190923,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                },
+                "trend": {
+                  "brier": 0.185714,
+                  "true_alerts": 12,
+                  "false_alerts": 12,
+                  "missed_crossings": 4
+                },
+                "robust": {
+                  "brier": 0.309449,
+                  "true_alerts": 14,
+                  "false_alerts": 22,
+                  "missed_crossings": 2
+                },
+                "calibrated_trend": {
+                  "brier": 0.15911,
+                  "true_alerts": 0,
+                  "false_alerts": 7,
+                  "missed_crossings": 16
+                },
+                "neural": {
+                  "brier": 0.110673,
+                  "true_alerts": 3,
+                  "false_alerts": 1,
+                  "missed_crossings": 13
+                },
+                "neural_projected": {
+                  "brier": 0.153658,
+                  "true_alerts": 2,
+                  "false_alerts": 7,
+                  "missed_crossings": 14
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 2,
+            "neural_projected": 2
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 47,
+                "devices": 8,
+                "mean_score": 0.186973,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 35,
+                "devices": 8,
+                "mean_score": 0.312969,
+                "observed_frequency": 0.453437
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 7,
+                "devices": 7,
+                "mean_score": 0.641569,
+                "observed_frequency": 0.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 49,
+                "devices": 8,
+                "mean_score": 0.157807,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 36,
+                "devices": 8,
+                "mean_score": 0.36095,
+                "observed_frequency": 0.372161
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 4,
+                "devices": 3,
+                "mean_score": 0.557207,
+                "observed_frequency": 0.755102
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 38,
+                "devices": 8,
+                "mean_score": 0.174287,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 42,
+                "devices": 8,
+                "mean_score": 0.359862,
+                "observed_frequency": 0.331314
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 7,
+                "devices": 6,
+                "mean_score": 0.638359,
+                "observed_frequency": 0.322801
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 2,
+                "devices": 2,
+                "mean_score": 0.764039,
+                "observed_frequency": 0.0
+              }
+            ]
+          },
+          "devices_in_experiment": 8
+        },
+        "NASA ES10/12/14": {
+          "capacitors": 12,
+          "resolved": 511,
+          "unresolved": 3,
+          "positive_origins": 6,
+          "crossing_devices": 4,
+          "by_method": {
+            "persistence": {
+              "brier": 0.20979,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 6
+            },
+            "trend": {
+              "brier": 0.0827,
+              "true_alerts": 2,
+              "false_alerts": 20,
+              "missed_crossings": 4
+            },
+            "robust": {
+              "brier": 0.101956,
+              "true_alerts": 2,
+              "false_alerts": 26,
+              "missed_crossings": 4
+            },
+            "calibrated_trend": {
+              "brier": 0.05695,
+              "true_alerts": 2,
+              "false_alerts": 14,
+              "missed_crossings": 4
+            },
+            "neural": {
+              "brier": 0.236135,
+              "true_alerts": 1,
+              "false_alerts": 19,
+              "missed_crossings": 5
+            },
+            "neural_projected": {
+              "brier": 0.085152,
+              "true_alerts": 3,
+              "false_alerts": 26,
+              "missed_crossings": 3
+            }
+          },
+          "cohorts": {
+            "NASA ES10": {
+              "capacitors": 8,
+              "resolved": 496,
+              "unresolved": 0,
+              "positive_origins": 2,
+              "crossing_devices": 1,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.019231,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 2
+                },
+                "trend": {
+                  "brier": 0.05602,
+                  "true_alerts": 0,
+                  "false_alerts": 16,
+                  "missed_crossings": 2
+                },
+                "robust": {
+                  "brier": 0.072882,
+                  "true_alerts": 0,
+                  "false_alerts": 21,
+                  "missed_crossings": 2
+                },
+                "calibrated_trend": {
+                  "brier": 0.045742,
+                  "true_alerts": 0,
+                  "false_alerts": 12,
+                  "missed_crossings": 2
+                },
+                "neural": {
+                  "brier": 0.043023,
+                  "true_alerts": 0,
+                  "false_alerts": 11,
+                  "missed_crossings": 2
+                },
+                "neural_projected": {
+                  "brier": 0.053371,
+                  "true_alerts": 0,
+                  "false_alerts": 15,
+                  "missed_crossings": 2
+                }
+              }
+            },
+            "NASA ES12": {
+              "capacitors": 3,
+              "resolved": 15,
+              "unresolved": 0,
+              "positive_origins": 4,
+              "crossing_devices": 3,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.717949,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 4
+                },
+                "trend": {
+                  "brier": 0.153846,
+                  "true_alerts": 2,
+                  "false_alerts": 4,
+                  "missed_crossings": 2
+                },
+                "robust": {
+                  "brier": 0.179487,
+                  "true_alerts": 2,
+                  "false_alerts": 5,
+                  "missed_crossings": 2
+                },
+                "calibrated_trend": {
+                  "brier": 0.086839,
+                  "true_alerts": 2,
+                  "false_alerts": 2,
+                  "missed_crossings": 2
+                },
+                "neural": {
+                  "brier": 0.7511,
+                  "true_alerts": 1,
+                  "false_alerts": 8,
+                  "missed_crossings": 3
+                },
+                "neural_projected": {
+                  "brier": 0.169901,
+                  "true_alerts": 3,
+                  "false_alerts": 11,
+                  "missed_crossings": 1
+                }
+              }
+            },
+            "NASA ES14": {
+              "capacitors": 1,
+              "resolved": 0,
+              "unresolved": 3,
+              "positive_origins": 0,
+              "crossing_devices": 0,
+              "by_method": {
+                "persistence": {
+                  "brier": null,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "trend": {
+                  "brier": null,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": null,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": null,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "neural": {
+                  "brier": null,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "neural_projected": {
+                  "brier": null,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 499,
+            "neural_projected": 12
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 474,
+                "devices": 9,
+                "mean_score": 0.121188,
+                "observed_frequency": 0.039417
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 21,
+                "devices": 8,
+                "mean_score": 0.300967,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 9,
+                "devices": 7,
+                "mean_score": 0.638912,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 7,
+                "devices": 7,
+                "mean_score": 0.939705,
+                "observed_frequency": 0.936815
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 466,
+                "devices": 11,
+                "mean_score": 0.069601,
+                "observed_frequency": 0.22942
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 25,
+                "devices": 6,
+                "mean_score": 0.319845,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 9,
+                "devices": 2,
+                "mean_score": 0.599456,
+                "observed_frequency": 0.13556
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 11,
+                "devices": 8,
+                "mean_score": 0.852774,
+                "observed_frequency": 0.0
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 442,
+                "devices": 8,
+                "mean_score": 0.116957,
+                "observed_frequency": 0.021502
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 40,
+                "devices": 8,
+                "mean_score": 0.322669,
+                "observed_frequency": 0.119792
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 19,
+                "devices": 8,
+                "mean_score": 0.640925,
+                "observed_frequency": 0.079954
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 10,
+                "devices": 9,
+                "mean_score": 0.871378,
+                "observed_frequency": 0.892537
+              }
+            ]
+          },
+          "devices_in_experiment": 24
+        }
+      }
+    },
+    "equal_experiment_training_weight": {
+      "horizon_h": 48,
+      "threshold_pct": 20,
+      "two_consecutive_readings": false,
+      "use_fitted_capacitance_in_multivoltage_experiment": false,
+      "equal_experiment_training_weight": true,
+      "held_out": {
+        "NASA EOS-2": {
+          "capacitors": 6,
+          "resolved": 39,
+          "unresolved": 8,
+          "positive_origins": 15,
+          "crossing_devices": 5,
+          "by_method": {
+            "persistence": {
+              "brier": 0.369048,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 15
+            },
+            "trend": {
+              "brier": 0.150794,
+              "true_alerts": 9,
+              "false_alerts": 0,
+              "missed_crossings": 6
+            },
+            "robust": {
+              "brier": 0.174603,
+              "true_alerts": 8,
+              "false_alerts": 0,
+              "missed_crossings": 7
+            },
+            "calibrated_trend": {
+              "brier": 0.22727,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 15
+            },
+            "neural": {
+              "brier": 0.268998,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 15
+            },
+            "neural_projected": {
+              "brier": 0.225725,
+              "true_alerts": 4,
+              "false_alerts": 0,
+              "missed_crossings": 11
+            }
+          },
+          "cohorts": {
+            "NASA EOS-2": {
+              "capacitors": 6,
+              "resolved": 39,
+              "unresolved": 8,
+              "positive_origins": 15,
+              "crossing_devices": 5,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.369048,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15
+                },
+                "trend": {
+                  "brier": 0.150794,
+                  "true_alerts": 9,
+                  "false_alerts": 0,
+                  "missed_crossings": 6
+                },
+                "robust": {
+                  "brier": 0.174603,
+                  "true_alerts": 8,
+                  "false_alerts": 0,
+                  "missed_crossings": 7
+                },
+                "calibrated_trend": {
+                  "brier": 0.22727,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15
+                },
+                "neural": {
+                  "brier": 0.268998,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15
+                },
+                "neural_projected": {
+                  "brier": 0.225725,
+                  "true_alerts": 4,
+                  "false_alerts": 0,
+                  "missed_crossings": 11
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 0,
+            "neural_projected": 0
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 35,
+                "devices": 6,
+                "mean_score": 0.074067,
+                "observed_frequency": 0.302632
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 4,
+                "devices": 4,
+                "mean_score": 0.417942,
+                "observed_frequency": 1.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 35,
+                "devices": 6,
+                "mean_score": 0.041478,
+                "observed_frequency": 0.302632
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 4,
+                "devices": 4,
+                "mean_score": 0.342906,
+                "observed_frequency": 1.0
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 32,
+                "devices": 6,
+                "mean_score": 0.029372,
+                "observed_frequency": 0.239234
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 3,
+                "devices": 3,
+                "mean_score": 0.274915,
+                "observed_frequency": 1.0
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 4,
+                "devices": 4,
+                "mean_score": 0.599225,
+                "observed_frequency": 1.0
+              }
+            ]
+          },
+          "devices_in_experiment": 6
+        },
+        "PoFINN": {
+          "capacitors": 8,
+          "resolved": 89,
+          "unresolved": 0,
+          "positive_origins": 16,
+          "crossing_devices": 8,
+          "by_method": {
+            "persistence": {
+              "brier": 0.190923,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 16
+            },
+            "trend": {
+              "brier": 0.185714,
+              "true_alerts": 12,
+              "false_alerts": 12,
+              "missed_crossings": 4
+            },
+            "robust": {
+              "brier": 0.309449,
+              "true_alerts": 14,
+              "false_alerts": 22,
+              "missed_crossings": 2
+            },
+            "calibrated_trend": {
+              "brier": 0.165455,
+              "true_alerts": 1,
+              "false_alerts": 7,
+              "missed_crossings": 15
+            },
+            "neural": {
+              "brier": 0.181464,
+              "true_alerts": 1,
+              "false_alerts": 8,
+              "missed_crossings": 15
+            },
+            "neural_projected": {
+              "brier": 0.240995,
+              "true_alerts": 1,
+              "false_alerts": 17,
+              "missed_crossings": 15
+            }
+          },
+          "cohorts": {
+            "PoFINN": {
+              "capacitors": 8,
+              "resolved": 89,
+              "unresolved": 0,
+              "positive_origins": 16,
+              "crossing_devices": 8,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.190923,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16
+                },
+                "trend": {
+                  "brier": 0.185714,
+                  "true_alerts": 12,
+                  "false_alerts": 12,
+                  "missed_crossings": 4
+                },
+                "robust": {
+                  "brier": 0.309449,
+                  "true_alerts": 14,
+                  "false_alerts": 22,
+                  "missed_crossings": 2
+                },
+                "calibrated_trend": {
+                  "brier": 0.165455,
+                  "true_alerts": 1,
+                  "false_alerts": 7,
+                  "missed_crossings": 15
+                },
+                "neural": {
+                  "brier": 0.181464,
+                  "true_alerts": 1,
+                  "false_alerts": 8,
+                  "missed_crossings": 15
+                },
+                "neural_projected": {
+                  "brier": 0.240995,
+                  "true_alerts": 1,
+                  "false_alerts": 17,
+                  "missed_crossings": 15
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 0,
+            "neural_projected": 0
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 47,
+                "devices": 8,
+                "mean_score": 0.170916,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 34,
+                "devices": 8,
+                "mean_score": 0.329724,
+                "observed_frequency": 0.432373
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 5,
+                "devices": 5,
+                "mean_score": 0.643573,
+                "observed_frequency": 0.275229
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 3,
+                "devices": 3,
+                "mean_score": 0.818288,
+                "observed_frequency": 0.0
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 58,
+                "devices": 8,
+                "mean_score": 0.166097,
+                "observed_frequency": 0.116161
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 22,
+                "devices": 7,
+                "mean_score": 0.310169,
+                "observed_frequency": 0.383036
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 7,
+                "devices": 5,
+                "mean_score": 0.582392,
+                "observed_frequency": 0.163679
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 2,
+                "devices": 2,
+                "mean_score": 0.803759,
+                "observed_frequency": 0.0
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 28,
+                "devices": 6,
+                "mean_score": 0.185841,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 43,
+                "devices": 8,
+                "mean_score": 0.360669,
+                "observed_frequency": 0.35964
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 10,
+                "devices": 5,
+                "mean_score": 0.622296,
+                "observed_frequency": 0.106437
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 8,
+                "devices": 8,
+                "mean_score": 0.871551,
+                "observed_frequency": 0.0
+              }
+            ]
+          },
+          "devices_in_experiment": 8
+        },
+        "NASA ES10/12/14": {
+          "capacitors": 22,
+          "resolved": 1375,
+          "unresolved": 1,
+          "positive_origins": 8,
+          "crossing_devices": 4,
+          "by_method": {
+            "persistence": {
+              "brier": 0.058228,
+              "true_alerts": 0,
+              "false_alerts": 0,
+              "missed_crossings": 8
+            },
+            "trend": {
+              "brier": 0.068077,
+              "true_alerts": 4,
+              "false_alerts": 81,
+              "missed_crossings": 4
+            },
+            "robust": {
+              "brier": 0.072421,
+              "true_alerts": 3,
+              "false_alerts": 79,
+              "missed_crossings": 5
+            },
+            "calibrated_trend": {
+              "brier": 0.060644,
+              "true_alerts": 1,
+              "false_alerts": 42,
+              "missed_crossings": 7
+            },
+            "neural": {
+              "brier": 0.157994,
+              "true_alerts": 4,
+              "false_alerts": 207,
+              "missed_crossings": 4
+            },
+            "neural_projected": {
+              "brier": 0.174666,
+              "true_alerts": 6,
+              "false_alerts": 434,
+              "missed_crossings": 2
+            }
+          },
+          "cohorts": {
+            "NASA ES10": {
+              "capacitors": 8,
+              "resolved": 552,
+              "unresolved": 0,
+              "positive_origins": 0,
+              "crossing_devices": 0,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.0,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "trend": {
+                  "brier": 0.023551,
+                  "true_alerts": 0,
+                  "false_alerts": 13,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": 0.012681,
+                  "true_alerts": 0,
+                  "false_alerts": 7,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.018232,
+                  "true_alerts": 0,
+                  "false_alerts": 8,
+                  "missed_crossings": 0
+                },
+                "neural": {
+                  "brier": 0.022975,
+                  "true_alerts": 0,
+                  "false_alerts": 12,
+                  "missed_crossings": 0
+                },
+                "neural_projected": {
+                  "brier": 0.018229,
+                  "true_alerts": 0,
+                  "false_alerts": 7,
+                  "missed_crossings": 0
+                }
+              }
+            },
+            "NASA ES12": {
+              "capacitors": 8,
+              "resolved": 552,
+              "unresolved": 0,
+              "positive_origins": 0,
+              "crossing_devices": 0,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.0,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 0
+                },
+                "trend": {
+                  "brier": 0.068841,
+                  "true_alerts": 0,
+                  "false_alerts": 38,
+                  "missed_crossings": 0
+                },
+                "robust": {
+                  "brier": 0.081522,
+                  "true_alerts": 0,
+                  "false_alerts": 45,
+                  "missed_crossings": 0
+                },
+                "calibrated_trend": {
+                  "brier": 0.070273,
+                  "true_alerts": 0,
+                  "false_alerts": 24,
+                  "missed_crossings": 0
+                },
+                "neural": {
+                  "brier": 0.143942,
+                  "true_alerts": 0,
+                  "false_alerts": 89,
+                  "missed_crossings": 0
+                },
+                "neural_projected": {
+                  "brier": 0.234379,
+                  "true_alerts": 0,
+                  "false_alerts": 205,
+                  "missed_crossings": 0
+                }
+              }
+            },
+            "NASA ES14": {
+              "capacitors": 6,
+              "resolved": 271,
+              "unresolved": 1,
+              "positive_origins": 8,
+              "crossing_devices": 4,
+              "by_method": {
+                "persistence": {
+                  "brier": 0.213502,
+                  "true_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 8
+                },
+                "trend": {
+                  "brier": 0.126427,
+                  "true_alerts": 4,
+                  "false_alerts": 30,
+                  "missed_crossings": 4
+                },
+                "robust": {
+                  "brier": 0.139941,
+                  "true_alerts": 3,
+                  "false_alerts": 27,
+                  "missed_crossings": 5
+                },
+                "calibrated_trend": {
+                  "brier": 0.104354,
+                  "true_alerts": 1,
+                  "false_alerts": 10,
+                  "missed_crossings": 7
+                },
+                "neural": {
+                  "brier": 0.356754,
+                  "true_alerts": 4,
+                  "false_alerts": 106,
+                  "missed_crossings": 4
+                },
+                "neural_projected": {
+                  "brier": 0.303632,
+                  "true_alerts": 6,
+                  "false_alerts": 222,
+                  "missed_crossings": 2
+                }
+              }
+            }
+          },
+          "outside_training_ranges": {
+            "neural": 1339,
+            "neural_projected": 18
+          },
+          "calibration": {
+            "calibrated_trend": [
+              {
+                "bin_upper": 0.25,
+                "origins": 1025,
+                "devices": 21,
+                "mean_score": 0.155167,
+                "observed_frequency": 0.005869
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 307,
+                "devices": 19,
+                "mean_score": 0.305255,
+                "observed_frequency": 0.037605
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 29,
+                "devices": 20,
+                "mean_score": 0.56299,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 14,
+                "devices": 14,
+                "mean_score": 0.947407,
+                "observed_frequency": 0.799812
+              }
+            ],
+            "neural": [
+              {
+                "bin_upper": 0.25,
+                "origins": 787,
+                "devices": 22,
+                "mean_score": 0.089013,
+                "observed_frequency": 0.084001
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 377,
+                "devices": 17,
+                "mean_score": 0.367517,
+                "observed_frequency": 0.015362
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 166,
+                "devices": 14,
+                "mean_score": 0.600275,
+                "observed_frequency": 0.017991
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 45,
+                "devices": 21,
+                "mean_score": 0.876397,
+                "observed_frequency": 0.099239
+              }
+            ],
+            "neural_projected": [
+              {
+                "bin_upper": 0.25,
+                "origins": 589,
+                "devices": 11,
+                "mean_score": 0.107785,
+                "observed_frequency": 0.0
+              },
+              {
+                "bin_upper": 0.5,
+                "origins": 346,
+                "devices": 16,
+                "mean_score": 0.398631,
+                "observed_frequency": 0.017122
+              },
+              {
+                "bin_upper": 0.75,
+                "origins": 397,
+                "devices": 19,
+                "mean_score": 0.613689,
+                "observed_frequency": 0.010957
+              },
+              {
+                "bin_upper": 1.0,
+                "origins": 43,
+                "devices": 15,
+                "mean_score": 0.840709,
+                "observed_frequency": 0.640924
+              }
+            ]
+          },
+          "devices_in_experiment": 24
+        }
+      }
+    }
+  },
+  "source_sha256": {
+    "EOS_DataSet.mat": "9db651a10f92d2046a477838c08fe1cdbaf27d7bc4062a856a373721400cb4a3",
+    "data_combined.csv": "c261056133cf4e6418ea917cdc131def1a422c65179818d62f82552b182ad316",
+    "NASA ES10 sessions": "72152c9a1197857952b7ffde2550057c2a2790993719d7b05c013e21c9177a0b",
+    "NASA ES12 sessions": "b79b4e5cf63383a7f50dbc0b965629d164d879dbe6412619d9b2af46cba57fc9",
+    "NASA ES14 sessions": "f8355586ec44c71b6a2f20dfeb61fe46f99768fe8cb0f7e11c522f2e5db7bb00"
+  }
+}

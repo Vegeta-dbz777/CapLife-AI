@@ -14,6 +14,8 @@ or more capacitors in a CSV. Use **Check an observed capacitance-loss threshold*
 to set a loss threshold, inspect the first recorded crossing window, and export
 device status. The general CSV uses an hour-zero baseline when present. The
 reference-age CSV uses its first recorded age as the baseline.
+The observed threshold table also records repeat confirmation and the first
+subsequent below-threshold reading where available.
 
 ## 1 — Try the web app locally (Windows / macOS / Linux)
 
@@ -132,9 +134,10 @@ python -m caplife.neural_benchmark
 python -m caplife.neural_benchmark --es10-sessions /path/to/nasa_es10_sessions_with_reference_age.csv
 ```
 
-The [engine validation report](docs/engine-validation.md) records the ESR
-comparison, cross-study performance, and the evidence needed to validate
-remaining useful life for real capacitors.
+The [engine validation report](docs/engine-validation.md) covers 38 capacitors
+across three public held-out experiments, plus the separate exploratory
+ESR comparison. The neural experiment page includes a downloadable validation
+artifact with alerts, calibration and measurement-method sensitivity.
 
 ## 2 — Input CSV contract (important)
 

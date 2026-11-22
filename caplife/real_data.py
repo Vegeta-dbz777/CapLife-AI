@@ -5,7 +5,8 @@ Compatible with pandas and numpy versions in the existing CapLife AI project.
 """
 from __future__ import annotations
 
-from io import BytesIO
+import csv
+from io import BytesIO, TextIOWrapper
 from zipfile import ZIP_DEFLATED, ZipFile
 import numpy as np
 import pandas as pd
@@ -36,6 +37,26 @@ RATIO_COLUMNS = {
 
 class RealDataValidationError(ValueError):
     """A raw measurement file cannot be assessed safely."""
+
+
+def read_experimental_csv(payload: bytes, reference_age: bool = False) -> pd.DataFrame:
+    """Preserve literal IDs and reject duplicate or misaligned measurement columns."""
+    with TextIOWrapper(BytesIO(payload), encoding="utf-8-sig", newline="") as source:
+        try:
+            rows = csv.reader(source, strict=True)
+            header = next((row for row in rows if len(row) > 1 or (row and row[0].strip())), [])
+        except csv.Error as error:
+            raise RealDataValidationError(f"Invalid CSV header. {error}") from error
+    if len(header) != len(set(header)):
+        raise RealDataValidationError("Duplicate CSV column headers are not supported.")
+    frame = pd.read_csv(
+        BytesIO(payload), low_memory=False, converters={"Cap_ID": str},
+        keep_default_na=not reference_age,
+        float_precision="round_trip" if reference_age else None,
+    )
+    if not isinstance(frame.index, pd.RangeIndex):
+        raise RealDataValidationError("CSV rows must match the header column count.")
+    return frame
 
 
 def blank_template_csv() -> str:
