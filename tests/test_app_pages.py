@@ -43,7 +43,11 @@ def test_public_example_loads_eight_capacitors():
     next(b for b in app.button if b.label == "Load public example").click().run()
     assert not app.exception
     assert metric(app, "Capacitors") == "8"
-    assert metric(app, "Measurement rows") == "584"
+    # 584 NASA rows; each capacitor's two 0 h readings are combined into one.
+    assert metric(app, "Measurement rows") == "576"
+    assert all(r.label != "CSV format" for r in app.radio)
+    assert any("Much of the capacitance loss appeared early" in i.value for i in app.info)
+    assert sum("ESR test conditions are only partly documented" in w.value for w in app.warning) == 1
 
 
 def test_rul_prediction_example_shows_fleet_and_capacitor_detail():
@@ -93,9 +97,3 @@ def test_choosing_a_page_in_one_sidebar_list_clears_the_other():
     assert not app.exception
     assert app.sidebar.radio(key=RESEARCH_KEY).value is None
     assert app.header[0].value == "Six-parameter health and remaining-life prediction"
-
-
-def test_csv_format_options_explain_what_each_file_holds():
-    app = open_workspace("Analyze measurements")
-    captions = app.radio(key="caplife_measurement_format").proto.captions
-    assert captions[0].startswith("Up to six parameters") and "NASA" in captions[1]

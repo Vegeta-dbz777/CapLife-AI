@@ -109,7 +109,7 @@ def calculate_degradation_rates(measurements: pd.DataFrame) -> dict:
                 if not gate:
                     warnings.append(f"{cap_id}: ESR rate withheld because recorded ESR test conditions vary or are partially missing.")
                 elif not documented:
-                    warnings.append(f"{cap_id}: ESR test conditions are undocumented or incomplete; ESR rates are provisional.")
+                    warnings.append(f"{cap_id}: ESR test conditions are not fully documented; ESR rates are provisional.")
 
             current_intervals = []
             if gate:

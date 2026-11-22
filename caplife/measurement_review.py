@@ -110,3 +110,39 @@ def reference_age_observations(history: pd.DataFrame, early_fraction: float = 0.
         "first_step_loss_range": (min(first_steps), max(first_steps)) if first_steps else None,
         "first_step_age_range": (min(first_step_ages), max(first_step_ages)) if first_step_ages else None,
     }
+
+
+NASA_ESR_TEST_HZ = 10_000
+
+
+def nasa_reference_to_caplife(reference: pd.DataFrame) -> pd.DataFrame:
+    """NASA ES14 reference-age readings in the CapLife measurement format.
+
+    Reference age becomes ``Hours``. The NASA resistance is the real part of the
+    impedance measured near 10 kHz, an ESR-type measurement, so it becomes
+    ``ESR_ohm`` with ``ESR_Test_Hz`` recording that frequency. Repeated readings
+    at the same age (the paired 0 h readings) are combined by their median.
+    """
+    frame = reference.rename(columns={"Age_h": "Hours", "Resistance_Ohm": "ESR_ohm"})
+    frame = (frame.groupby(["Cap_ID", "Hours"], sort=True, as_index=False)[["Capacitance_uF", "ESR_ohm"]]
+             .median())
+    frame["ESR_Test_Hz"] = NASA_ESR_TEST_HZ
+    return frame
+
+
+def group_capacitor_warnings(warnings: list[str]) -> list[str]:
+    """Merge warnings that differ only by their leading "<Cap_ID>: " into one line listing the capacitors."""
+    grouped: dict[str, list[str]] = {}
+    for warning in warnings:
+        device, separator, message = warning.partition(": ")
+        key = message if separator else warning
+        grouped.setdefault(key, []).append(device if separator else "")
+    merged = []
+    for message, devices in grouped.items():
+        devices = [device for device in devices if device]
+        if len(devices) > 1:
+            shown = ", ".join(devices[:6]) + (f" and {len(devices) - 6} more" if len(devices) > 6 else "")
+            merged.append(f"{message[0].upper()}{message[1:]} ({len(devices)} capacitors: {shown})")
+        else:
+            merged.append(f"{devices[0]}: {message}" if devices else message)
+    return merged

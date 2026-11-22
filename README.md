@@ -13,13 +13,17 @@ demonstration illustrates a PyTorch GRU and a remaining-life estimate.
 
 Open [CapLife AI](https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/) in a
 browser. Choose **Load public example** to explore measurements from eight NASA
-ES14 capacitors, or upload a CSV with your own measurements. The **Overview**,
-**Signal history**, and **Downloads** tabs organize the results.
+ES14 capacitors, or upload a CSV with your own measurements: `Cap_ID`, `Hours`
+and any of the six parameters you measured (you don't need all six). The
+**Overview**, **Signal history**, **Research tools** and **Downloads** tabs
+organize the results. The NASA example is converted to this format on loading:
+reference age becomes `Hours`, and its resistance (the real impedance near
+10 kHz) becomes `ESR_ohm` with `ESR_Test_Hz = 10000`; each capacitor's two 0 h
+readings are combined by their median.
 
 Use **Check an observed capacitance-loss threshold**
 to set a loss threshold, inspect the first recorded crossing window, and export
-device status. The general CSV uses an hour-zero baseline when present. The
-reference-age CSV uses its first recorded age as the baseline.
+device status. Changes are measured from the hour-zero baseline.
 The observed threshold table also records repeat confirmation and the first
 subsequent below-threshold reading where available.
 
