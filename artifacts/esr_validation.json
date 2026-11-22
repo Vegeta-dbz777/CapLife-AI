@@ -1,0 +1,1087 @@
+{
+  "horizon_h": 48,
+  "sources": {
+    "Jian et al.": "https://doi.org/10.3390/electronics14224452",
+    "NASA EOS-2": "https://data.nasa.gov/dataset/capacitor-electrical-stress-2"
+  },
+  "source_sha256": {
+    "EOS_DataSet.mat": "9db651a10f92d2046a477838c08fe1cdbaf27d7bc4062a856a373721400cb4a3",
+    "Figure 4(a)": "8f68a59ee2cc54b050394caf81ca064c46813d9c5e20cbc4d2ef185aa02177b1",
+    "Figure 4(b)": "1020a5625dad9f06c3d4dd4b167f65c8611aa60af5cee4547ca659137ca258ec"
+  },
+  "eos2_20pct_device_holdout": {
+    "devices": 6,
+    "resolved": 39,
+    "unresolved": 8,
+    "crossings": 15,
+    "outside_augmented_training_ranges": 8,
+    "by_method": {
+      "trend": {
+        "brier": 0.150794,
+        "true_alerts": 9,
+        "false_alerts": 0,
+        "missed_crossings": 6
+      },
+      "linear": {
+        "brier": 0.030453,
+        "true_alerts": 14,
+        "false_alerts": 0,
+        "missed_crossings": 1
+      },
+      "neural": {
+        "brier": 0.023697,
+        "true_alerts": 14,
+        "false_alerts": 0,
+        "missed_crossings": 1
+      },
+      "neural_esr": {
+        "brier": 0.020325,
+        "true_alerts": 14,
+        "false_alerts": 0,
+        "missed_crossings": 1
+      }
+    },
+    "within_augmented_training_ranges": {
+      "devices": 6,
+      "resolved": 31,
+      "crossings": 11,
+      "by_method": {
+        "trend": {
+          "brier": 0.140476,
+          "true_alerts": 6,
+          "false_alerts": 0,
+          "missed_crossings": 5
+        },
+        "linear": {
+          "brier": 0.03181,
+          "true_alerts": 10,
+          "false_alerts": 0,
+          "missed_crossings": 1
+        },
+        "neural": {
+          "brier": 0.025833,
+          "true_alerts": 10,
+          "false_alerts": 0,
+          "missed_crossings": 1
+        },
+        "neural_esr": {
+          "brier": 0.023837,
+          "true_alerts": 10,
+          "false_alerts": 0,
+          "missed_crossings": 1
+        }
+      }
+    },
+    "per_device_brier_difference": {
+      "C1": -0.005871,
+      "C2": -0.002753,
+      "C3": 0.000234,
+      "C4": 0.006594,
+      "C5": -0.002602,
+      "C6": -0.015835
+    },
+    "calibration": {
+      "neural": [
+        {
+          "score_range": "(-0.001, 0.25]",
+          "origins": 23,
+          "devices": 6,
+          "mean_score": 0.0556,
+          "observed_frequency": 0.0
+        },
+        {
+          "score_range": "(0.25, 0.5]",
+          "origins": 2,
+          "devices": 2,
+          "mean_score": 0.3298,
+          "observed_frequency": 0.4545
+        },
+        {
+          "score_range": "(0.5, 0.75]",
+          "origins": 1,
+          "devices": 1,
+          "mean_score": 0.63,
+          "observed_frequency": 1.0
+        },
+        {
+          "score_range": "(0.75, 1.0]",
+          "origins": 13,
+          "devices": 5,
+          "mean_score": 0.9346,
+          "observed_frequency": 1.0
+        }
+      ],
+      "neural_esr": [
+        {
+          "score_range": "(-0.001, 0.25]",
+          "origins": 24,
+          "devices": 6,
+          "mean_score": 0.0593,
+          "observed_frequency": 0.0
+        },
+        {
+          "score_range": "(0.25, 0.5]",
+          "origins": 1,
+          "devices": 1,
+          "mean_score": 0.3106,
+          "observed_frequency": 1.0
+        },
+        {
+          "score_range": "(0.75, 1.0]",
+          "origins": 14,
+          "devices": 5,
+          "mean_score": 0.9251,
+          "observed_frequency": 1.0
+        }
+      ]
+    }
+  },
+  "eos2_12pct_device_holdout": {
+    "devices": 6,
+    "resolved": 36,
+    "unresolved": 1,
+    "crossings": 18,
+    "outside_augmented_training_ranges": 8,
+    "by_method": {
+      "trend": {
+        "brier": 0.166667,
+        "true_alerts": 12,
+        "false_alerts": 0,
+        "missed_crossings": 6
+      },
+      "linear": {
+        "brier": 0.017669,
+        "true_alerts": 18,
+        "false_alerts": 0,
+        "missed_crossings": 0
+      },
+      "neural": {
+        "brier": 0.007074,
+        "true_alerts": 18,
+        "false_alerts": 0,
+        "missed_crossings": 0
+      },
+      "neural_esr": {
+        "brier": 0.005098,
+        "true_alerts": 18,
+        "false_alerts": 0,
+        "missed_crossings": 0
+      }
+    },
+    "within_augmented_training_ranges": {
+      "devices": 6,
+      "resolved": 28,
+      "crossings": 14,
+      "by_method": {
+        "trend": {
+          "brier": 0.255556,
+          "true_alerts": 8,
+          "false_alerts": 0,
+          "missed_crossings": 6
+        },
+        "linear": {
+          "brier": 0.021351,
+          "true_alerts": 14,
+          "false_alerts": 0,
+          "missed_crossings": 0
+        },
+        "neural": {
+          "brier": 0.008386,
+          "true_alerts": 14,
+          "false_alerts": 0,
+          "missed_crossings": 0
+        },
+        "neural_esr": {
+          "brier": 0.006498,
+          "true_alerts": 14,
+          "false_alerts": 0,
+          "missed_crossings": 0
+        }
+      }
+    },
+    "per_device_brier_difference": {
+      "C1": 0.000649,
+      "C2": -0.00306,
+      "C3": -0.001705,
+      "C4": -0.004928,
+      "C5": -0.003149,
+      "C6": 0.00034
+    },
+    "calibration": {
+      "neural": [
+        {
+          "score_range": "(-0.001, 0.25]",
+          "origins": 18,
+          "devices": 6,
+          "mean_score": 0.0678,
+          "observed_frequency": 0.0
+        },
+        {
+          "score_range": "(0.75, 1.0]",
+          "origins": 18,
+          "devices": 6,
+          "mean_score": 0.9317,
+          "observed_frequency": 1.0
+        }
+      ],
+      "neural_esr": [
+        {
+          "score_range": "(-0.001, 0.25]",
+          "origins": 18,
+          "devices": 6,
+          "mean_score": 0.0576,
+          "observed_frequency": 0.0
+        },
+        {
+          "score_range": "(0.75, 1.0]",
+          "origins": 18,
+          "devices": 6,
+          "mean_score": 0.941,
+          "observed_frequency": 1.0
+        }
+      ]
+    }
+  },
+  "jian_12pct_device_holdout": {
+    "devices": 8,
+    "resolved": 80,
+    "unresolved": 9,
+    "crossings": 9,
+    "outside_augmented_training_ranges": 15,
+    "by_method": {
+      "trend": {
+        "brier": 0.13125,
+        "true_alerts": 7,
+        "false_alerts": 4,
+        "missed_crossings": 2
+      },
+      "linear": {
+        "brier": 0.078994,
+        "true_alerts": 5,
+        "false_alerts": 0,
+        "missed_crossings": 4
+      },
+      "neural": {
+        "brier": 0.068823,
+        "true_alerts": 5,
+        "false_alerts": 1,
+        "missed_crossings": 4
+      },
+      "neural_esr": {
+        "brier": 0.067472,
+        "true_alerts": 4,
+        "false_alerts": 0,
+        "missed_crossings": 5
+      }
+    },
+    "within_augmented_training_ranges": {
+      "devices": 8,
+      "resolved": 65,
+      "crossings": 6,
+      "by_method": {
+        "trend": {
+          "brier": 0.111111,
+          "true_alerts": 5,
+          "false_alerts": 3,
+          "missed_crossings": 1
+        },
+        "linear": {
+          "brier": 0.067434,
+          "true_alerts": 4,
+          "false_alerts": 0,
+          "missed_crossings": 2
+        },
+        "neural": {
+          "brier": 0.05873,
+          "true_alerts": 4,
+          "false_alerts": 1,
+          "missed_crossings": 2
+        },
+        "neural_esr": {
+          "brier": 0.062341,
+          "true_alerts": 3,
+          "false_alerts": 0,
+          "missed_crossings": 3
+        }
+      }
+    },
+    "per_device_brier_difference": {
+      "Cap1": -0.000329,
+      "Cap2": 0.038006,
+      "Cap3": -0.031408,
+      "Cap4": 7.8e-05,
+      "Cap5": -0.017166,
+      "Cap6": 0.002362,
+      "Cap7": -0.000845,
+      "Cap8": -0.0015
+    },
+    "calibration": {
+      "neural": [
+        {
+          "score_range": "(-0.001, 0.25]",
+          "origins": 67,
+          "devices": 8,
+          "mean_score": 0.059,
+          "observed_frequency": 0.0539
+        },
+        {
+          "score_range": "(0.25, 0.5]",
+          "origins": 7,
+          "devices": 3,
+          "mean_score": 0.3128,
+          "observed_frequency": 0.3457
+        },
+        {
+          "score_range": "(0.5, 0.75]",
+          "origins": 3,
+          "devices": 3,
+          "mean_score": 0.6129,
+          "observed_frequency": 0.7732
+        },
+        {
+          "score_range": "(0.75, 1.0]",
+          "origins": 3,
+          "devices": 2,
+          "mean_score": 0.8072,
+          "observed_frequency": 1.0
+        }
+      ],
+      "neural_esr": [
+        {
+          "score_range": "(-0.001, 0.25]",
+          "origins": 65,
+          "devices": 8,
+          "mean_score": 0.0441,
+          "observed_frequency": 0.0152
+        },
+        {
+          "score_range": "(0.25, 0.5]",
+          "origins": 11,
+          "devices": 5,
+          "mean_score": 0.3438,
+          "observed_frequency": 0.4479
+        },
+        {
+          "score_range": "(0.5, 0.75]",
+          "origins": 2,
+          "devices": 2,
+          "mean_score": 0.6397,
+          "observed_frequency": 1.0
+        },
+        {
+          "score_range": "(0.75, 1.0]",
+          "origins": 2,
+          "devices": 2,
+          "mean_score": 0.7858,
+          "observed_frequency": 1.0
+        }
+      ]
+    }
+  },
+  "eos2_to_jian_12pct": {
+    "devices": 8,
+    "resolved": 80,
+    "unresolved": 9,
+    "crossings": 9,
+    "outside_augmented_training_ranges": 60,
+    "by_method": {
+      "trend": {
+        "brier": 0.13125,
+        "true_alerts": 7,
+        "false_alerts": 4,
+        "missed_crossings": 2
+      },
+      "linear": {
+        "brier": 0.172883,
+        "true_alerts": 7,
+        "false_alerts": 10,
+        "missed_crossings": 2
+      },
+      "neural": {
+        "brier": 0.175676,
+        "true_alerts": 7,
+        "false_alerts": 13,
+        "missed_crossings": 2
+      },
+      "neural_esr": {
+        "brier": 0.391881,
+        "true_alerts": 8,
+        "false_alerts": 44,
+        "missed_crossings": 1
+      }
+    },
+    "within_augmented_training_ranges": {
+      "devices": 8,
+      "resolved": 20,
+      "crossings": 3,
+      "by_method": {
+        "trend": {
+          "brier": 0.125,
+          "true_alerts": 3,
+          "false_alerts": 2,
+          "missed_crossings": 0
+        },
+        "linear": {
+          "brier": 0.230233,
+          "true_alerts": 3,
+          "false_alerts": 7,
+          "missed_crossings": 0
+        },
+        "neural": {
+          "brier": 0.257109,
+          "true_alerts": 3,
+          "false_alerts": 8,
+          "missed_crossings": 0
+        },
+        "neural_esr": {
+          "brier": 0.307325,
+          "true_alerts": 2,
+          "false_alerts": 8,
+          "missed_crossings": 1
+        }
+      }
+    },
+    "per_device_brier_difference": {
+      "Cap1": 0.405176,
+      "Cap2": 0.349556,
+      "Cap3": 0.028758,
+      "Cap4": 0.322289,
+      "Cap5": -0.40987,
+      "Cap6": 0.264276,
+      "Cap7": 0.405082,
+      "Cap8": 0.364376
+    },
+    "calibration": {
+      "neural": [
+        {
+          "score_range": "(-0.001, 0.25]",
+          "origins": 29,
+          "devices": 6,
+          "mean_score": 0.1669,
+          "observed_frequency": 0.0
+        },
+        {
+          "score_range": "(0.25, 0.5]",
+          "origins": 31,
+          "devices": 8,
+          "mean_score": 0.3542,
+          "observed_frequency": 0.1154
+        },
+        {
+          "score_range": "(0.5, 0.75]",
+          "origins": 16,
+          "devices": 6,
+          "mean_score": 0.6217,
+          "observed_frequency": 0.3367
+        },
+        {
+          "score_range": "(0.75, 1.0]",
+          "origins": 4,
+          "devices": 2,
+          "mean_score": 0.8012,
+          "observed_frequency": 0.4
+        }
+      ],
+      "neural_esr": [
+        {
+          "score_range": "(-0.001, 0.25]",
+          "origins": 17,
+          "devices": 7,
+          "mean_score": 0.1361,
+          "observed_frequency": 0.0
+        },
+        {
+          "score_range": "(0.25, 0.5]",
+          "origins": 11,
+          "devices": 8,
+          "mean_score": 0.4075,
+          "observed_frequency": 0.0769
+        },
+        {
+          "score_range": "(0.5, 0.75]",
+          "origins": 12,
+          "devices": 6,
+          "mean_score": 0.6634,
+          "observed_frequency": 0.0892
+        },
+        {
+          "score_range": "(0.75, 1.0]",
+          "origins": 40,
+          "devices": 8,
+          "mean_score": 0.9189,
+          "observed_frequency": 0.2743
+        }
+      ]
+    }
+  },
+  "jian_to_eos2_12pct": {
+    "devices": 6,
+    "resolved": 36,
+    "unresolved": 1,
+    "crossings": 18,
+    "outside_augmented_training_ranges": 36,
+    "by_method": {
+      "trend": {
+        "brier": 0.166667,
+        "true_alerts": 12,
+        "false_alerts": 0,
+        "missed_crossings": 6
+      },
+      "linear": {
+        "brier": 0.336053,
+        "true_alerts": 6,
+        "false_alerts": 0,
+        "missed_crossings": 12
+      },
+      "neural": {
+        "brier": 0.345779,
+        "true_alerts": 5,
+        "false_alerts": 0,
+        "missed_crossings": 13
+      },
+      "neural_esr": {
+        "brier": 0.292356,
+        "true_alerts": 6,
+        "false_alerts": 0,
+        "missed_crossings": 12
+      }
+    },
+    "within_augmented_training_ranges": {
+      "devices": 0,
+      "resolved": 0,
+      "crossings": 0,
+      "by_method": null
+    },
+    "per_device_brier_difference": {
+      "C1": -0.175804,
+      "C2": -0.063772,
+      "C3": -0.022924,
+      "C4": -0.02116,
+      "C5": -0.023397,
+      "C6": -0.013486
+    },
+    "calibration": {
+      "neural": [
+        {
+          "score_range": "(-0.001, 0.25]",
+          "origins": 30,
+          "devices": 6,
+          "mean_score": 0.0111,
+          "observed_frequency": 0.4
+        },
+        {
+          "score_range": "(0.25, 0.5]",
+          "origins": 1,
+          "devices": 1,
+          "mean_score": 0.3952,
+          "observed_frequency": 1.0
+        },
+        {
+          "score_range": "(0.5, 0.75]",
+          "origins": 3,
+          "devices": 3,
+          "mean_score": 0.6976,
+          "observed_frequency": 1.0
+        },
+        {
+          "score_range": "(0.75, 1.0]",
+          "origins": 2,
+          "devices": 2,
+          "mean_score": 0.7815,
+          "observed_frequency": 1.0
+        }
+      ],
+      "neural_esr": [
+        {
+          "score_range": "(-0.001, 0.25]",
+          "origins": 29,
+          "devices": 6,
+          "mean_score": 0.0213,
+          "observed_frequency": 0.3793
+        },
+        {
+          "score_range": "(0.25, 0.5]",
+          "origins": 1,
+          "devices": 1,
+          "mean_score": 0.4726,
+          "observed_frequency": 1.0
+        },
+        {
+          "score_range": "(0.75, 1.0]",
+          "origins": 6,
+          "devices": 6,
+          "mean_score": 0.9208,
+          "observed_frequency": 1.0
+        }
+      ]
+    }
+  },
+  "figure_margin_sensitivity": {
+    "0.05": {
+      "eos2_to_jian": {
+        "devices": 8,
+        "resolved": 82,
+        "unresolved": 8,
+        "crossings": 10,
+        "outside_augmented_training_ranges": 62,
+        "by_method": {
+          "trend": {
+            "brier": 0.13125,
+            "true_alerts": 8,
+            "false_alerts": 4,
+            "missed_crossings": 2
+          },
+          "linear": {
+            "brier": 0.17393,
+            "true_alerts": 8,
+            "false_alerts": 11,
+            "missed_crossings": 2
+          },
+          "neural": {
+            "brier": 0.176787,
+            "true_alerts": 8,
+            "false_alerts": 14,
+            "missed_crossings": 2
+          },
+          "neural_esr": {
+            "brier": 0.391705,
+            "true_alerts": 9,
+            "false_alerts": 45,
+            "missed_crossings": 1
+          }
+        },
+        "within_augmented_training_ranges": {
+          "devices": 8,
+          "resolved": 20,
+          "crossings": 3,
+          "by_method": {
+            "trend": {
+              "brier": 0.125,
+              "true_alerts": 3,
+              "false_alerts": 2,
+              "missed_crossings": 0
+            },
+            "linear": {
+              "brier": 0.230233,
+              "true_alerts": 3,
+              "false_alerts": 7,
+              "missed_crossings": 0
+            },
+            "neural": {
+              "brier": 0.257109,
+              "true_alerts": 3,
+              "false_alerts": 8,
+              "missed_crossings": 0
+            },
+            "neural_esr": {
+              "brier": 0.307325,
+              "true_alerts": 2,
+              "false_alerts": 8,
+              "missed_crossings": 1
+            }
+          }
+        },
+        "per_device_brier_difference": {
+          "Cap1": 0.405176,
+          "Cap2": 0.349556,
+          "Cap3": 0.028758,
+          "Cap4": 0.311986,
+          "Cap5": -0.40987,
+          "Cap6": 0.264276,
+          "Cap7": 0.405082,
+          "Cap8": 0.364376
+        },
+        "calibration": {
+          "neural": [
+            {
+              "score_range": "(-0.001, 0.25]",
+              "origins": 29,
+              "devices": 6,
+              "mean_score": 0.1667,
+              "observed_frequency": 0.0
+            },
+            {
+              "score_range": "(0.25, 0.5]",
+              "origins": 31,
+              "devices": 8,
+              "mean_score": 0.354,
+              "observed_frequency": 0.1179
+            },
+            {
+              "score_range": "(0.5, 0.75]",
+              "origins": 18,
+              "devices": 6,
+              "mean_score": 0.6215,
+              "observed_frequency": 0.3492
+            },
+            {
+              "score_range": "(0.75, 1.0]",
+              "origins": 4,
+              "devices": 2,
+              "mean_score": 0.8012,
+              "observed_frequency": 0.4
+            }
+          ],
+          "neural_esr": [
+            {
+              "score_range": "(-0.001, 0.25]",
+              "origins": 17,
+              "devices": 7,
+              "mean_score": 0.1357,
+              "observed_frequency": 0.0
+            },
+            {
+              "score_range": "(0.25, 0.5]",
+              "origins": 11,
+              "devices": 8,
+              "mean_score": 0.4089,
+              "observed_frequency": 0.0781
+            },
+            {
+              "score_range": "(0.5, 0.75]",
+              "origins": 12,
+              "devices": 6,
+              "mean_score": 0.6648,
+              "observed_frequency": 0.0908
+            },
+            {
+              "score_range": "(0.75, 1.0]",
+              "origins": 42,
+              "devices": 8,
+              "mean_score": 0.9197,
+              "observed_frequency": 0.2839
+            }
+          ]
+        }
+      },
+      "jian_to_eos2": {
+        "devices": 6,
+        "resolved": 36,
+        "unresolved": 1,
+        "crossings": 18,
+        "outside_augmented_training_ranges": 36,
+        "by_method": {
+          "trend": {
+            "brier": 0.166667,
+            "true_alerts": 12,
+            "false_alerts": 0,
+            "missed_crossings": 6
+          },
+          "linear": {
+            "brier": 0.335662,
+            "true_alerts": 6,
+            "false_alerts": 0,
+            "missed_crossings": 12
+          },
+          "neural": {
+            "brier": 0.339853,
+            "true_alerts": 5,
+            "false_alerts": 0,
+            "missed_crossings": 13
+          },
+          "neural_esr": {
+            "brier": 0.300017,
+            "true_alerts": 6,
+            "false_alerts": 0,
+            "missed_crossings": 12
+          }
+        },
+        "within_augmented_training_ranges": {
+          "devices": 0,
+          "resolved": 0,
+          "crossings": 0,
+          "by_method": null
+        },
+        "per_device_brier_difference": {
+          "C1": -0.129178,
+          "C2": -0.049707,
+          "C3": -0.017529,
+          "C4": -0.016431,
+          "C5": -0.016893,
+          "C6": -0.009281
+        },
+        "calibration": {
+          "neural": [
+            {
+              "score_range": "(-0.001, 0.25]",
+              "origins": 30,
+              "devices": 6,
+              "mean_score": 0.0115,
+              "observed_frequency": 0.4
+            },
+            {
+              "score_range": "(0.25, 0.5]",
+              "origins": 1,
+              "devices": 1,
+              "mean_score": 0.4901,
+              "observed_frequency": 1.0
+            },
+            {
+              "score_range": "(0.5, 0.75]",
+              "origins": 1,
+              "devices": 1,
+              "mean_score": 0.7035,
+              "observed_frequency": 1.0
+            },
+            {
+              "score_range": "(0.75, 1.0]",
+              "origins": 4,
+              "devices": 4,
+              "mean_score": 0.7814,
+              "observed_frequency": 1.0
+            }
+          ],
+          "neural_esr": [
+            {
+              "score_range": "(-0.001, 0.25]",
+              "origins": 29,
+              "devices": 6,
+              "mean_score": 0.0194,
+              "observed_frequency": 0.3793
+            },
+            {
+              "score_range": "(0.25, 0.5]",
+              "origins": 1,
+              "devices": 1,
+              "mean_score": 0.3323,
+              "observed_frequency": 1.0
+            },
+            {
+              "score_range": "(0.75, 1.0]",
+              "origins": 6,
+              "devices": 6,
+              "mean_score": 0.9085,
+              "observed_frequency": 1.0
+            }
+          ]
+        }
+      }
+    },
+    "0.15": {
+      "eos2_to_jian": {
+        "devices": 8,
+        "resolved": 76,
+        "unresolved": 12,
+        "crossings": 6,
+        "outside_augmented_training_ranges": 57,
+        "by_method": {
+          "trend": {
+            "brier": 0.13125,
+            "true_alerts": 4,
+            "false_alerts": 4,
+            "missed_crossings": 2
+          },
+          "linear": {
+            "brier": 0.177256,
+            "true_alerts": 4,
+            "false_alerts": 10,
+            "missed_crossings": 2
+          },
+          "neural": {
+            "brier": 0.183112,
+            "true_alerts": 4,
+            "false_alerts": 13,
+            "missed_crossings": 2
+          },
+          "neural_esr": {
+            "brier": 0.384045,
+            "true_alerts": 5,
+            "false_alerts": 43,
+            "missed_crossings": 1
+          }
+        },
+        "within_augmented_training_ranges": {
+          "devices": 8,
+          "resolved": 19,
+          "crossings": 2,
+          "by_method": {
+            "trend": {
+              "brier": 0.125,
+              "true_alerts": 2,
+              "false_alerts": 2,
+              "missed_crossings": 0
+            },
+            "linear": {
+              "brier": 0.229916,
+              "true_alerts": 2,
+              "false_alerts": 7,
+              "missed_crossings": 0
+            },
+            "neural": {
+              "brier": 0.258013,
+              "true_alerts": 2,
+              "false_alerts": 8,
+              "missed_crossings": 0
+            },
+            "neural_esr": {
+              "brier": 0.311493,
+              "true_alerts": 1,
+              "false_alerts": 8,
+              "missed_crossings": 1
+            }
+          }
+        },
+        "per_device_brier_difference": {
+          "Cap1": 0.405176,
+          "Cap2": 0.38793,
+          "Cap3": -0.170839,
+          "Cap4": 0.361331,
+          "Cap5": -0.40987,
+          "Cap6": 0.264276,
+          "Cap7": 0.405082,
+          "Cap8": 0.364376
+        },
+        "calibration": {
+          "neural": [
+            {
+              "score_range": "(-0.001, 0.25]",
+              "origins": 29,
+              "devices": 6,
+              "mean_score": 0.1669,
+              "observed_frequency": 0.0
+            },
+            {
+              "score_range": "(0.25, 0.5]",
+              "origins": 30,
+              "devices": 8,
+              "mean_score": 0.3589,
+              "observed_frequency": 0.1165
+            },
+            {
+              "score_range": "(0.5, 0.75]",
+              "origins": 14,
+              "devices": 6,
+              "mean_score": 0.6213,
+              "observed_frequency": 0.2458
+            },
+            {
+              "score_range": "(0.75, 1.0]",
+              "origins": 3,
+              "devices": 2,
+              "mean_score": 0.7887,
+              "observed_frequency": 0.3333
+            }
+          ],
+          "neural_esr": [
+            {
+              "score_range": "(-0.001, 0.25]",
+              "origins": 17,
+              "devices": 7,
+              "mean_score": 0.1349,
+              "observed_frequency": 0.0
+            },
+            {
+              "score_range": "(0.25, 0.5]",
+              "origins": 11,
+              "devices": 8,
+              "mean_score": 0.4118,
+              "observed_frequency": 0.0772
+            },
+            {
+              "score_range": "(0.5, 0.75]",
+              "origins": 11,
+              "devices": 6,
+              "mean_score": 0.6568,
+              "observed_frequency": 0.0
+            },
+            {
+              "score_range": "(0.75, 1.0]",
+              "origins": 37,
+              "devices": 8,
+              "mean_score": 0.9162,
+              "observed_frequency": 0.2513
+            }
+          ]
+        }
+      },
+      "jian_to_eos2": {
+        "devices": 6,
+        "resolved": 36,
+        "unresolved": 1,
+        "crossings": 18,
+        "outside_augmented_training_ranges": 36,
+        "by_method": {
+          "trend": {
+            "brier": 0.166667,
+            "true_alerts": 12,
+            "false_alerts": 0,
+            "missed_crossings": 6
+          },
+          "linear": {
+            "brier": 0.32946,
+            "true_alerts": 6,
+            "false_alerts": 0,
+            "missed_crossings": 12
+          },
+          "neural": {
+            "brier": 0.325834,
+            "true_alerts": 6,
+            "false_alerts": 0,
+            "missed_crossings": 12
+          },
+          "neural_esr": {
+            "brier": 0.300686,
+            "true_alerts": 6,
+            "false_alerts": 0,
+            "missed_crossings": 12
+          }
+        },
+        "within_augmented_training_ranges": {
+          "devices": 0,
+          "resolved": 0,
+          "crossings": 0,
+          "by_method": null
+        },
+        "per_device_brier_difference": {
+          "C1": -0.013585,
+          "C2": -0.094696,
+          "C3": -0.017195,
+          "C4": -0.016291,
+          "C5": -0.005049,
+          "C6": -0.004066
+        },
+        "calibration": {
+          "neural": [
+            {
+              "score_range": "(-0.001, 0.25]",
+              "origins": 30,
+              "devices": 6,
+              "mean_score": 0.0113,
+              "observed_frequency": 0.4
+            },
+            {
+              "score_range": "(0.75, 1.0]",
+              "origins": 6,
+              "devices": 6,
+              "mean_score": 0.9083,
+              "observed_frequency": 1.0
+            }
+          ],
+          "neural_esr": [
+            {
+              "score_range": "(-0.001, 0.25]",
+              "origins": 29,
+              "devices": 6,
+              "mean_score": 0.0168,
+              "observed_frequency": 0.3793
+            },
+            {
+              "score_range": "(0.25, 0.5]",
+              "origins": 1,
+              "devices": 1,
+              "mean_score": 0.3767,
+              "observed_frequency": 1.0
+            },
+            {
+              "score_range": "(0.75, 1.0]",
+              "origins": 6,
+              "devices": 6,
+              "mean_score": 0.9244,
+              "observed_frequency": 1.0
+            }
+          ]
+        }
+      }
+    }
+  }
+}

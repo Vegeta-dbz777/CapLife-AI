@@ -132,6 +132,10 @@ python -m caplife.neural_benchmark
 python -m caplife.neural_benchmark --es10-sessions /path/to/nasa_es10_sessions_with_reference_age.csv
 ```
 
+The [engine validation report](docs/engine-validation.md) records the ESR
+comparison, cross-study performance, and the evidence needed to validate
+remaining useful life for real capacitors.
+
 ## 2 — Input CSV contract (important)
 
 See `sample_data/upload_template.csv`. Every row is one timestamp/measurement.

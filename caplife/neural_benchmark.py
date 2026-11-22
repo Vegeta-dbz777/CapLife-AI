@@ -83,14 +83,15 @@ def fit_classifier(x: np.ndarray, y: np.ndarray, weights: np.ndarray, hidden: bo
     return model.eval()
 
 
-def evaluate_transfer(train: pd.DataFrame, test: pd.DataFrame) -> tuple[pd.DataFrame, list[dict]]:
+def evaluate_transfer(train: pd.DataFrame, test: pd.DataFrame,
+                      features: tuple[str, ...] = FEATURES) -> tuple[pd.DataFrame, list[dict]]:
     train = train.loc[train["outcome"].notna()]
     if train["outcome"].nunique() != 2:
         raise ValueError("Training requires both resolved crossing and no-crossing examples.")
     weights = 1 / train.groupby("device")["device"].transform("size").to_numpy(dtype=float)
     weights /= weights.sum()
-    raw_train = train[list(FEATURES)].to_numpy(dtype=float)
-    raw_test = test[list(FEATURES)].to_numpy(dtype=float)
+    raw_train = train[list(features)].to_numpy(dtype=float)
+    raw_test = test[list(features)].to_numpy(dtype=float)
     center = np.average(raw_train, axis=0, weights=weights)
     scale = np.sqrt(np.average((raw_train - center) ** 2, axis=0, weights=weights))
     scale[scale == 0] = 1
