@@ -243,22 +243,51 @@ def _health_cards(readings: pd.DataFrame, assessment: pd.DataFrame) -> None:
     st.html('<div class="caplife-health-grid">' + "".join(cards) + "</div>")
 
 
+def _chart_domain(values: pd.Series, limit: float, digits: int) -> tuple[float, float, str | None]:
+    """Y-axis range that shows the data's own trend, and where the limit sits.
+
+    The limit is drawn when it lies within 1.5 data spans of the readings; otherwise the axis
+    fits the data and the returned direction ("above" or "below") says where the limit is.
+    """
+    low, high = float(values.min()), float(values.max())
+    span = max(high - low, 0.05 * max(abs(high), abs(low)), 10.0 ** -digits)
+    pad = 0.15 * span
+    if limit > high and limit - high > 1.5 * span:
+        return low - pad, high + pad, "above"
+    if limit < low and low - limit > 1.5 * span:
+        return low - pad, high + pad, "below"
+    return min(low, limit) - pad, max(high, limit) + pad, None
+
+
 def _signal_charts(readings: pd.DataFrame) -> None:
     baseline = readings.iloc[0]
     columns = st.columns(3)
     for index, signal in enumerate(SIGNALS):
         data = readings[["Hours", signal]].rename(columns={signal: "value"})
         limit = _limit_value(signal, baseline)
-        y = alt.Y("value:Q", title=UNITS[signal], scale=alt.Scale(zero=False))
+        bottom, top, off_chart = _chart_domain(data["value"], limit, DIGITS[signal])
+        y = alt.Y("value:Q", title=UNITS[signal], scale=alt.Scale(domain=[bottom, top], zero=False, nice=False))
         line = alt.Chart(data).mark_line(point=alt.OverlayMarkDef(size=28, filled=True), color=TEAL).encode(
             x=alt.X("Hours:Q", title="Hours"), y=y,
             tooltip=[alt.Tooltip("Hours:Q", format=",.0f"), alt.Tooltip("value:Q", title=INDICATOR_LABELS[signal],
                                                                        format=f",.{DIGITS[signal]}f")])
-        rule = alt.Chart(pd.DataFrame({"limit": [limit]})).mark_rule(color=ORANGE, strokeDash=[5, 4]).encode(
-            y="limit:Q", tooltip=[alt.Tooltip("limit:Q", title="Limit", format=f",.{DIGITS[signal]}f")])
+        if off_chart is None:
+            marker = alt.Chart(pd.DataFrame({"limit": [limit]})).mark_rule(color=ORANGE, strokeDash=[5, 4]).encode(
+                y=alt.Y("limit:Q", scale=alt.Scale(domain=[bottom, top], nice=False)),
+                tooltip=[alt.Tooltip("limit:Q", title="Limit", format=f",.{DIGITS[signal]}f")])
+        else:
+            # The limit is far outside the readings: say where it is instead of flattening the trend.
+            label = f"Limit {limit:,.{DIGITS[signal]}f} {UNITS[signal]} {'↑' if off_chart == 'above' else '↓'}"
+            # Placed on the left: rising curves start low there and falling ones start high,
+            # so the note never covers the latest readings at the right.
+            marker = alt.Chart(pd.DataFrame({"Hours": [float(data["Hours"].min())],
+                                             "value": [top if off_chart == "above" else bottom], "label": [label]})
+                               ).mark_text(align="left", dx=4, baseline="top" if off_chart == "above" else "bottom",
+                                           dy=4 if off_chart == "above" else -4, color=ORANGE, fontSize=11).encode(
+                x="Hours:Q", y=alt.Y("value:Q", scale=alt.Scale(domain=[bottom, top], nice=False)), text="label:N")
         with columns[index % 3]:
-            st.caption(f"**{INDICATOR_LABELS[signal]}** · dashed line: limit, {LIMIT_TEXT[signal]}")
-            st.altair_chart((line + rule).properties(height=170), width="stretch")
+            st.caption(f"**{INDICATOR_LABELS[signal]}** · limit: {LIMIT_TEXT[signal]}")
+            st.altair_chart((line + marker).properties(height=170), width="stretch")
 
 
 def _rul_chart(assessment: pd.DataFrame, true_eol: float | None) -> alt.Chart:

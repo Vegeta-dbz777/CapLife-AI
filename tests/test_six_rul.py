@@ -132,3 +132,15 @@ def test_simulated_gas_readings_start_at_atmosphere_and_accumulate():
     assert (final_h2 > 0).all()
     for _, readings in measurements.groupby("Cap_ID"):
         assert readings["Pressure_Abs_kPa"].iloc[-1] > readings["Pressure_Abs_kPa"].iloc[0]
+
+
+def test_chart_axis_fits_small_trends_and_reports_far_limits():
+    from caplife.six_rul_page import _chart_domain
+    # H2 rising 0 -> 0.15 mL with a 6 mL limit: axis fits the data, limit reported above.
+    low, high, where = _chart_domain(pd.Series([0.0, 0.05, 0.15]), 6.0, 2)
+    assert where == "above" and high < 1.0 and low < 0.0
+    # Capacitance 1000 -> 985 uF with an 800 uF limit far below.
+    assert _chart_domain(pd.Series([1000.0, 985.0]), 800.0, 1)[2] == "below"
+    # A limit close to the readings is kept on the chart.
+    low, high, where = _chart_domain(pd.Series([100.0, 180.0]), 250.0, 1)
+    assert where is None and high >= 250.0
