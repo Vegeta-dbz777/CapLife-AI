@@ -34,7 +34,7 @@
     "H2_Generated_mL_STP": 6.0
   },
   "interval_mass": 0.8,
-  "conformal_adjustment_log": 0.000749,
+  "conformal_adjustment_log": 0.016366,
   "fleets": {
     "train": {
       "capacitors": 1600,
@@ -59,7 +59,7 @@
   },
   "training_seed": 7,
   "best_epoch": 57,
-  "validation_pinball": 0.04451,
+  "validation_pinball": 0.04423,
   "limit_used_training_range": {
     "min": [
       -0.0659,
@@ -67,38 +67,38 @@
       -0.0383,
       0.0,
       0.0,
-      -0.2718
+      -0.0096
     ],
     "max": [
       1.04,
       1.1102,
       1.1602,
-      1.1827,
-      1.5719,
-      0.9627
+      1.2933,
+      1.7674,
+      1.003
     ]
   },
   "test_metrics": {
     "neural_calibrated": {
       "predictions": 9373,
-      "median_absolute_error_h": 453.5,
-      "mean_absolute_error_h": 1128.6,
-      "median_relative_error": 0.0918,
-      "interval_coverage": 0.7894,
-      "median_interval_width_h": 1872.7
+      "median_absolute_error_h": 470.9,
+      "mean_absolute_error_h": 1241.3,
+      "median_relative_error": 0.0972,
+      "interval_coverage": 0.8296,
+      "median_interval_width_h": 2224.6
     },
     "neural_uncalibrated": {
       "predictions": 9373,
-      "median_absolute_error_h": 453.5,
-      "mean_absolute_error_h": 1128.6,
-      "median_relative_error": 0.0918,
-      "interval_coverage": 0.7879,
-      "median_interval_width_h": 1862.4
+      "median_absolute_error_h": 470.9,
+      "mean_absolute_error_h": 1241.3,
+      "median_relative_error": 0.0972,
+      "interval_coverage": 0.7898,
+      "median_interval_width_h": 2013.9
     },
     "trend_baseline": {
-      "predictions_with_estimate": 9372,
-      "median_absolute_error_h": 1718.4,
-      "neural_median_absolute_error_h_same_points": 453.7
+      "predictions_with_estimate": 9373,
+      "median_absolute_error_h": 1528.1,
+      "neural_median_absolute_error_h_same_points": 470.9
     }
   },
   "end_of_life_causes_in_test_fleet": {

@@ -115,11 +115,9 @@ def simulate_device(rng: np.random.Generator, cap_id: str, fine_step_h: float = 
             break
         times.append(times[-1] + step)
     times = np.round(np.array(times), 1)
-    clean = _state(device, np.concatenate([fine[fine < times[-1]], times]))
-    order = np.argsort(np.concatenate([fine[fine < times[-1]], times]), kind="stable")
-    # Recompute H2 on the dense grid so cumulative gas does not depend on inspection spacing.
-    grid = np.concatenate([fine[fine < times[-1]], times])[order]
-    state = {k: np.interp(times, grid, v[order]) for k, v in clean.items()}
+    # Cumulative H2 is integrated on the sorted dense grid (``truth``) and then read off at the
+    # inspection times, so it does not depend on inspection spacing.
+    state = {k: np.interp(times, fine, v) for k, v in truth.items()}
     frame = pd.DataFrame({"Cap_ID": cap_id, "Hours": times})
     for name in SIGNALS:
         values = state[name].copy()

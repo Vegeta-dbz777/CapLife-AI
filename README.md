@@ -42,8 +42,8 @@ capacitance and raises ESR, leakage current generates hydrogen by Faraday's
 law, and retained hydrogen raises internal pressure and bulges the case. End of
 life is capacitance loss of 20%, ESR at 2× initial, leakage at 5× initial or
 internal pressure at 250 kPa. On 400 further simulated capacitors it never saw,
-the typical error was about 450 h (9% of remaining life) against about 1,700 h
-for a trend line, and the 80% range contained the true value 79% of the time.
+the typical error was about 470 h (10% of remaining life) against about 1,530 h
+for a trend line, and the 80% range contained the true value 83% of the time.
 These figures hold for the simulator only: the coefficients are illustrative,
 and accuracy on real capacitors is unknown until the model is tested on
 measured failures. Retrain with `python -m caplife.six_rul --output artifacts/six_rul`.

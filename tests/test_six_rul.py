@@ -119,3 +119,16 @@ def test_saved_times_follow_the_viewers_time_zone():
     assert local_time(datetime(2026, 11, 22, 20, 24), "Europe/Copenhagen") == "2026-11-22 21:24"
     assert local_time(datetime(2026, 11, 22, 20, 24), None) == "2026-11-22 20:24 UTC"
     assert local_time(datetime(2026, 11, 22, 20, 24), "Not/AZone") == "2026-11-22 20:24 UTC"
+
+
+def test_simulated_gas_readings_start_at_atmosphere_and_accumulate():
+    # Regression: cumulative H2 was once integrated over an unsorted time array, which pulled
+    # pressure below atmospheric and held H2 at zero for long-lived capacitors.
+    from caplife.six_sim import ATMOSPHERE_KPA
+    measurements, _ = simulate_fleet(60, seed=2027)
+    first = measurements.groupby("Cap_ID").first()
+    assert (first["Pressure_Abs_kPa"] - ATMOSPHERE_KPA).abs().max() < 2.5  # measurement noise only
+    final_h2 = measurements.groupby("Cap_ID")["H2_Generated_mL_STP"].last()
+    assert (final_h2 > 0).all()
+    for _, readings in measurements.groupby("Cap_ID"):
+        assert readings["Pressure_Abs_kPa"].iloc[-1] > readings["Pressure_Abs_kPa"].iloc[0]
