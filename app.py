@@ -15,6 +15,7 @@ from caplife.data import DataValidationError, validate_measurements
 from caplife.accounts import current_user, render_my_data, sidebar_account
 from caplife.predict import assess_capacitor, default_prediction_hour, load_engine
 from caplife.trend import assess_trend
+from caplife.versioning import code_version
 
 
 ROOT = Path(__file__).resolve().parent
@@ -415,8 +416,11 @@ if workflow == MEASUREMENT_WORKFLOW:
         st.session_state["caplife_public_sample_active"] = True
 
     @st.cache_data(show_spinner=False)
-    def public_sample_frame() -> pd.DataFrame:
+    def public_sample_frame_cached(version: str) -> pd.DataFrame:
         return nasa_reference_to_caplife(pd.read_csv(PUBLIC_SAMPLE, dtype={"Cap_ID": str}))
+
+    def public_sample_frame() -> pd.DataFrame:
+        return public_sample_frame_cached(code_version())
 
     using_sample = st.session_state.get("caplife_public_sample_active", False)
     upload_column, sample_column = st.columns([1.7, 1])
@@ -911,19 +915,19 @@ if workflow == MEASUREMENT_WORKFLOW:
 
 
 @st.cache_resource(show_spinner="Loading the demonstration neural network…")
-def get_engine():
+def get_engine(version: str = ""):
     return load_engine(ARTIFACTS)
 
 
 try:
-    net, metadata = get_engine()
+    net, metadata = get_engine(code_version())
 except (FileNotFoundError, RuntimeError, ValueError, json.JSONDecodeError):
     st.error("Model files are missing or incompatible. See README.md for training instructions.")
     st.code("python -m caplife.train --root .", language="bash")
     st.stop()
 
 @st.cache_data(show_spinner=False)
-def load_synthetic_calibration():
+def load_synthetic_calibration(version: str = ""):
     """Read and validate the saved *synthetic-only* interval calibration.
 
     The JSON does NOT give calibrated intervals for real uploaded AEC data.
@@ -956,7 +960,7 @@ def load_synthetic_calibration():
         return None, str(exc)
 
 
-synthetic_calibration, calibration_issue = load_synthetic_calibration()
+synthetic_calibration, calibration_issue = load_synthetic_calibration(code_version())
 
 
 def synthetic_interval_for_trend(trend_rul, *, bundled_demo, eol_causes, training_warnings):

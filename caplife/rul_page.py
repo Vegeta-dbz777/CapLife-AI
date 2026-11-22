@@ -12,6 +12,7 @@ from caplife.accounts import save_controls, saved_picker, saving_available
 from caplife.measurement_review import read_experimental_csv
 from caplife.real_data import RealDataValidationError
 from caplife.rul_example import example_dataset
+from caplife.versioning import code_version
 from caplife.rul_workflow import (
     MAX_CENSOR_CONTRADICTIONS, MIN_CALIBRATION_DEVICES, MIN_TEST_COVERAGE, MIN_TEST_DEVICES,
     MIN_TEST_FAILURES, MIN_TRAINING_DEVICES, SPLIT_BY_DEVICE, SPLIT_BY_EXPERIMENT,
@@ -26,13 +27,23 @@ INPUT_ERRORS = (RealDataValidationError, ValueError, pd.errors.ParserError,
 
 
 @st.cache_data(show_spinner=False)
-def _example_csvs() -> tuple[bytes, bytes]:
+def _example_csvs_cached(version: str) -> tuple[bytes, bytes]:
     measurements, outcomes = example_dataset()
     return measurements.to_csv(index=False).encode(), outcomes.to_csv(index=False).encode()
 
 
-@st.cache_data(show_spinner=False, max_entries=8)
+def _example_csvs() -> tuple[bytes, bytes]:
+    return _example_csvs_cached(code_version())
+
+
 def _run(measurements: bytes, outcomes: bytes, method: str, calibration: str | None, test: str | None) -> dict:
+    return _run_cached(measurements, outcomes, method, calibration, test, code_version())
+
+
+# Keyed by code_version() so results from an older model version are never reused after an update.
+@st.cache_data(show_spinner=False, max_entries=8)
+def _run_cached(measurements: bytes, outcomes: bytes, method: str, calibration: str | None, test: str | None,
+                version: str) -> dict:
     return run_rul_workflow(read_experimental_csv(measurements), read_outcomes(outcomes),
                             method, calibration, test)
 
