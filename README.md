@@ -66,6 +66,18 @@ measurements through that inspection. The same devices can contribute at
 multiple ages. The sensitivity download includes the number of observed
 crossings and censored devices, point errors, and prediction-band metrics.
 
+**When should a forecast be withheld?** compares showing all calibrated-trend
+forecasts with two screening policies across the six inspection pairs. The
+first requires increasing loss across the last three measurements and a band
+whose upper edge fits within the elapsed time between those measurements.
+The second also requires current loss to lie inside the training study's loss
+range at the paired inspection. Both decisions use data available at the origin.
+The section shows the number of forecasts retained, the error on their observed
+crossings, and the number of bands that overlap or fully contain an observed
+window. The benchmark reuses devices across ages, and the two existing studies
+provide an exploratory screening check. Uploads receive measured-health results
+while forecast performance and uncertainty await independent validation.
+
 - **Age only** fits a log-normal distribution to the training study's remaining
   times at 94 hours. Its median is the same for every test device.
 - **Recent trend** fits a straight line to the last three available losses and

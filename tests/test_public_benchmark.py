@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from caplife.public_benchmark import evaluate, landmark_outcomes
+from caplife.public_benchmark import evaluate, landmark_outcomes, screen_forecasts, summarize_screening
 
 
 def test_first_crossing_and_right_censoring():
@@ -41,3 +41,30 @@ def test_held_out_outcomes_do_not_change_forecasts():
                                   pd.DataFrame(recomputed)[forecast_columns])
     assert summary != changed_summary
     assert all(row["observed_crossings"] == 8 for row in summary)
+
+
+def test_screen_uses_only_observed_history_and_reports_zero_retained():
+    train = pd.DataFrame({"loss_at_origin_pct": [8.0, 12.0]})
+    observations = pd.DataFrame({
+        "device": ["In range", "Out of range", "Long band", "Fluctuation"],
+        "loss_at_origin_pct": [8.0, 15.0, 10.0, 10.0],
+        "recent_history_h": [20.0] * 4,
+        "recent_loss_increases": [True, True, True, False],
+    })
+    details = [
+        {"model": "Recent trend with study calibration", "device": device, "test_study": "test",
+         "forecast_h": 10.0, "band_lower_h": 5.0, "band_upper_h": upper,
+         "rul_lower_h": 10.0, "rul_upper_h": 22.0}
+        for device, upper in zip(observations["device"], [20.0, 20.0, 21.0, 20.0])
+    ]
+    result = screen_forecasts(details, train, observations, 94)
+    assert [row["decision"] for row in result] == [
+        "Show forecast", "Show forecast", "Forecast extends beyond recent history span",
+        "Recent readings fluctuate",
+    ]
+    changed = screen_forecasts([dict(row, rul_upper_h=None) for row in details], train, observations, 94)
+    assert [row["decision"] for row in changed] == [row["decision"] for row in result]
+    assert [row["shown"] for row in summarize_screening(result)] == [4, 2, 1]
+    assert summarize_screening(changed)[-1]["mean_gap_h"] is None
+    zero = screen_forecasts(details, pd.DataFrame({"loss_at_origin_pct": [1, 2]}), observations, 94)
+    assert summarize_screening(zero)[-1]["shown"] == 0

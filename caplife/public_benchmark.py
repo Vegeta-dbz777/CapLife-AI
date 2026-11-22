@@ -96,6 +96,8 @@ def landmark_outcomes(loss: pd.DataFrame, landmark_h: int = LANDMARK_H) -> pd.Da
             "rul_lower_h": lower_h - landmark_h,
             "rul_upper_h": upper_h - landmark_h,
             "trend_h": (THRESHOLD_PCT - recent.iloc[-1]) / slope,
+            "recent_history_h": float(recent.index[-1] - recent.index[0]),
+            "recent_loss_increases": bool(np.all(np.diff(recent.to_numpy()) > 0)),
         })
     return pd.DataFrame(rows)
 
@@ -183,17 +185,80 @@ def evaluate(train: pd.DataFrame, test: pd.DataFrame, train_name: str,
     return summaries, predictions
 
 
+def screen_forecasts(detail: list[dict], train: pd.DataFrame,
+                     observations: pd.DataFrame, origin_h: int) -> list[dict]:
+    """Decide using inspected histories and the forecast band, before scoring outcomes."""
+    recent = observations.set_index("device")
+    train_loss = train["loss_at_origin_pct"]
+    train_min, train_max = float(train_loss.min()), float(train_loss.max())
+    results = []
+    for forecast in detail:
+        if forecast["model"] != "Recent trend with study calibration":
+            continue
+        history = recent.loc[forecast["device"]]
+        span = float(history["recent_history_h"])
+        if not history["recent_loss_increases"]:
+            decision = "Recent readings fluctuate"
+        elif forecast["band_upper_h"] > span:
+            decision = "Forecast extends beyond recent history span"
+        else:
+            decision = "Show forecast"
+        results.append({
+            **forecast,
+            "origin_h": origin_h,
+            "recent_history_h": span,
+            "decision": decision,
+            "within_training_loss_range": train_min <= float(history["loss_at_origin_pct"]) <= train_max,
+        })
+    return results
+
+
+def summarize_screening(rows: list[dict]) -> list[dict]:
+    frame = pd.DataFrame(rows)
+    summary = []
+    for study, study_rows in frame.groupby("test_study", sort=False):
+        show = study_rows["decision"].eq("Show forecast")
+        for policy, forecasts in (
+            ("Always show", study_rows),
+            ("Screen recent history", study_rows[show]),
+            ("Screen and check training range", study_rows[show & study_rows["within_training_loss_range"]]),
+        ):
+            crossing = forecasts[forecasts["rul_upper_h"].notna()]
+            gap = np.maximum.reduce([
+                crossing["rul_lower_h"] - crossing["forecast_h"],
+                crossing["forecast_h"] - crossing["rul_upper_h"], np.zeros(len(crossing)),
+            ])
+            summary.append({
+                "test_study": study,
+                "policy": policy,
+                "eligible_origins": len(study_rows),
+                "shown": len(forecasts),
+                "devices_shown": int(forecasts["device"].nunique()),
+                "scored_crossings": len(crossing),
+                "mean_gap_h": round(float(gap.mean()), 4) if len(crossing) else None,
+                "band_overlaps": int(((crossing["band_upper_h"] > crossing["rul_lower_h"])
+                                      & (crossing["band_lower_h"] <= crossing["rul_upper_h"])).sum()),
+                "band_contains": int(((crossing["band_upper_h"] >= crossing["rul_upper_h"])
+                                      & (crossing["band_lower_h"] <= crossing["rul_lower_h"])).sum()),
+                "censored_point_at_or_before_last_below": int((forecasts["rul_upper_h"].isna()
+                    & (forecasts["forecast_h"] <= forecasts["rul_lower_h"])).sum()),
+            })
+    return summary
+
+
 def build_benchmark(eos2: bytes, pofinn: bytes) -> dict:
     eos2_loss, eos2_mat = load_eos2(eos2)
     pofinn_loss = load_pofinn(pofinn)
-    summary, predictions, sensitivity = [], [], []
+    summary, predictions, sensitivity, screening = [], [], [], []
     for eos2_age, pofinn_age in INSPECTION_PAIRS_H:
         studies = {
             "NASA EOS-2": landmark_outcomes(eos2_loss, eos2_age),
             "PoFINN": landmark_outcomes(pofinn_loss, pofinn_age),
         }
+        origin = {"NASA EOS-2": eos2_age, "PoFINN": pofinn_age}
         for train_study, test_study in (("NASA EOS-2", "PoFINN"), ("PoFINN", "NASA EOS-2")):
             metrics, detail = evaluate(studies[train_study], studies[test_study], train_study, test_study)
+            screening.extend(screen_forecasts(detail, studies[train_study], studies[test_study], origin[test_study]))
             if eos2_age == pofinn_age == LANDMARK_H:
                 summary.extend(metrics)
                 predictions.extend(detail)
@@ -211,6 +276,8 @@ def build_benchmark(eos2: bytes, pofinn: bytes) -> dict:
         "summary": summary,
         "predictions": predictions,
         "inspection_age_sensitivity": sensitivity,
+        "forecast_screening_summary": summarize_screening(screening),
+        "forecast_screening_details": screening,
     }
 
 

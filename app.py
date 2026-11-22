@@ -134,6 +134,44 @@ if workflow == "Public-data forecast benchmark":
         )
         st.download_button("Download age sensitivity results", sensitivity.to_csv(index=False),
                            "caplife_benchmark_by_forecast_age.csv", mime="text/csv")
+    with st.expander("When should a forecast be withheld?"):
+        screening = pd.DataFrame(benchmark["forecast_screening_summary"])
+        decisions = pd.DataFrame(benchmark["forecast_screening_details"])
+        study_screening = screening.loc[screening["test_study"] == test_study]
+        st.write(
+            "This experiment compares showing every calibrated trend forecast with screening it first. "
+            "The history check requires increasing loss across the last three readings and a forecast "
+            "range that ends within the span of those readings. The training-range check also requires "
+            "the latest loss to fall within the range seen in the training study at the paired inspection."
+        )
+        st.dataframe(study_screening[[
+            "policy", "eligible_origins", "shown", "devices_shown", "scored_crossings",
+            "mean_gap_h", "band_overlaps", "band_contains",
+        ]].rename(columns={
+            "policy": "Policy",
+            "eligible_origins": "Forecast opportunities",
+            "shown": "Forecasts shown",
+            "devices_shown": "Capacitors with forecasts",
+            "scored_crossings": "Observed crossings scored",
+            "mean_gap_h": "Mean miss (h)",
+            "band_overlaps": "Ranges overlapping window",
+            "band_contains": "Ranges covering entire window",
+        }).round(1), hide_index=True)
+        st.caption(
+            "The six inspection ages can reuse devices. An overlap means the range could contain the "
+            "crossing. Covering the entire window gives stronger evidence. A blank error means no "
+            "forecast had an observed crossing to score under that policy."
+        )
+        stricter = screening.loc[screening["policy"] == "Screen and check training range"]
+        shown, scored, overlap, covered = stricter[[
+            "shown", "scored_crossings", "band_overlaps", "band_contains",
+        ]].sum()
+        st.info(
+            f"Across both studies, {shown} forecasts passed both checks, with {scored} observed "
+            f"crossings to score. {overlap} ranges overlapped and {covered} covered an entire window."
+        )
+        st.download_button("Download screening decisions", decisions.to_csv(index=False),
+                           "caplife_forecast_screening.csv", mime="text/csv")
     with st.expander("Methods and sources"):
         st.write(
             "Age only uses the training study's crossing windows. Recent trend extrapolates the last "
@@ -237,6 +275,10 @@ if workflow == "Experimental measurements (v0.8)":
         st.info("Correct the source CSV and upload it again. No values were generated to replace missing readings.")
         st.stop()
 
+    st.info(
+        "**Measured health only.** A lifetime forecast needs validation on independent capacitors "
+        "with comparable operating conditions and observed outcomes."
+    )
     if reference_age:
         st.subheader("2 · Measured health summary")
         total_caps, total_rows = st.columns(2)
