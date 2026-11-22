@@ -97,3 +97,12 @@ def test_choosing_a_page_in_one_sidebar_list_clears_the_other():
     assert not app.exception
     assert app.sidebar.radio(key=RESEARCH_KEY).value is None
     assert app.header[0].value == "Six-parameter health and remaining-life prediction"
+
+
+def test_rul_prediction_runs_with_only_three_parameters():
+    app = open_workspace("RUL prediction")
+    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
+    app.checkbox(key="caplife_six_three_only").check().run()
+    assert not app.exception, app.exception
+    assert any("Using 3 of 6 parameters" in i.value for i in app.info)
+    assert metric(app, "Remaining useful life").endswith(" h")
