@@ -1,6 +1,7 @@
 """Streamlit page: six-parameter health monitoring and neural RUL prediction (demonstration model)."""
 from __future__ import annotations
 
+from base64 import b64encode
 from html import escape
 from pathlib import Path
 
@@ -167,12 +168,45 @@ def _fleet_table(results: dict, truth: dict | None) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+# Mid-tone status colours that read on both the light and the dark theme.
+SPARK_COLORS = {"good": "#2a9d8f", "watch": "#d4881a", "critical": "#d9544d", "end-of-life": "#d9544d"}
+
+
+def _sparkline(hours: pd.Series, values: pd.Series, label: str, status: str = "good") -> str:
+    """A small trend of one parameter, scaled to its own range, as an embedded SVG image.
+
+    st.html strips inline <svg>, so the drawing is passed as an <img> data URI with its colour baked in.
+    """
+    x, y = hours.to_numpy(dtype=float), values.to_numpy(dtype=float)
+    if len(x) < 2 or not np.isfinite(y).all():
+        return ""
+    width, height, pad = 240.0, 40.0, 4.0
+    x_span = (x.max() - x.min()) or 1.0
+    y_span = y.max() - y.min()
+    xs = pad + (x - x.min()) / x_span * (width - 2 * pad)
+    # A flat series is drawn through the middle rather than stretched from noise.
+    ys = (np.full_like(y, height / 2) if y_span == 0
+          else height - pad - (y - y.min()) / y_span * (height - 2 * pad))
+    line = " ".join(f"{a:.1f},{b:.1f}" for a, b in zip(xs, ys))
+    area = f"{xs[0]:.1f},{height:.1f} {line} {xs[-1]:.1f},{height:.1f}"
+    color = SPARK_COLORS.get(status, SPARK_COLORS["good"])
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:.0f} {height:.0f}">'
+           f'<polygon points="{area}" fill="{color}" fill-opacity="0.14"/>'
+           f'<polyline points="{line}" fill="none" stroke="{color}" stroke-width="2" '
+           f'stroke-linejoin="round" stroke-linecap="round"/>'
+           f'<circle cx="{xs[-1]:.1f}" cy="{ys[-1]:.1f}" r="2.8" fill="{color}"/></svg>')
+    encoded = b64encode(svg.encode("utf-8")).decode("ascii")
+    return (f'<img class="caplife-spark" src="data:image/svg+xml;base64,{encoded}" '
+            f'alt="{escape(label)} trend over {len(x)} readings">')
+
+
 def _health_cards(readings: pd.DataFrame, assessment: pd.DataFrame) -> None:
     baseline, latest, last = readings.iloc[0], readings.iloc[-1], assessment.iloc[-1]
     cards = []
     for signal in SIGNALS:
         health = last[f"{signal}_health_pct"]
         status = _status(health, health <= 0 and signal not in NOMINAL_LIMITS)
+        status_key = status.lower().replace(" ", "-")
         value = latest[signal]
         if signal == "Pressure_Abs_kPa":
             change = f"{value - ATMOSPHERE_KPA:+,.1f} kPa above atmospheric"
@@ -181,11 +215,12 @@ def _health_cards(readings: pd.DataFrame, assessment: pd.DataFrame) -> None:
         else:
             change = f"{100 * (value / baseline[signal] - 1):+.1f}% since baseline"
         cards.append(
-            f'<div class="caplife-health-card" data-status="{escape(status.lower().replace(" ", "-"))}">'
+            f'<div class="caplife-health-card" data-status="{escape(status_key)}">'
             f'<div class="caplife-health-top"><span>{escape(INDICATOR_LABELS[signal])}</span>'
             f'<span class="caplife-health-chip">{escape(status)}</span></div>'
             f'<div class="caplife-health-value">{value:,.{DIGITS[signal]}f} <small>{UNITS[signal]}</small></div>'
             f'<div class="caplife-health-change">{escape(change)}</div>'
+            f'{_sparkline(readings["Hours"], readings[signal], INDICATOR_LABELS[signal], status_key)}'
             f'<div class="caplife-health-bar" role="img" aria-label="{health:.0f}% health remaining">'
             f'<span style="width:{health:.1f}%"></span></div>'
             f'<div class="caplife-health-foot"><span>{health:.0f}% health</span>'

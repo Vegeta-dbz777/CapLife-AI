@@ -270,6 +270,13 @@
     font-size: .8rem;
 }
 
+.caplife-spark {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: .5rem 0 .1rem;
+}
+
 .caplife-health-bar {
     height: .45rem;
     margin: .55rem 0 .35rem;

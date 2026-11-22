@@ -123,3 +123,15 @@ def test_sign_in_dependencies_are_installed():
     # Streamlit's st.login needs Authlib's httpx integration; a missing httpx only fails at sign-in time.
     import authlib.integrations.httpx_client  # noqa: F401
     from streamlit.auth_util import validate_auth_credentials  # noqa: F401
+
+
+def test_signing_out_while_on_my_data_returns_to_the_home_page(database, monkeypatch):
+    monkeypatch.setattr(accounts, "current_user", lambda: ALICE)
+    app = run_app()
+    app.sidebar.radio(key=WORKSPACE_KEY).set_value("My saved datasets").run()
+    assert app.header[0].value == "My data"
+    monkeypatch.setattr(accounts, "current_user", lambda: None)
+    app.run()
+    assert not app.exception, app.exception
+    assert app.sidebar.radio(key=WORKSPACE_KEY).value == "Experimental measurements (v0.8)"
+    assert "My data" not in app.sidebar.radio(key=WORKSPACE_KEY).options

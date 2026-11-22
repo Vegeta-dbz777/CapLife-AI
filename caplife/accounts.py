@@ -22,6 +22,26 @@ def _secret(section: str):
         return None
 
 
+def viewer_timezone() -> str | None:
+    """The visitor's browser time zone (for example "Europe/Copenhagen"), if the browser reported one."""
+    try:
+        return st.context.timezone or None
+    except Exception:
+        return None
+
+
+def local_time(value, timezone: str | None = None) -> str:
+    """A stored UTC time in the visitor's time zone; falls back to UTC, labelled as such."""
+    stamp = pd.Timestamp(value)
+    stamp = stamp.tz_localize("UTC") if stamp.tzinfo is None else stamp.tz_convert("UTC")
+    if timezone:
+        try:
+            return f"{stamp.tz_convert(timezone):%Y-%m-%d %H:%M}"
+        except Exception:  # Unknown zone name from the browser
+            pass
+    return f"{stamp:%Y-%m-%d %H:%M} UTC"
+
+
 def auth_configured() -> bool:
     return _secret("auth") is not None
 
@@ -120,11 +140,13 @@ def saved_picker(kind: str, key: str) -> tuple[dict[str, bytes], str] | None:
     if saved.empty:
         st.info("You have no saved datasets of this kind yet. Upload one and save it to your account.")
         return None
-    labels = {int(row.id): f"{row.name} · {pd.Timestamp(row.created_at):%Y-%m-%d %H:%M}"
+    timezone = viewer_timezone()
+    names = {int(row.id): row.name for row in saved.itertuples(index=False)}
+    labels = {int(row.id): f"{row.name} · {local_time(row.created_at, timezone)}"
               for row in saved.itertuples(index=False)}
     chosen = st.selectbox("Saved dataset", list(labels), format_func=labels.get, key=f"{key}_saved")
     try:
-        return _load_cached(storage_url(), user["id"], int(chosen)), labels[chosen].split(" · ")[0]
+        return _load_cached(storage_url(), user["id"], int(chosen)), names[int(chosen)]
     except StorageError as error:
         st.error(str(error))
         return None
@@ -147,7 +169,7 @@ def render_my_data() -> None:
     else:
         table = pd.DataFrame({
             "Name": saved["name"], "Type": saved["kind"].map(KINDS),
-            "Saved": pd.to_datetime(saved["created_at"]).dt.strftime("%Y-%m-%d %H:%M"),
+            "Saved": [local_time(value, viewer_timezone()) for value in saved["created_at"]],
             "Size (KB)": (saved["size_bytes"] / 1024).round(1),
         })
         st.dataframe(table, hide_index=True, width="stretch")

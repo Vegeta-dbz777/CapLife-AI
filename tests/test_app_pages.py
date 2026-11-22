@@ -5,26 +5,26 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 APP = str(Path(__file__).resolve().parents[1] / "app.py")
-WORKSPACE_KEY = "caplife_workflow_v07"
+MAIN_KEY, RESEARCH_KEY = "caplife_workflow_v07", "caplife_research_page"
 
-
-# Shown label -> internal workspace value, as defined by WORKFLOWS in app.py.
+# Shown label -> (sidebar list, internal workspace value), as defined in app.py.
 WORKSPACES = {
-    "Analyze measurements": "Experimental measurements (v0.8)",
-    "RUL prediction": "Six-parameter RUL prediction (demonstration model)",
-    "Train RUL model": "Train an RUL model on uploaded outcomes",
-    "Forecast benchmarks": "Public-data forecast benchmark",
-    "Neural research": "Public-data neural experiment",
-    "Earlier GRU demo": "Synthetic RUL demonstration (v0.5)",
+    "Analyze measurements": (MAIN_KEY, "Experimental measurements (v0.8)"),
+    "RUL prediction": (MAIN_KEY, "Six-parameter RUL prediction (demonstration model)"),
+    "Train RUL model": (MAIN_KEY, "Train an RUL model on uploaded outcomes"),
+    "Forecast benchmarks": (RESEARCH_KEY, "Public-data forecast benchmark"),
+    "Neural research": (RESEARCH_KEY, "Public-data neural experiment"),
+    "Earlier GRU demo": (RESEARCH_KEY, "Synthetic RUL demonstration (v0.5)"),
 }
 
 
 def open_workspace(label: str) -> AppTest:
     app = AppTest.from_file(APP, default_timeout=120)
     app.run()
-    radio = app.sidebar.radio(key=WORKSPACE_KEY)
-    assert radio.options == list(WORKSPACES)
-    radio.set_value(WORKSPACES[label]).run()
+    assert app.sidebar.radio(key=MAIN_KEY).options == [k for k, (g, _) in WORKSPACES.items() if g == MAIN_KEY]
+    assert app.sidebar.radio(key=RESEARCH_KEY).options == [k for k, (g, _) in WORKSPACES.items() if g == RESEARCH_KEY]
+    group, value = WORKSPACES[label]
+    app.sidebar.radio(key=group).set_value(value).run()
     assert not app.exception, app.exception
     return app
 
@@ -83,3 +83,13 @@ def test_privacy_page_is_served_on_the_app_domain():
     text = " ".join(m.value for m in app.markdown)
     assert "name**, **email address" in text and "My data" in text
     assert not app.sidebar.radio  # the policy is a standalone page
+
+
+def test_choosing_a_page_in_one_sidebar_list_clears_the_other():
+    app = open_workspace("Neural research")
+    assert app.sidebar.radio(key=MAIN_KEY).value is None
+    assert app.header[0].value == "Public-data neural experiment"
+    app.sidebar.radio(key=MAIN_KEY).set_value("Six-parameter RUL prediction (demonstration model)").run()
+    assert not app.exception
+    assert app.sidebar.radio(key=RESEARCH_KEY).value is None
+    assert app.header[0].value == "Six-parameter health and remaining-life prediction"

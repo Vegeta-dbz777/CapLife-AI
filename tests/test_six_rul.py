@@ -93,3 +93,29 @@ def test_zero_baseline_leakage_is_refused_rather_than_reported_as_end_of_life(mo
     readings.loc[0, "Leakage_uA"] = 0.0
     with pytest.raises(ValueError, match="baseline"):
         model.assess(readings)
+
+
+def test_sparkline_draws_rising_flat_and_too_short_series():
+    import base64
+    from caplife.six_rul_page import _sparkline
+
+    def drawing(html):
+        return base64.b64decode(html.split("base64,")[1].split('"')[0]).decode()
+
+    rising = _sparkline(pd.Series([0, 10, 20]), pd.Series([1.0, 2.0, 3.0]), "ESR", "watch")
+    assert rising.startswith('<img class="caplife-spark"') and 'alt="ESR trend over 3 readings"' in rising
+    svg = drawing(rising)
+    points = svg.split('<polyline points="')[1].split('"')[0].split()
+    ys = [float(point.split(",")[1]) for point in points]
+    assert ys[0] > ys[-1]  # higher values are drawn higher up
+    assert "#d4881a" in svg  # the Watch colour
+    assert "4.0,20.0" in drawing(_sparkline(pd.Series([0, 10]), pd.Series([5.0, 5.0]), "H2"))  # flat: middle
+    assert _sparkline(pd.Series([0]), pd.Series([1.0]), "C") == ""
+
+
+def test_saved_times_follow_the_viewers_time_zone():
+    from datetime import datetime
+    from caplife.accounts import local_time
+    assert local_time(datetime(2026, 11, 22, 20, 24), "Europe/Copenhagen") == "2026-11-22 21:24"
+    assert local_time(datetime(2026, 11, 22, 20, 24), None) == "2026-11-22 20:24 UTC"
+    assert local_time(datetime(2026, 11, 22, 20, 24), "Not/AZone") == "2026-11-22 20:24 UTC"
