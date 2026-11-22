@@ -139,7 +139,7 @@ def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario
     overview.set_column("A:A", 25)
     overview.set_column("B:M", 15)
     overview.merge_range("A1:M2", "CapLife AI  /  Experimental measurement report", title)
-    overview.merge_range("A3:M3", "v0.9 rates appendix • descriptive measurements only" if rate_report is not None else "Version 0.8 • six-indicator research-only descriptive assessment", banner)
+    overview.merge_range("A3:M3", "Descriptive measurements with rates appendix • research only" if rate_report is not None else "Six-indicator research-only descriptive assessment", banner)
     overview.set_row(0, 22)
     overview.set_row(1, 26)
     overview.write("A5", "CAPACITORS", header)
@@ -399,10 +399,20 @@ def _rates_png(table: pd.DataFrame, selected_cap: str, *, acceleration: bool) ->
         subset = table.loc[(table["Cap_ID"].astype(str) == str(selected_cap)) &
                            (table["Indicator"] == name)]
         if len(subset):
-            ax.scatter(subset[x_field], subset[y_field], s=17, color="#24759A", zorder=3)
+            values = subset[y_field].astype(float)
+            ax.scatter(subset[x_field], values, s=17, color="#24759A", zorder=3)
             ax.set_xlim(left=0)
-            ax.ticklabel_format(axis="y", style="sci", scilimits=(-3, 3), useMathText=True)
+            # Without an offset, a near-constant series is not drawn with an
+            # unreadable "1e-17 + 2.2e-5" axis that magnifies rounding noise.
+            ax.ticklabel_format(axis="y", style="sci", scilimits=(-3, 3), useMathText=True, useOffset=False)
             ax.yaxis.get_offset_text().set_fontsize(7)
+            low, high = float(values.min()), float(values.max())
+            scale = max(abs(low), abs(high))
+            if scale == 0:
+                ax.set_ylim(-1, 1)
+            elif high - low <= 1e-6 * scale:
+                centre = (low + high) / 2
+                ax.set_ylim(centre - scale / 2, centre + scale / 2)
         else:
             ax.text(.5, .5, "No valid adjacent readings", transform=ax.transAxes,
                     ha="center", va="center", fontsize=8, color="#728393")
@@ -428,13 +438,22 @@ def _small_rate(value):
     return f"{float(value):+.4g}"
 
 
+def _flowables_height(flowables, width: float, frame_height: float) -> float:
+    """Vertical space ReportLab needs for ``flowables`` placed from the top of a frame."""
+    total = 0.0
+    for index, flowable in enumerate(flowables):
+        _, height = flowable.wrap(width, frame_height)
+        total += height + flowable.getSpaceAfter()
+        if index:
+            total += flowable.getSpaceBefore()
+    return total
+
+
 def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=None, assumptions=None, rate_report=None) -> bytes:
     """Print-ready A4 landscape report. Summary covers all caps, plots selected cap."""
     from reportlab.lib import colors
-    from reportlab.lib.enums import TA_CENTER
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-    from reportlab.lib.units import mm
     from reportlab.platypus import (
         SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak,
     )
@@ -452,7 +471,7 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=
     styles.add(ParagraphStyle(name="CapSub", parent=styles["Normal"], fontSize=9, textColor=colors.HexColor("#46728A"), spaceAfter=12))
     story = []
     story.append(Paragraph("CapLife AI / Measurement assessment", styles["CapTitle"]))
-    story.append(Paragraph("Experimental measurements  |  Descriptive v0.9 rates appendix" if rate_report is not None else "Experimental measurements (v0.8)  |  Descriptive research report  |  No real-world lifetime prediction", styles["CapSub"]))
+    story.append(Paragraph("Experimental measurements  |  Descriptive rates appendix" if rate_report is not None else "Experimental measurements  |  Descriptive research report  |  No real-world lifetime prediction", styles["CapSub"]))
     n_caps = int(report["measurements"]["Cap_ID"].nunique())
     n_rows = len(report["measurements"])
     n_rec = int(sum(report["measurements"][c].notna().any() for c in ("Capacitance_uF", "ESR_ohm", "Leakage_uA", "Case_Expansion_um", "H2_Generated_mL_STP", "Pressure_Abs_kPa") if c in report["measurements"]))
@@ -511,19 +530,52 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=
     ]))
     story.append(qt)
     actions_for_cap = audit["actions"].loc[audit["actions"]["Cap_ID"] == selected_cap]
+    # SimpleDocTemplate's frame pads 6 pt on every side.
+    frame_width, frame_height = doc.width - 12, doc.height - 12
+
+    def fits(flowables) -> bool:
+        return _flowables_height(flowables, frame_width, frame_height) <= frame_height
+
+    defer_priorities, page_one_count, fallback_at = False, -1, None
     if not actions_for_cap.empty:
-        story.append(Paragraph("Research documentation priorities", styles["CapHead"]))
         max_pdf_actions = 3 if rate_report is not None else 5
-        for _, action in actions_for_cap.head(max_pdf_actions).iterrows():
-            story.append(Paragraph(
-                f"<b>{_pdf_txt(action['Category'])}:</b> {_pdf_txt(action['Recommendation'])}",
-                styles["CapBody"],
-            ))
-        if len(actions_for_cap) > max_pdf_actions:
-            story.append(Paragraph("Further recommendations are available in the Excel report.", styles["CapBody"]))
+
+        def priorities_block(count: int) -> list:
+            if count == 0:
+                total = len(actions_for_cap)
+                noun = "recommendation" if total == 1 else "recommendations"
+                return [Spacer(1, 8), Paragraph(
+                    f"<b>Research documentation priorities:</b> {total} {noun} for this capacitor "
+                    "are listed on the Review Actions sheet of the Excel report.", styles["CapBody"])]
+            block = [Paragraph("Research documentation priorities", styles["CapHead"])]
+            for _, action in actions_for_cap.head(count).iterrows():
+                block.append(Paragraph(
+                    f"<b>{_pdf_txt(action['Category'])}:</b> {_pdf_txt(action['Recommendation'])}",
+                    styles["CapBody"],
+                ))
+            if len(actions_for_cap) > count:
+                block.append(Paragraph("Further recommendations are available in the Excel report.", styles["CapBody"]))
+            return block
+
+        def most_that_fit(page: list) -> int:
+            for count in range(max_pdf_actions, -1, -1):
+                if fits(page + priorities_block(count)):
+                    return count
+            return -1
+
+        # The chart page always starts on a new page, so priorities that do not
+        # fit here would spill a few lines onto a near-blank page. They go on
+        # whichever of this page or the end of the chart page holds more of
+        # them. A summary that already spans pages keeps the full list.
+        if not fits(story) or most_that_fit(story) == max_pdf_actions:
+            story.extend(priorities_block(max_pdf_actions))
+        else:
+            defer_priorities, fallback_at = True, len(story)
+            page_one_count = most_that_fit(story)
     # Keep caveats with the measured chart page to avoid a nearly blank spillover
     # sheet when six channels add extra rows to the overview and quality table.
     story.append(PageBreak())
+    chart_page_start = len(story)
 
     history = report["measurements"].loc[report["measurements"]["Cap_ID"] == selected_cap].sort_values("Hours")
     if history.empty:
@@ -531,7 +583,6 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=
     story.append(Paragraph(f"Measured history / {_pdf_txt(selected_cap)}", styles["CapTitle"]))
     story.append(Paragraph("Observed data only. Points are not connected or interpolated across gaps.", styles["CapSub"]))
     plot_bytes = _trend_png(history)
-    from reportlab.lib.utils import ImageReader
     extra_plots = len(_graph_channels_for(history)) > 4
     # Six measured plots need to share the page with operating conditions and
     # the research-limitations notice. 0.62 fits all three without orphaning
@@ -560,6 +611,12 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=
         story.append(Paragraph("No operating or test conditions were documented in the uploaded data.", styles["CapBody"]))
     story.append(Spacer(1, 5))
     story.append(Paragraph("Research limitations: Test-condition comparability, baseline quality, sensor calibration, and provenance require independent review. This PDF reports no capacitor health or RUL.", styles["CapBody"]))
+    if defer_priorities:
+        chart_page_count = most_that_fit(story[chart_page_start:])
+        if chart_page_count > page_one_count:
+            story.extend(priorities_block(chart_page_count))
+        elif page_one_count >= 0:
+            story[fallback_at:fallback_at] = priorities_block(page_one_count)
 
     if gas_scenario is not None and len(gas_scenario):
         story.append(PageBreak())
@@ -603,7 +660,7 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=
         story.append(PageBreak())
         story.append(Paragraph(f"Observed degradation rates / {_pdf_txt(selected_cap)}", styles["CapTitle"]))
         story.append(Paragraph(
-            "v0.9 descriptive appendix | Measured adjacent points only | No extrapolated lifespan, EOL, or health classification",
+            "Descriptive appendix | Measured adjacent points only | No extrapolated lifespan, EOL, or health classification",
             styles["CapSub"],
         ))
         labels = ["Indicator", "Unit", "Readings", "Intervals", "Accel.",

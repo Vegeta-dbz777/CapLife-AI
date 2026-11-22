@@ -12,7 +12,7 @@ import streamlit as st
 
 from caplife.config import EOL_THRESHOLDS, FEATURES, SEQ_LEN
 from caplife.data import DataValidationError, validate_measurements
-from caplife.predict import assess_capacitor, load_engine
+from caplife.predict import assess_capacitor, default_prediction_hour, load_engine
 from caplife.trend import assess_trend
 
 
@@ -26,12 +26,16 @@ UNCERTAINTY_JSON = ARTIFACTS / "trend_uncertainty_synthetic_v0_5.json"
 PUBLIC_APP_URL = "https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/"
 PROJECT_URL = "https://github.com/Vegeta-dbz777/CapLife-AI"
 MEASUREMENT_WORKFLOW = "Experimental measurements (v0.8)"
+RUL_WORKFLOW = "Train an RUL model on uploaded outcomes"
+SIX_RUL_WORKFLOW = "Six-parameter RUL prediction (demonstration model)"
 REFERENCE_FORMAT = "Reference-age CSV (ES14 format)"
 WORKFLOWS = {
     MEASUREMENT_WORKFLOW: "Analyze measurements",
+    SIX_RUL_WORKFLOW: "RUL prediction",
+    RUL_WORKFLOW: "Train RUL model",
     "Public-data forecast benchmark": "Forecast benchmarks",
     "Public-data neural experiment": "Neural research",
-    "Synthetic RUL demonstration (v0.5)": "Synthetic demo",
+    "Synthetic RUL demonstration (v0.5)": "Earlier GRU demo",
 }
 
 st.set_page_config(
@@ -69,6 +73,24 @@ if workflow == MEASUREMENT_WORKFLOW:
         '<p>Explore measured degradation, inspect thresholds, and export a report.</p></div>'
         '</section>'
     )
+
+if workflow == SIX_RUL_WORKFLOW:
+    st.html(
+        '<p class="caplife-scope"><span>Research prototype</span>'
+        'Demonstration model trained on simulated capacitors.</p>'
+    )
+    from caplife.six_rul_page import render as render_six_rul_page
+    render_six_rul_page()
+    st.stop()
+
+if workflow == RUL_WORKFLOW:
+    st.html(
+        '<p class="caplife-scope"><span>Research prototype</span>'
+        'Forecasts are tested only on your own held-out capacitors.</p>'
+    )
+    from caplife.rul_page import render as render_rul_page
+    render_rul_page()
+    st.stop()
 
 st.html(
     '<p class="caplife-scope"><span>Research prototype</span>'
@@ -125,11 +147,13 @@ if workflow == "Public-data neural experiment":
     else:
         outcome = "Crossed by the horizon" if forecast["outcome"] else "Stayed below through the horizon"
     st.write(f"**Observed result** · {outcome}")
-    st.caption(
-        f"Scores from three training starts ranged from {forecast['neural_seed_low']:.0%} to "
-        f"{forecast['neural_seed_high']:.0%}. This spread shows sensitivity to initialization. "
-        "The estimated crossing probabilities still need calibration on independent data."
-    )
+    seed_low, seed_high = f"{forecast['neural_seed_low']:.0%}", f"{forecast['neural_seed_high']:.0%}"
+    if seed_low == seed_high:
+        seed_note = f"All three training starts gave {seed_low} at this forecast. "
+    else:
+        seed_note = (f"Scores from three training starts ranged from {seed_low} to {seed_high}. "
+                     "This spread shows sensitivity to initialization. ")
+    st.caption(seed_note + "The estimated crossing probabilities still need calibration on independent data.")
     if not forecast["within_training_feature_ranges"]:
         st.warning("At least one input is outside the range observed in the training study.")
     st.download_button("Download neural benchmark results", predictions.to_csv(index=False),
@@ -359,7 +383,9 @@ if workflow == "Public-data forecast benchmark":
 
 if workflow == MEASUREMENT_WORKFLOW:
     from io import BytesIO
-    from caplife.measurement_review import observed_capacitance_threshold, read_experimental_csv
+    from caplife.measurement_review import (
+        observed_capacitance_threshold, read_experimental_csv, reference_age_observations,
+    )
     from caplife.real_data import (
         REFERENCE_AGE_COLUMNS,
         RealDataValidationError,
@@ -480,11 +506,35 @@ if workflow == MEASUREMENT_WORKFLOW:
                     "Resistance_change_pct": "Resistance change (%)", "RUL_status": "Remaining life",
                 },
             )
+            notes = reference_age_observations(history)
+            share = notes["median_early_share"]
+            if share is not None and share >= 0.5:
+                low, high = notes["first_step_loss_range"]
+                first_age_low, first_age_high = notes["first_step_age_range"]
+                first_age = (f"{first_age_low:,.0f} h" if first_age_low == first_age_high
+                             else f"{first_age_low:,.0f}–{first_age_high:,.0f} h")
+                st.info(
+                    f"**Much of the capacitance loss appeared early.** Within the first "
+                    f"{notes['early_fraction']:.0%} of the recorded age span (about "
+                    f"{notes['early_cutoff_h']:,.0f} h), the median capacitor had reached "
+                    f"{share:.0%} of its latest loss. The first reading after the baseline "
+                    f"({first_age}) already showed {low:.1f}–{high:.1f}% loss. Early threshold "
+                    "crossings can reflect this initial step, so check the test protocol before "
+                    "reading them as gradual aging."
+                )
             show_observed_threshold(history)
 
         with signals:
             st.subheader("Measured history")
             cap_choice = st.selectbox("Capacitor ID", summary["Cap_ID"].tolist())
+            cap_notes = reference_age_observations(history.loc[history["Cap_ID"].eq(cap_choice)])
+            gap = cap_notes["largest_gap"]
+            if gap and (cap_notes["largest_gap_fraction_of_span"] or 0) >= 0.2:
+                st.caption(
+                    f"Longest interval without readings: {gap['start_h']:,.1f}–{gap['end_h']:,.1f} h "
+                    f"({gap['hours']:,.0f} h, {cap_notes['largest_gap_fraction_of_span']:.0%} of this "
+                    "capacitor's recorded span)."
+                )
             cap_rows = history.loc[history["Cap_ID"].eq(cap_choice)].rename(columns={
                 "Age_h": "Reference age (h)",
                 "Capacitance_loss_pct": "Capacitance loss (%)",
@@ -521,7 +571,7 @@ if workflow == MEASUREMENT_WORKFLOW:
     with overview:
         st.subheader("Measurement quality")
         st.caption("Zero recorded readings means 'not supplied' or 'no measurements' — not a zero sensor reading.")
-        st.dataframe(quality, hide_index=True, use_container_width=True)
+        st.dataframe(quality, hide_index=True, width="stretch")
 
         st.subheader("Research-data readiness")
         audit = audit_measurement_readiness(real_report)
@@ -529,14 +579,14 @@ if workflow == MEASUREMENT_WORKFLOW:
             "This audit flags missing baselines, sparse histories, unrecorded conditions "
             "and measurement gaps. It does not certify sensor accuracy or predict RUL."
         )
-        st.dataframe(audit["summary"], hide_index=True, use_container_width=True)
+        st.dataframe(audit["summary"], hide_index=True, width="stretch")
         with st.expander("Recommended measurement and documentation improvements"):
-            st.dataframe(audit["actions"], hide_index=True, use_container_width=True)
+            st.dataframe(audit["actions"], hide_index=True, width="stretch")
         with st.expander("Recorded operating and test conditions"):
-            st.dataframe(audit["conditions"], hide_index=True, use_container_width=True)
+            st.dataframe(audit["conditions"], hide_index=True, width="stretch")
 
         st.subheader("Observed degradation")
-        st.dataframe(changes.round(3), hide_index=True, use_container_width=True)
+        st.dataframe(changes.round(3), hide_index=True, width="stretch")
         st.caption(
             "Changes are calculated only with an available hour-zero baseline; percentages "
             "refer to the observed raw measurement, not to remaining life. "
@@ -592,7 +642,7 @@ if workflow == MEASUREMENT_WORKFLOW:
                     else:
                         st.caption("No direct measurements supplied for this channel.")
         with st.expander("View processed measurements"):
-            st.dataframe(cap_rows, hide_index=True, use_container_width=True)
+            st.dataframe(cap_rows, hide_index=True, width="stretch")
         gas_df = None
         scenario_params = None
         # v0.8 PREVIEW: optional assumption-based calculation; never treated as a measurement.
@@ -705,7 +755,7 @@ if workflow == MEASUREMENT_WORKFLOW:
                         height=260,
                     )
                 with st.expander("Inspect calculation table and equations"):
-                    st.dataframe(gas_df, hide_index=True, use_container_width=True)
+                    st.dataframe(gas_df, hide_index=True, width="stretch")
                     st.latex(r"Q(t) = \int_0^t I_{\rm leakage}(\tau) \, d\tau")
                     st.latex(r"n_{H_2,\rm generated}(t) = \eta \frac{Q(t)}{2F}")
                     st.latex(r"P_{\rm abs}(t) = P_0\frac{T(t)}{T_0} + \frac{n_{H_2,\rm retained}(t) R T(t)}{V_{\rm headspace}}")
@@ -743,7 +793,7 @@ if workflow == MEASUREMENT_WORKFLOW:
             rate_summary_display[numeric_column] = rate_summary_display[numeric_column].map(
                 lambda value: "—" if pd.isna(value) else f"{value:+.5g}"
             )
-        st.dataframe(rate_summary_display, hide_index=True, use_container_width=True)
+        st.dataframe(rate_summary_display, hide_index=True, width="stretch")
         for warning in rate_report["warnings"]:
             if str(cap_choice) in warning:
                 st.warning(warning)
@@ -775,7 +825,7 @@ if workflow == MEASUREMENT_WORKFLOW:
                 "interval midpoints. They are NOT continuously measured rates. "
                 "Each graph uses its own units and scale."
             )
-            st.dataframe(rate_rows.round(10), hide_index=True, use_container_width=True)
+            st.dataframe(rate_rows.round(10), hide_index=True, width="stretch")
         with st.expander("Inspect rate acceleration calculations", expanded=False):
             accel_rows = rate_report["accelerations"].loc[
                 lambda df: df["Cap_ID"] == cap_choice
@@ -799,11 +849,11 @@ if workflow == MEASUREMENT_WORKFLOW:
                     accel_subset[["At_Hours", "Acceleration_per_hour2"]],
                     x="At_Hours", y="Acceleration_per_hour2", height=250,
                 )
-                st.dataframe(accel_rows.round(12), hide_index=True, use_container_width=True)
+                st.dataframe(accel_rows.round(12), hide_index=True, width="stretch")
         st.download_button(
             "Download observed interval-rate table (CSV)",
             data=rate_report["intervals"].to_csv(index=False).encode("utf-8-sig"),
-            file_name="CapLife_v0_9_Observed_Interval_Rates.csv", mime="text/csv",
+            file_name="caplife_interval_rates.csv", mime="text/csv",
             key="caplife_v09_rate_csv",
         )
         st.caption(
@@ -812,7 +862,7 @@ if workflow == MEASUREMENT_WORKFLOW:
             "alone is not a failure or health classification."
         )
         st.caption(
-            "This v0.9 preview adds descriptive rates to the Excel/PDF downloads. "
+            "The Excel and PDF downloads also include these descriptive rates. "
             "CSV measured histories remain unchanged; the separate rate CSV is above. "
             "Rates have not been validated for health inference."
         )
@@ -842,26 +892,26 @@ if workflow == MEASUREMENT_WORKFLOW:
                     "never mixed into the measured history."
                 )
                 output_bytes = csv_measurement_history_bytes(real_report)
-                export_basename = "CapLife_AI_v0_8_Measured_History"
+                export_basename = "caplife_measured_history"
             else:
                 st.caption(
                     "One row per capacitor with observed changes. If enabled, assumption-based "
                     "gas/pressure results appear in clearly named estimate columns."
                 )
                 output_bytes = csv_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params)
-                export_basename = "CapLife_AI_v0_8_Assessment_Summary"
+                export_basename = "caplife_assessment_summary"
             extension = "csv"
             mime_type = "text/csv"
         elif chosen_format == "Excel (.xlsx)":
             st.caption("Includes measured histories, six-indicator rate/acceleration tables and separate charts; optional physics estimates remain separately labeled.")
             output_bytes = xlsx_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params, rate_report=rate_report)
-            export_basename = "CapLife_AI_v0_9_Assessment"
+            export_basename = "caplife_assessment"
             extension = "xlsx"
             mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         else:
             st.caption("Includes descriptive rate and acceleration appendices for the selected capacitor, plus optional separately labeled physics scenario.")
             output_bytes = pdf_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params, rate_report=rate_report)
-            export_basename = "CapLife_AI_v0_9_Assessment"
+            export_basename = "caplife_assessment"
             extension = "pdf"
             mime_type = "application/pdf"
         st.download_button(
@@ -887,7 +937,7 @@ if workflow == MEASUREMENT_WORKFLOW:
             st.download_button(
                 "Download complete CSV package (ZIP)",
                 data=original_zip,
-                file_name="CapLife_v0_8_Measurement_and_Physics.zip",
+                file_name="caplife_assessment_tables.zip",
                 mime="application/zip",
             )
         st.info(
@@ -897,7 +947,7 @@ if workflow == MEASUREMENT_WORKFLOW:
             "The uploaded file is processed by the web-app server; check hosting/privacy "
             "policies before submitting confidential experiments."
         )
-        st.caption("CapLife AI v0.8 · six-indicator observation plus optional hypothetical physics · no real-data neural-network prediction")
+        st.caption("CapLife AI · six-indicator observation plus optional hypothetical physics · no real-data neural-network prediction")
 
     st.stop()
 
@@ -981,7 +1031,7 @@ with st.sidebar:
     st.write("**AI engine:** GRU recurrent neural network")
     st.write(f"**Historical window:** {SEQ_LEN} measurements")
     st.write("**Source:** simulated AEC aging only")
-    st.caption("v0.5: synthetic-only trend intervals; not valid for real AEC measurements")
+    st.caption("Synthetic-only trend intervals; not valid for real AEC measurements")
     st.divider()
     st.subheader("Upload data specification")
     st.write(
@@ -995,7 +1045,7 @@ with st.sidebar:
         data=TEMPLATE_DATA.read_bytes(),
         file_name="aec_measurements_template.csv",
         mime="text/csv",
-        use_container_width=True,
+        width="stretch",
     )
     with st.expander("Measurement units"):
         for key, description in metadata["unit_conventions"].items():
@@ -1068,7 +1118,7 @@ else:
     prediction_hour = st.select_slider(
         "Select prediction time (operating hours)",
         options=time_options,
-        value=time_options[-1],
+        value=default_prediction_hour(cap_df, time_options),
         format_func=lambda hour: f"{hour:,.0f} hours",
     )
 
@@ -1080,7 +1130,7 @@ st.caption(
     f"{prediction_hour:,.0f} hours. Future measurements are excluded."
 )
 
-if st.button("Analyze capacitor", type="primary", use_container_width=True):
+if st.button("Analyze capacitor", type="primary", width="stretch"):
     try:
         assessment = assess_capacitor(history_to_show, net, metadata)
         trend_assessment = assess_trend(history_to_show, window_size=SEQ_LEN)
@@ -1245,7 +1295,7 @@ if result_is_current:
             }
             for name, hours in trend_result["indicator_rul_hours"].items()
         ]
-        st.dataframe(pd.DataFrame(detail_rows), hide_index=True, use_container_width=True)
+        st.dataframe(pd.DataFrame(detail_rows), hide_index=True, width="stretch")
         st.caption(trend_result["message"])
 
     st.caption(
@@ -1316,7 +1366,7 @@ with right:
     st.line_chart(plot_df[["Case_Strain_Index"]])
 
 with st.expander("View measurements used at the selected prediction time"):
-    st.dataframe(history_to_show, use_container_width=True, hide_index=True)
+    st.dataframe(history_to_show, width="stretch", hide_index=True)
     st.download_button(
         "Download measurements up to prediction time",
         data=history_to_show.to_csv(index=False),
@@ -1329,7 +1379,7 @@ with st.expander("View full capacitor history (reference only — includes futur
         "For retrospective research only. These later readings are NOT passed to "
         "the GRU when predicting at an earlier time."
     )
-    st.dataframe(cap_df, use_container_width=True, hide_index=True)
+    st.dataframe(cap_df, width="stretch", hide_index=True)
     st.download_button(
         "Download full selected history",
         data=cap_df.to_csv(index=False),
@@ -1455,7 +1505,7 @@ else:
         "validated lifetime ground truth."
     )
 
-if st.button("Analyze RUL across the available history", use_container_width=True):
+if st.button("Analyze RUL across the available history", width="stretch"):
     try:
         with st.spinner("Calculating retrospective predictions…"):
             trajectory = make_prediction_trajectory(
@@ -1542,7 +1592,7 @@ if trajectory_is_current:
             "90% simultaneous coverage across a capacitor's history.**"
         )
     with st.expander("View time-by-time predictions"):
-        st.dataframe(trajectory, use_container_width=True, hide_index=True)
+        st.dataframe(trajectory, width="stretch", hide_index=True)
     st.download_button(
         "Download retrospective RUL results (CSV)",
         data=trajectory.to_csv(index=False),
@@ -1554,6 +1604,6 @@ else:
 
 st.divider()
 st.caption(
-    "CapLife AI v0.5 · GRU + illustrative multi-indicator trend + "
+    "CapLife AI synthetic demo · GRU + illustrative multi-indicator trend + "
     "synthetic-only trend intervals · No calibrated uncertainty for real capacitors"
 )

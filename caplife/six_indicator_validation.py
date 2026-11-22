@@ -23,6 +23,29 @@ OUTCOME_COLUMNS = ("Cap_ID", "Experiment_ID", "Endpoint", "Last_alive_h", "Failu
 INTERVAL_MASS = 0.8
 
 
+def landmark_features(history: pd.DataFrame) -> tuple[float, np.ndarray] | str:
+    """Features at one prospective landmark per capacitor, or the reason there is none.
+
+    The landmark is the third complete six-indicator reading after a complete
+    zero-hour baseline. Only readings up to the landmark enter the features.
+    """
+    complete = history.dropna(subset=list(SIGNALS)).iloc[:3]
+    if len(complete) != 3 or complete.iloc[0]["Hours"] != 0:
+        return "Requires a complete zero-hour baseline and two later complete readings"
+    age = float(complete.iloc[-1]["Hours"])
+    prefix = history.loc[history["Hours"].le(age) & history["ESR_ohm"].notna()]
+    if any(column in prefix and prefix[column].nunique() > 1
+           for column in ("ESR_Test_Hz", "ESR_Test_Temp_C")):
+        return "Recorded ESR test conditions change before the landmark"
+    measured = complete.loc[:, list(SIGNALS)].to_numpy(dtype=float)
+    change = measured - measured[0]
+    change[:, 0] *= -100 / measured[0, 0]
+    change[:, 1] *= 100 / measured[0, 1]
+    relative_age = complete["Hours"].to_numpy(dtype=float) - age
+    rate = np.polyfit(relative_age, change, 1)[0]
+    return age, np.concatenate([change[-1], rate])
+
+
 def joined_landmarks(measurements: pd.DataFrame, outcomes: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     missing = set(SIGNALS).difference(measurements.columns)
     if missing:
@@ -52,32 +75,19 @@ def joined_landmarks(measurements: pd.DataFrame, outcomes: pd.DataFrame) -> tupl
     history_by_device = {device: group for device, group in readings.groupby("Cap_ID", sort=False)}
     rows, dropped = [], {}
     for label in labels.itertuples(index=False):
-        history = history_by_device[label.Cap_ID]
-        upper = math.inf if pd.isna(label.Failure_by_h) else float(label.Failure_by_h)
-        # Keep one prospective landmark per physical capacitor.
-        complete = history.dropna(subset=list(SIGNALS)).iloc[:3]
-        if len(complete) != 3 or complete.iloc[0]["Hours"] != 0:
-            dropped[label.Cap_ID] = "Requires a complete zero-hour baseline and two later complete readings"
+        landmark = landmark_features(history_by_device[label.Cap_ID])
+        if isinstance(landmark, str):
+            dropped[label.Cap_ID] = landmark
             continue
-        age = float(complete.iloc[-1]["Hours"])
+        age, values = landmark
         if age >= label.Last_alive_h:
             dropped[label.Cap_ID] = "Insufficient documented follow-up after the landmark"
             continue
-        prefix = history.loc[history["Hours"].le(age) & history["ESR_ohm"].notna()]
-        if any(column in prefix and prefix[column].nunique() > 1
-               for column in ("ESR_Test_Hz", "ESR_Test_Temp_C")):
-            dropped[label.Cap_ID] = "Recorded ESR test conditions change before the landmark"
-            continue
-        measured = complete.loc[:, list(SIGNALS)].to_numpy(dtype=float)
-        change = measured - measured[0]
-        change[:, 0] *= -100 / measured[0, 0]
-        change[:, 1] *= 100 / measured[0, 1]
-        relative_age = complete["Hours"].to_numpy(dtype=float) - age
-        rate = np.polyfit(relative_age, change, 1)[0]
+        upper = math.inf if pd.isna(label.Failure_by_h) else float(label.Failure_by_h)
         rows.append({
             "device": label.Cap_ID, "experiment": label.Experiment_ID, "age_h": age,
             BOUNDS[0]: float(label.Last_alive_h) - age, BOUNDS[1]: upper - age,
-            **dict(zip(FEATURES, np.concatenate([change[-1], rate]), strict=True)),
+            **dict(zip(FEATURES, values, strict=True)),
         })
     frame = pd.DataFrame(rows, columns=["device", "experiment", "age_h", *BOUNDS, *FEATURES])
     return frame, {
@@ -119,29 +129,46 @@ def validate_model(measurements: pd.DataFrame, outcomes: pd.DataFrame,
                     (("training", train), ("calibration", calibration), ("test", test))},
         "features": FEATURES, "target_interval_mass": INTERVAL_MASS, "models": {},
     }
-    candidates = (
-        ("intercept_only", (), False),
-        ("log_linear", FEATURES, False),
-        ("neural", FEATURES, True),
-    )
-    for name, features, hidden in candidates:
-        x_train, x_cal, x_test = [
-            part.loc[:, list(features)].to_numpy(dtype=float) if features else np.zeros((len(part), 1))
-            for part in (train, calibration, test)
-        ]
+    for name, fitted in fit_candidates(train, calibration, test).items():
+        result["models"][name] = fitted["scores"]
+    return result
+
+
+CANDIDATES = (
+    ("intercept_only", (), False),
+    ("log_linear", FEATURES, False),
+    ("neural", FEATURES, True),
+)
+
+
+def model_inputs(part: pd.DataFrame, features: tuple[str, ...]) -> np.ndarray:
+    return part.loc[:, list(features)].to_numpy(dtype=float) if features else np.zeros((len(part), 1))
+
+
+def calibrated_band(model, radius: float, x: np.ndarray) -> np.ndarray:
+    """Lower, median and upper remaining time for a calibrated log-radius."""
+    return np.exp(model.location(x)[:, None] + np.array([-radius, 0, radius]))
+
+
+def fit_candidates(train: pd.DataFrame, calibration: pd.DataFrame, test: pd.DataFrame) -> dict:
+    """Fit each candidate on training devices, calibrate it, then score the test devices."""
+    fitted = {}
+    for name, features, hidden in CANDIDATES:
+        x_train, x_cal, x_test = (model_inputs(part, features) for part in (train, calibration, test))
         model = fit_duration(x_train, train[BOUNDS[0]], train[BOUNDS[1]], np.ones(len(train)), hidden)
         radius = calibrate_log_radius(calibration, model.location(x_cal))
         coverage = None
         if radius is not None:
-            location = model.location(x_test)
-            band = np.exp(location[:, None] + np.array([-radius, 0, radius]))
-            coverage = duration_scores(test, band)
-        result["models"][name] = {
-            "test_model_interval": duration_scores(test, model.quantiles(x_test, QUANTILES)),
-            "test_calibrated_interval": coverage,
-            "calibration_log_radius": radius,
+            coverage = duration_scores(test, calibrated_band(model, radius, x_test))
+        fitted[name] = {
+            "model": model, "features": features, "radius": radius,
+            "scores": {
+                "test_model_interval": duration_scores(test, model.quantiles(x_test, QUANTILES)),
+                "test_calibrated_interval": coverage,
+                "calibration_log_radius": radius,
+            },
         }
-    return result
+    return fitted
 
 
 def main() -> None:

@@ -213,6 +213,78 @@
     padding-top: 1rem;
 }
 
+.caplife-health-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
+    gap: .75rem;
+    margin: .25rem 0 1rem;
+}
+
+.caplife-health-card {
+    --status: light-dark(#0f7a5f, #5fd9b5);
+    padding: .85rem 1rem .8rem;
+    border: 1px solid light-dark(#b8cdca, #2b4144);
+    border-top: 4px solid var(--status);
+    border-radius: .75rem;
+    background: light-dark(#f4f9f8, #121f22);
+    color: light-dark(#183433, #e1ecec);
+    font-size: .88rem;
+}
+
+.caplife-health-card[data-status="watch"] { --status: light-dark(#a86200, #ffbf5e); }
+.caplife-health-card[data-status="critical"],
+.caplife-health-card[data-status="end-of-life"] { --status: light-dark(#b42318, #ff8a7a); }
+
+.caplife-health-top,
+.caplife-health-foot {
+    display: flex;
+    justify-content: space-between;
+    gap: .5rem;
+}
+
+.caplife-health-top > span:first-child {
+    font-weight: 650;
+}
+
+.caplife-health-chip {
+    color: var(--status);
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.caplife-health-value {
+    margin-top: .3rem;
+    font-size: 1.45rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.25;
+}
+
+.caplife-health-value small {
+    font-size: .85rem;
+    color: light-dark(#486361, #aec4c6);
+}
+
+.caplife-health-change,
+.caplife-health-foot {
+    color: light-dark(#486361, #aec4c6);
+    font-size: .8rem;
+}
+
+.caplife-health-bar {
+    height: .45rem;
+    margin: .55rem 0 .35rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: light-dark(#dde8e6, #24383b);
+}
+
+.caplife-health-bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--status);
+}
+
 @media (max-width: 640px) {
     [data-testid="stMainBlockContainer"] {
         padding-top: 2.6rem;
@@ -239,5 +311,36 @@
     .caplife-scope {
         flex-wrap: wrap;
         gap: .14rem .6rem;
+    }
+
+    /* Stacked summary cards: one compact row each, label left and value right. */
+    [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) {
+        gap: .5rem;
+    }
+
+    [data-testid="stMetric"] {
+        padding: .55rem .85rem;
+    }
+
+    [data-testid="stMetric"] > div {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+    }
+
+    [data-testid="stMetricLabel"] {
+        margin: 0;
+    }
+
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricValue"] p {
+        margin: 0;
+        font-size: 1.4rem;
+        line-height: 1.2;
+    }
+
+    [data-testid="stMetricLabel"] p {
+        margin: 0;
     }
 }

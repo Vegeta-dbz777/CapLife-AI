@@ -5,8 +5,11 @@ and displays measured health indicators and downloadable assessments. The public
 benchmarks evaluate threshold forecasts on real experiments. A separate synthetic
 demonstration illustrates a PyTorch GRU and a remaining-life estimate.
 
-> **Research release.** Uploads return measurement assessments and observed
-> threshold status. Real-device RUL and its uncertainty still need validation.
+> **Research release.** **RUL prediction** monitors six parameters and predicts
+> remaining life with a neural network trained on simulated capacitors; it
+> demonstrates the method, and its accuracy on real capacitors is untested.
+> **Train RUL model** tests a neural model on your own held-out capacitors before
+> it forecasts anything.
 
 Open [CapLife AI](https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/) in a
 browser. Choose **Load public example** to explore measurements from eight NASA
@@ -20,6 +23,52 @@ device status. The general CSV uses an hour-zero baseline when present. The
 reference-age CSV uses its first recorded age as the baseline.
 The observed threshold table also records repeat confirmation and the first
 subsequent below-threshold reading where available.
+
+### Six-parameter health and RUL prediction (demonstration model)
+
+Choose **RUL prediction** in the sidebar and upload a CSV with `Cap_ID`, `Hours`,
+`Capacitance_uF`, `ESR_ohm`, `Leakage_uA`, `Case_Expansion_um`,
+`H2_Generated_mL_STP` and `Pressure_Abs_kPa`, or load the simulated example.
+The page scores each parameter's health against its limit, and a GRU neural
+network predicts remaining useful life with a calibrated 80% range at every
+reading, using only the readings available at that time.
+
+The network was trained on 1,600 capacitors from a physics-inspired simulator
+(`caplife/six_sim.py`): temperature-accelerated electrolyte loss lowers
+capacitance and raises ESR, leakage current generates hydrogen by Faraday's
+law, and retained hydrogen raises internal pressure and bulges the case. End of
+life is capacitance loss of 20%, ESR at 2× initial, leakage at 5× initial or
+internal pressure at 250 kPa. On 400 further simulated capacitors it never saw,
+the typical error was about 450 h (9% of remaining life) against about 1,700 h
+for a trend line, and the 80% range contained the true value 79% of the time.
+These figures hold for the simulator only: the coefficients are illustrative,
+and accuracy on real capacitors is unknown until the model is tested on
+measured failures. Retrain with `python -m caplife.six_rul --output artifacts/six_rul`.
+
+### Train a remaining-life model on your own data
+
+Choose **Train RUL model** in the sidebar. Upload a six-indicator measurement
+history and an outcome file with one row per tested capacitor (`Cap_ID`,
+`Experiment_ID`, `Endpoint`, `Last_alive_h`, `Failure_by_h`; leave
+`Failure_by_h` blank for capacitors still working when testing stopped).
+Capacitors with readings but no outcome row are the ones to forecast.
+
+The page splits capacitors into training, calibration and test groups, by
+experiment when there are at least three, otherwise by capacitor ID, never by
+outcome. A small neural network learns from the training group, the
+calibration group sets the width of an 80% range, and the test group scores it
+alongside a log-linear model and an average-lifetime guess. Forecasts appear
+only when the neural network passes every check on the test group:
+
+- at least 3 observed test failures;
+- its 80% range contains at least 70% of them;
+- its average miss is no worse than predicting the average lifetime;
+- at most 20% of still-working test capacitors get a range ending before their last check.
+
+Forecasts use the tested model and range unchanged, and are withheld for
+capacitors whose early readings lie more than 10% of the training range beyond
+the training capacitors. A synthetic example shows the workflow; its results
+say nothing about real capacitors. The logic lives in `caplife/rul_workflow.py`.
 
 ## 1 — Try the web app locally (Windows / macOS / Linux)
 
@@ -257,7 +306,17 @@ scientific data service.
 - No database, authentication, production privacy controls, or server-side job queue.
 - The simulated 'strain index' is **not** a calibrated measurement of internal H2.
 
-## 7 — File map
+## 7 — Run the tests
+
+Install the app and test dependencies, then run the suite from the repository root.
+`requirements.txt` stays limited to what Streamlit Community Cloud needs.
+
+```sh
+pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+## 8 — File map
 
 ```text
 CapLife_AI_Starter/
@@ -268,10 +327,17 @@ CapLife_AI_Starter/
   caplife/model.py               PyTorch GRU neural network
   caplife/train.py               Training and held-out testing
   caplife/predict.py             Reusable loaded prediction API
+  caplife/six_sim.py             Physics-inspired six-indicator capacitor simulator
+  caplife/six_rul.py             Six-indicator GRU RUL model: training and inference
+  caplife/six_rul_page.py        RUL prediction page
+  artifacts/six_rul/             Trained six-indicator model and its test metrics
+  caplife/rul_workflow.py        Train, test and forecast RUL on uploaded outcomes
+  caplife/rul_page.py            Train RUL model page
   artifacts/gru_demo_state.pt    Pretrained demo weights
   artifacts/metadata.json       Preprocessing, provenance, metrics
   sample_data/demo_capacitors.csv
   sample_data/upload_template.csv
-  tests/test_pipeline.py
-  requirements.txt
+  tests/                         Automated tests
+  requirements.txt               Deployed app dependencies
+  requirements-dev.txt           Adds test dependencies
 ```
