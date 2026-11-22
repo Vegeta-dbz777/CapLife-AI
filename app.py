@@ -47,6 +47,11 @@ st.set_page_config(
 )
 st.html(ASSETS / "interface.css")
 
+if st.query_params.get("page") == "privacy":
+    from caplife.privacy import render as render_privacy
+    render_privacy(PUBLIC_APP_URL)
+    st.stop()
+
 with st.sidebar:
     st.html(
         '<div class="caplife-brand"><span class="caplife-brand-mark" aria-hidden="true">CL</span>'
@@ -65,7 +70,7 @@ with st.sidebar:
     with st.popover("Share this app"):
         st.write("Copy the public link")
         st.code(PUBLIC_APP_URL, language=None)
-    st.markdown(f"[Project and methods ↗]({PROJECT_URL})")
+    st.markdown(f"[Project and methods ↗]({PROJECT_URL}) · [Privacy]({PUBLIC_APP_URL}?page=privacy)")
 
 if workflow == MEASUREMENT_WORKFLOW:
     hero = b64encode((ASSETS / "capacitor-hero.webp").read_bytes()).decode("ascii")

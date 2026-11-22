@@ -72,3 +72,14 @@ def test_earlier_gru_demo_analyzes_a_capacitor():
     next(b for b in app.button if b.label == "Analyze capacitor").click().run()
     assert not app.exception
     assert metric(app, "GRU remaining life (DEMO)").endswith(" h")
+
+
+def test_privacy_page_is_served_on_the_app_domain():
+    app = AppTest.from_file(APP, default_timeout=60)
+    app.query_params["page"] = "privacy"
+    app.run()
+    assert not app.exception
+    assert app.title[0].value == "Privacy policy"
+    text = " ".join(m.value for m in app.markdown)
+    assert "name**, **email address" in text and "My data" in text
+    assert not app.sidebar.radio  # the policy is a standalone page

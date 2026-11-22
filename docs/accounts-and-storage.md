@@ -24,8 +24,16 @@ data. Uploads that are not saved are still processed in memory and discarded.
 2. Go to **APIs & Services → OAuth consent screen** (shown as **Google Auth Platform** in newer consoles).
    Set the app name, a support email and audience **External**. Only the basic `openid`, `email` and
    `profile` scopes are used, which Google does not need to review.
-3. While the app is in **Testing**, only the test users you list can sign in. To let anyone sign in,
-   choose **Publish app**.
+3. While the app is in **Testing**, only the test users you list (up to 100) can sign in. To let anyone
+   sign in, first open **Branding** and fill in:
+   - **Application home page:** `https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app`
+   - **Application privacy policy link:** `https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/?page=privacy`
+   - **Authorized domains:** `vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app` (the full address:
+     `streamlit.app` is a shared public suffix, so Google does not accept it on its own)
+   - **Developer contact information:** your email
+
+   Leave the app logo empty; uploading one requires Google's brand review. Save, then go to
+   **Audience** and choose **Publish app**.
 4. Go to **Credentials → Create credentials → OAuth client ID**, choose **Web application**, and add these
    **Authorized redirect URIs**:
    - `https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/oauth2callback`
