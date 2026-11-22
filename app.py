@@ -31,14 +31,18 @@ RUL_WORKFLOW = "Train an RUL model on uploaded outcomes"
 SIX_RUL_WORKFLOW = "Six-parameter RUL prediction (demonstration model)"
 MY_DATA_WORKFLOW = "My saved datasets"
 REFERENCE_FORMAT = "Reference-age CSV (ES14 format)"
-WORKFLOWS = {
+MAIN_WORKFLOWS = {
     MEASUREMENT_WORKFLOW: "Analyze measurements",
     SIX_RUL_WORKFLOW: "RUL prediction",
     RUL_WORKFLOW: "Train RUL model",
+}
+RESEARCH_WORKFLOWS = {
     "Public-data forecast benchmark": "Forecast benchmarks",
     "Public-data neural experiment": "Neural research",
     "Synthetic RUL demonstration (v0.5)": "Earlier GRU demo",
 }
+WORKFLOWS = {**MAIN_WORKFLOWS, **RESEARCH_WORKFLOWS}
+MAIN_KEY, RESEARCH_KEY = "caplife_workflow_v07", "caplife_research_page"
 
 st.set_page_config(
     page_title="CapLife AI | Capacitor research",
@@ -58,13 +62,23 @@ with st.sidebar:
         '<span>CapLife AI</span></div>'
     )
     st.html(ASSETS / "theme-switch.html", unsafe_allow_javascript=True)
-    workspaces = {**WORKFLOWS, **({MY_DATA_WORKFLOW: "My data"} if current_user() else {})}
-    workflow = st.radio(
-        "Workspace",
-        tuple(workspaces),
-        format_func=workspaces.__getitem__,
-        key="caplife_workflow_v07",
-    )
+    main_pages = {**MAIN_WORKFLOWS, **({MY_DATA_WORKFLOW: "My data"} if current_user() else {})}
+    # Two lists, one selection: choosing a page in one list clears the other.
+    st.session_state.setdefault(MAIN_KEY, MEASUREMENT_WORKFLOW)
+    st.session_state.setdefault(RESEARCH_KEY, None)
+    if st.session_state[MAIN_KEY] not in (None, *main_pages):  # e.g. My data after signing out
+        st.session_state[MAIN_KEY] = MEASUREMENT_WORKFLOW
+
+    def _choose(chosen_key: str, other_key: str) -> None:
+        if st.session_state[chosen_key] is not None:
+            st.session_state[other_key] = None
+
+    st.radio("Workspace", tuple(main_pages), format_func=main_pages.__getitem__, key=MAIN_KEY,
+             on_change=_choose, args=(MAIN_KEY, RESEARCH_KEY))
+    with st.expander("Research", expanded=st.session_state[RESEARCH_KEY] is not None):
+        st.radio("Research pages", tuple(RESEARCH_WORKFLOWS), format_func=RESEARCH_WORKFLOWS.__getitem__,
+                 key=RESEARCH_KEY, label_visibility="collapsed", on_change=_choose, args=(RESEARCH_KEY, MAIN_KEY))
+    workflow = st.session_state[MAIN_KEY] or st.session_state[RESEARCH_KEY] or MEASUREMENT_WORKFLOW
     st.divider()
     sidebar_account()
     st.markdown(f"[Project and methods ↗]({PROJECT_URL}) · [Privacy]({PUBLIC_APP_URL}?page=privacy)")
