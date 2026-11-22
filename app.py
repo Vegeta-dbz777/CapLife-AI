@@ -81,7 +81,8 @@ with st.sidebar:
     workflow = st.session_state[MAIN_KEY] or st.session_state[RESEARCH_KEY] or MEASUREMENT_WORKFLOW
     st.divider()
     sidebar_account()
-    st.markdown(f"[Project and methods ↗]({PROJECT_URL}) · [Privacy]({PUBLIC_APP_URL}?page=privacy)")
+    st.markdown(f"[Project and methods ↗]({PROJECT_URL})")
+    st.markdown(f"[Privacy]({PUBLIC_APP_URL}?page=privacy)")
 
 if workflow == MEASUREMENT_WORKFLOW:
     hero = b64encode((ASSETS / "capacitor-hero.webp").read_bytes()).decode("ascii")
@@ -99,27 +100,14 @@ if workflow == MY_DATA_WORKFLOW:
     st.stop()
 
 if workflow == SIX_RUL_WORKFLOW:
-    st.html(
-        '<p class="caplife-scope"><span>Research prototype</span>'
-        'Demonstration model trained on simulated capacitors.</p>'
-    )
     from caplife.six_rul_page import render as render_six_rul_page
     render_six_rul_page()
     st.stop()
 
 if workflow == RUL_WORKFLOW:
-    st.html(
-        '<p class="caplife-scope"><span>Research prototype</span>'
-        'Forecasts are tested only on your own held-out capacitors.</p>'
-    )
     from caplife.rul_page import render as render_rul_page
     render_rul_page()
     st.stop()
-
-st.html(
-    '<p class="caplife-scope"><span>Research prototype</span>'
-    'Real-device lifetime estimates await validation.</p>'
-)
 
 if workflow == "Public-data neural experiment":
     benchmark = json.loads((ARTIFACTS / "neural_benchmark.json").read_text(encoding="utf-8"))
