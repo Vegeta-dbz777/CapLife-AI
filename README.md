@@ -14,8 +14,7 @@ demonstration illustrates a PyTorch GRU and a remaining-life estimate.
 Open [CapLife AI](https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/) in a
 browser. Choose **Load public example** to explore measurements from eight NASA
 ES14 capacitors, or upload a CSV with your own measurements. The **Overview**,
-**Signal history**, and **Downloads** tabs organize the results. Use **Share this
-app** in the sidebar to copy the public link.
+**Signal history**, and **Downloads** tabs organize the results.
 
 Use **Check an observed capacitance-loss threshold**
 to set a loss threshold, inspect the first recorded crossing window, and export
