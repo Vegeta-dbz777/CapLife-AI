@@ -6,7 +6,9 @@ benchmarks evaluate threshold forecasts on real experiments. A separate syntheti
 demonstration illustrates a PyTorch GRU and a remaining-life estimate.
 
 > **Research release.** Uploads return measurement assessments and observed
-> threshold status. Real-device RUL and its uncertainty still need validation.
+> threshold status. Real-device RUL and its uncertainty still need validation;
+> **Train RUL model** tests a neural model on your own held-out capacitors before
+> it forecasts anything.
 
 Open [CapLife AI](https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/) in a
 browser. Choose **Load public example** to explore measurements from eight NASA
@@ -20,6 +22,31 @@ device status. The general CSV uses an hour-zero baseline when present. The
 reference-age CSV uses its first recorded age as the baseline.
 The observed threshold table also records repeat confirmation and the first
 subsequent below-threshold reading where available.
+
+### Train a remaining-life model on your own data
+
+Choose **Train RUL model** in the sidebar. Upload a six-indicator measurement
+history and an outcome file with one row per tested capacitor (`Cap_ID`,
+`Experiment_ID`, `Endpoint`, `Last_alive_h`, `Failure_by_h`; leave
+`Failure_by_h` blank for capacitors still working when testing stopped).
+Capacitors with readings but no outcome row are the ones to forecast.
+
+The page splits capacitors into training, calibration and test groups, by
+experiment when there are at least three, otherwise by capacitor ID, never by
+outcome. A small neural network learns from the training group, the
+calibration group sets the width of an 80% range, and the test group scores it
+alongside a log-linear model and an average-lifetime guess. Forecasts appear
+only when the neural network passes every check on the test group:
+
+- at least 3 observed test failures;
+- its 80% range contains at least 70% of them;
+- its average miss is no worse than predicting the average lifetime;
+- at most 20% of still-working test capacitors get a range ending before their last check.
+
+Forecasts use the tested model and range unchanged, and are withheld for
+capacitors whose early readings lie more than 10% of the training range beyond
+the training capacitors. A synthetic example shows the workflow; its results
+say nothing about real capacitors. The logic lives in `caplife/rul_workflow.py`.
 
 ## 1 — Try the web app locally (Windows / macOS / Linux)
 
@@ -278,6 +305,8 @@ CapLife_AI_Starter/
   caplife/model.py               PyTorch GRU neural network
   caplife/train.py               Training and held-out testing
   caplife/predict.py             Reusable loaded prediction API
+  caplife/rul_workflow.py        Train, test and forecast RUL on uploaded outcomes
+  caplife/rul_page.py            Train RUL model page
   artifacts/gru_demo_state.pt    Pretrained demo weights
   artifacts/metadata.json       Preprocessing, provenance, metrics
   sample_data/demo_capacitors.csv

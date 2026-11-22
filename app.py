@@ -26,9 +26,11 @@ UNCERTAINTY_JSON = ARTIFACTS / "trend_uncertainty_synthetic_v0_5.json"
 PUBLIC_APP_URL = "https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/"
 PROJECT_URL = "https://github.com/Vegeta-dbz777/CapLife-AI"
 MEASUREMENT_WORKFLOW = "Experimental measurements (v0.8)"
+RUL_WORKFLOW = "Train an RUL model on uploaded outcomes"
 REFERENCE_FORMAT = "Reference-age CSV (ES14 format)"
 WORKFLOWS = {
     MEASUREMENT_WORKFLOW: "Analyze measurements",
+    RUL_WORKFLOW: "Train RUL model",
     "Public-data forecast benchmark": "Forecast benchmarks",
     "Public-data neural experiment": "Neural research",
     "Synthetic RUL demonstration (v0.5)": "Synthetic demo",
@@ -69,6 +71,15 @@ if workflow == MEASUREMENT_WORKFLOW:
         '<p>Explore measured degradation, inspect thresholds, and export a report.</p></div>'
         '</section>'
     )
+
+if workflow == RUL_WORKFLOW:
+    st.html(
+        '<p class="caplife-scope"><span>Research prototype</span>'
+        'Forecasts are tested only on your own held-out capacitors.</p>'
+    )
+    from caplife.rul_page import render as render_rul_page
+    render_rul_page()
+    st.stop()
 
 st.html(
     '<p class="caplife-scope"><span>Research prototype</span>'

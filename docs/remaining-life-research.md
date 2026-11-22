@@ -87,6 +87,11 @@ pressure linked to adjudicated outcomes.
 
 ## Train and evaluate from measured histories
 
+The web app's **Train RUL model** page runs this evaluation on uploaded files,
+applies release checks to the neural model on the test group, and forecasts
+capacitors without an outcome row only when they pass. See the README for the
+checks. The command below produces the evaluation report without forecasts.
+
 Put all measurements in a CSV using the CapLife measurement column names.
 Include the device ID, age in hours, capacitance, ESR, electrical leakage
 current, case expansion, cumulative H₂, and absolute internal pressure.
