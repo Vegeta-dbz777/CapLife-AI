@@ -143,22 +143,6 @@
     text-transform: uppercase;
 }
 
-.caplife-scope {
-    display: flex;
-    align-items: baseline;
-    gap: .65rem;
-    margin: .78rem 0 .5rem;
-    color: light-dark(#486361, #b7cacb);
-    font-size: .9rem;
-    line-height: 1.45;
-}
-
-.caplife-scope span {
-    color: light-dark(#80451d, #ffc995);
-    font-weight: 650;
-    white-space: nowrap;
-}
-
 [data-testid="stMetric"] {
     min-width: 0;
     padding: .9rem 1rem;
@@ -313,11 +297,6 @@
 
     .caplife-hero p {
         max-width: 16rem;
-    }
-
-    .caplife-scope {
-        flex-wrap: wrap;
-        gap: .14rem .6rem;
     }
 
     /* Stacked summary cards: one compact row each, label left and value right. */
