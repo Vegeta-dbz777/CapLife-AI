@@ -296,7 +296,7 @@ def assess_real_measurements(raw: pd.DataFrame) -> dict:
 def assessment_zip_bytes(result: dict) -> bytes:
     """Build export in memory without keeping user's upload on disk."""
     readme = (
-        "CAPLIFE AI v0.6 — EXPERIMENTAL MEASUREMENT SUMMARY\n\n"
+        "CAPLIFE AI — EXPERIMENTAL MEASUREMENT SUMMARY\n\n"
         "This report describes observed measurements only.\n"
         "It does NOT provide GRU inference, RUL prediction, calibrated uncertainty,\n"
         "health scoring, EOL decisions, or maintenance advice.\n"

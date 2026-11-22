@@ -67,3 +67,46 @@ def observed_capacitance_threshold(history: pd.DataFrame, threshold_pct: float) 
             "Status": status,
         })
     return pd.DataFrame(rows)
+
+
+def reference_age_observations(history: pd.DataFrame, early_fraction: float = 0.10) -> dict:
+    """Describe sampling gaps and early capacitance change without interpreting them.
+
+    ``history`` has one row per capacitor and distinct age, as returned by
+    ``assess_reference_age_measurements``. The result reports the longest
+    interval between consecutive readings and how much of each capacitor's
+    latest capacitance loss had already appeared within the first
+    ``early_fraction`` of its recorded age span.
+    """
+    largest_gap = None
+    early_shares, early_cutoffs, first_steps, first_step_ages = [], [], [], []
+    for cap_id, group in history.groupby("Cap_ID", sort=True):
+        readings = group.dropna(subset=["Capacitance_loss_pct"]).sort_values("Age_h")
+        ages = readings["Age_h"].to_numpy(dtype=float)
+        losses = readings["Capacitance_loss_pct"].to_numpy(dtype=float)
+        if ages.size < 2:
+            continue
+        gaps = np.diff(ages)
+        index = int(np.argmax(gaps))
+        if largest_gap is None or gaps[index] > largest_gap["hours"]:
+            largest_gap = {"Cap_ID": cap_id, "start_h": float(ages[index]),
+                           "end_h": float(ages[index + 1]), "hours": float(gaps[index])}
+        first_steps.append(float(losses[1]))
+        first_step_ages.append(float(ages[1]))
+        span = ages[-1] - ages[0]
+        cutoff = ages[0] + early_fraction * span
+        early_cutoffs.append(float(cutoff))
+        if ages.size >= 3 and losses[-1] > 0:
+            early_loss = losses[ages <= cutoff][-1]
+            early_shares.append(float(early_loss / losses[-1]))
+    span_total = float(history["Age_h"].max() - history["Age_h"].min()) if len(history) else 0.0
+    return {
+        "largest_gap": largest_gap,
+        "largest_gap_fraction_of_span": (largest_gap["hours"] / span_total
+                                         if largest_gap and span_total > 0 else None),
+        "early_fraction": early_fraction,
+        "early_cutoff_h": float(np.median(early_cutoffs)) if early_cutoffs else None,
+        "median_early_share": float(np.median(early_shares)) if early_shares else None,
+        "first_step_loss_range": (min(first_steps), max(first_steps)) if first_steps else None,
+        "first_step_age_range": (min(first_step_ages), max(first_step_ages)) if first_step_ages else None,
+    }

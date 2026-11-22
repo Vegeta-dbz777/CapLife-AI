@@ -46,3 +46,19 @@ def assess_capacitor(cap_df: pd.DataFrame, net: RULGRU, metadata: dict) -> dict:
         "model_id": metadata["model_id"],
         "data_provenance": metadata["training_data_provenance"],
     }
+
+
+def default_prediction_hour(cap_df: pd.DataFrame, options: list[float]) -> float:
+    """Latest selectable hour before the illustrative EOL rule fires.
+
+    Starting there shows a GRU estimate on first use instead of the rule's
+    zero. Falls back to the latest option when every option is past the rule.
+    """
+    rows = cap_df.set_index("Hours")
+    for hour in reversed(options):
+        row = rows.loc[hour]
+        if isinstance(row, pd.DataFrame):
+            row = row.iloc[-1]
+        if not end_of_life_causes(row.to_dict()):
+            return hour
+    return options[-1]

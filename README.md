@@ -257,7 +257,17 @@ scientific data service.
 - No database, authentication, production privacy controls, or server-side job queue.
 - The simulated 'strain index' is **not** a calibrated measurement of internal H2.
 
-## 7 — File map
+## 7 — Run the tests
+
+Install the app and test dependencies, then run the suite from the repository root.
+`requirements.txt` stays limited to what Streamlit Community Cloud needs.
+
+```sh
+pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+## 8 — File map
 
 ```text
 CapLife_AI_Starter/
@@ -272,6 +282,7 @@ CapLife_AI_Starter/
   artifacts/metadata.json       Preprocessing, provenance, metrics
   sample_data/demo_capacitors.csv
   sample_data/upload_template.csv
-  tests/test_pipeline.py
-  requirements.txt
+  tests/                         Automated tests
+  requirements.txt               Deployed app dependencies
+  requirements-dev.txt           Adds test dependencies
 ```

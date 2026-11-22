@@ -240,4 +240,35 @@
         flex-wrap: wrap;
         gap: .14rem .6rem;
     }
+
+    /* Stacked summary cards: one compact row each, label left and value right. */
+    [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) {
+        gap: .5rem;
+    }
+
+    [data-testid="stMetric"] {
+        padding: .55rem .85rem;
+    }
+
+    [data-testid="stMetric"] > div {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+    }
+
+    [data-testid="stMetricLabel"] {
+        margin: 0;
+    }
+
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricValue"] p {
+        margin: 0;
+        font-size: 1.4rem;
+        line-height: 1.2;
+    }
+
+    [data-testid="stMetricLabel"] p {
+        margin: 0;
+    }
 }

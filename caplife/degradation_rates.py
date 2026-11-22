@@ -34,6 +34,9 @@ ACCELERATION_COLUMNS = [
 ]
 
 
+RATE_CHANGE_RELATIVE_TOLERANCE = 1e-9
+
+
 def _clean_numeric(values: pd.Series) -> pd.Series:
     return pd.to_numeric(values, errors="coerce").astype(float)
 
@@ -132,7 +135,14 @@ def calculate_degradation_rates(measurements: pd.DataFrame) -> dict:
                 if abs(prev["End_Hour"] - nxt["Start_Hour"]) > 1e-9:
                     continue
                 mid_difference = nxt["Midpoint_Hour"] - prev["Midpoint_Hour"]
-                acceleration = (nxt["Rate_per_hour"] - prev["Rate_per_hour"]) / mid_difference
+                rate_change = nxt["Rate_per_hour"] - prev["Rate_per_hour"]
+                # Equal rates can differ by floating-point rounding alone (~1e-16
+                # relative). A relative change below 1e-9 is far beyond any sensor
+                # resolution, so report it as zero rather than as a spurious value.
+                if abs(rate_change) <= RATE_CHANGE_RELATIVE_TOLERANCE * max(
+                        abs(nxt["Rate_per_hour"]), abs(prev["Rate_per_hour"])):
+                    rate_change = 0.0
+                acceleration = rate_change / mid_difference
                 record = {
                     "Cap_ID": cap_id, "Indicator": label, "Unit": unit,
                     "At_Hours": (nxt["Midpoint_Hour"] + prev["Midpoint_Hour"]) / 2,

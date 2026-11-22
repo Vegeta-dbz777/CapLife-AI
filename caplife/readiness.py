@@ -152,7 +152,7 @@ def assessment_zip_with_readiness_bytes(report: dict, audit: dict) -> bytes:
             new.writestr(filename, audit[key].to_csv(index=False))
         new.writestr(
             "READINESS_NOTE.txt",
-            "CAPLIFE AI v0.8 RESEARCH-DATA AUDIT\n\n"
+            "CAPLIFE AI RESEARCH-DATA AUDIT\n\n"
             "Readiness describes documentation and data availability ONLY.\n"
             "It is not a health score, reliability estimate, EOL finding, RUL forecast,\n"
             "calibrated uncertainty interval, or recommendation for maintenance.\n"
