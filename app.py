@@ -12,6 +12,7 @@ import streamlit as st
 
 from caplife.config import EOL_THRESHOLDS, FEATURES, SEQ_LEN
 from caplife.data import DataValidationError, validate_measurements
+from caplife.accounts import current_user, render_my_data, sidebar_account
 from caplife.predict import assess_capacitor, default_prediction_hour, load_engine
 from caplife.trend import assess_trend
 
@@ -28,6 +29,7 @@ PROJECT_URL = "https://github.com/Vegeta-dbz777/CapLife-AI"
 MEASUREMENT_WORKFLOW = "Experimental measurements (v0.8)"
 RUL_WORKFLOW = "Train an RUL model on uploaded outcomes"
 SIX_RUL_WORKFLOW = "Six-parameter RUL prediction (demonstration model)"
+MY_DATA_WORKFLOW = "My saved datasets"
 REFERENCE_FORMAT = "Reference-age CSV (ES14 format)"
 WORKFLOWS = {
     MEASUREMENT_WORKFLOW: "Analyze measurements",
@@ -51,13 +53,15 @@ with st.sidebar:
         '<span>CapLife AI</span></div>'
     )
     st.html(ASSETS / "theme-switch.html", unsafe_allow_javascript=True)
+    workspaces = {**WORKFLOWS, **({MY_DATA_WORKFLOW: "My data"} if current_user() else {})}
     workflow = st.radio(
         "Workspace",
-        tuple(WORKFLOWS),
-        format_func=WORKFLOWS.__getitem__,
+        tuple(workspaces),
+        format_func=workspaces.__getitem__,
         key="caplife_workflow_v07",
     )
     st.divider()
+    sidebar_account()
     with st.popover("Share this app"):
         st.write("Copy the public link")
         st.code(PUBLIC_APP_URL, language=None)
@@ -73,6 +77,10 @@ if workflow == MEASUREMENT_WORKFLOW:
         '<p>Explore measured degradation, inspect thresholds, and export a report.</p></div>'
         '</section>'
     )
+
+if workflow == MY_DATA_WORKFLOW:
+    render_my_data()
+    st.stop()
 
 if workflow == SIX_RUL_WORKFLOW:
     st.html(

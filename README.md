@@ -45,6 +45,15 @@ These figures hold for the simulator only: the coefficients are illustrative,
 and accuracy on real capacitors is unknown until the model is tested on
 measured failures. Retrain with `python -m caplife.six_rul --output artifacts/six_rul`.
 
+### Accounts and saved datasets (optional)
+
+When sign-in and a database are configured in Streamlit secrets, visitors can
+sign in with Google, save uploads to their account, reopen them on *RUL
+prediction* and *Train RUL model*, and manage or delete them on **My data**.
+Each user sees only their own datasets. Without these settings the app is a
+public demo and stores nothing. Setup takes about 20 minutes:
+[docs/accounts-and-storage.md](docs/accounts-and-storage.md).
+
 ### Train a remaining-life model on your own data
 
 Choose **Train RUL model** in the sidebar. Upload a six-indicator measurement
@@ -316,6 +325,9 @@ pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
+GitHub runs the same tests on every pull request and every change to `main`
+(`.github/workflows/tests.yml`), including the storage tests against PostgreSQL.
+
 ## 8 — File map
 
 ```text
@@ -332,6 +344,8 @@ CapLife_AI_Starter/
   caplife/six_rul_page.py        RUL prediction page
   artifacts/six_rul/             Trained six-indicator model and its test metrics
   caplife/rul_workflow.py        Train, test and forecast RUL on uploaded outcomes
+  caplife/accounts.py            Optional sign-in, save controls and My data page
+  caplife/storage.py             Private per-user dataset storage (SQL)
   caplife/rul_page.py            Train RUL model page
   artifacts/gru_demo_state.pt    Pretrained demo weights
   artifacts/metadata.json       Preprocessing, provenance, metrics

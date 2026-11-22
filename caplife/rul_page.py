@@ -8,6 +8,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from caplife.accounts import save_controls, saved_picker, saving_available
 from caplife.measurement_review import read_experimental_csv
 from caplife.real_data import RealDataValidationError
 from caplife.rul_example import example_dataset
@@ -18,7 +19,7 @@ from caplife.rul_workflow import (
     run_rul_workflow,
 )
 
-UPLOAD, EXAMPLE = "Upload my data", "Use the synthetic example"
+UPLOAD, EXAMPLE, SAVED = "Upload my data", "Use the synthetic example", "My saved datasets"
 RANGE_COLOR, POINT_COLOR, OBSERVED_COLOR = "#3aa597", "#0f6f63", "#d9822b"
 INPUT_ERRORS = (RealDataValidationError, ValueError, pd.errors.ParserError,
                 pd.errors.EmptyDataError, UnicodeError)
@@ -100,7 +101,11 @@ def _interval_chart(table: pd.DataFrame, observed: bool) -> alt.Chart:
 
 
 def _inputs() -> tuple[bytes, bytes] | None:
-    source = st.radio("Data", (UPLOAD, EXAMPLE), horizontal=True, key="caplife_rul_source")
+    sources = (UPLOAD, EXAMPLE, SAVED) if saving_available() else (UPLOAD, EXAMPLE)
+    source = st.radio("Data", sources, horizontal=True, key="caplife_rul_source")
+    if source == SAVED:
+        picked = saved_picker("train_rul", "caplife_rul")
+        return None if picked is None else (picked[0]["measurements"], picked[0]["outcomes"])
     if source == EXAMPLE:
         measurements, outcomes = _example_csvs()
         st.info("The synthetic example has 37 generated capacitors in four experiments, five of them still "
@@ -134,13 +139,15 @@ def _inputs() -> tuple[bytes, bytes] | None:
             "**Capacitors to forecast** — include their readings in the measurement file but give them no "
             "outcome row."
         )
-    st.caption("Uploads are processed on the app server. Share data you have permission to use.")
+    st.caption("Uploads are processed on the app server and are not stored unless you sign in and save them.")
     if measurements is None or outcomes is None:
         return None
     for upload in (measurements, outcomes):
         if upload.size > 8 * 1024 * 1024:
             st.error(f"{upload.name} exceeds the 8 MB limit.")
             return None
+    save_controls("train_rul", {"measurements": measurements.getvalue(), "outcomes": outcomes.getvalue()},
+                  measurements.name.removesuffix(".csv"), "caplife_rul")
     return measurements.getvalue(), outcomes.getvalue()
 
 
