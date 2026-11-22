@@ -5,6 +5,12 @@ comparisons of threshold forecasts. The neural model remains experimental.
 Physical remaining useful life requires observed failure endpoints and
 independent validation.
 
+## Forecasting follow-up
+
+The [remaining-life research report](remaining-life-research.md) evaluates
+constrained warnings, interval-censored duration models, and a separate
+physical-failure study with published capacitance and ESR observations.
+
 ## Extended validation on original inspection records
 
 We compared six methods with whole experiments held out. The data cover 38

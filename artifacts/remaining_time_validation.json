@@ -1,0 +1,2128 @@
+{
+  "endpoint": "20 percent capacitance loss relative to initial capacitance",
+  "nominal_interval_mass": 0.8,
+  "features": [
+    "loss_pct",
+    "older_rate_pct_per_h",
+    "recent_rate_pct_per_h"
+  ],
+  "source_sha256": {
+    "EOS_DataSet.mat": "9db651a10f92d2046a477838c08fe1cdbaf27d7bc4062a856a373721400cb4a3",
+    "data_combined.csv": "c261056133cf4e6418ea917cdc131def1a422c65179818d62f82552b182ad316",
+    "NASA ES10 sessions": "72152c9a1197857952b7ffde2550057c2a2790993719d7b05c013e21c9177a0b",
+    "NASA ES12 sessions": "b79b4e5cf63383a7f50dbc0b965629d164d879dbe6412619d9b2af46cba57fc9",
+    "NASA ES14 sessions": "f8355586ec44c71b6a2f20dfeb61fe46f99768fe8cb0f7e11c522f2e5db7bb00"
+  },
+  "validation": {
+    "first_crossing": {
+      "NASA EOS-2": {
+        "training_devices": 30,
+        "test_devices": 6,
+        "origins_outside_training_feature_ranges": 0,
+        "models": {
+          "intercept_only": {
+            "horizons_h": {
+              "24": {
+                "resolved": 37,
+                "brier": 0.142891,
+                "brier_bounds_all_origins": [
+                  0.114563,
+                  0.28217
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 6,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "48": {
+                "resolved": 39,
+                "brier": 0.289143,
+                "brier_bounds_all_origins": [
+                  0.254076,
+                  0.379004
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 15,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "72": {
+                "resolved": 38,
+                "brier": 0.366478,
+                "brier_bounds_all_origins": [
+                  0.32212,
+                  0.455194
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 20,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              }
+            },
+            "all_origins": {
+              "devices": 6,
+              "origins": 47,
+              "bounded_or_exact_events": 39,
+              "right_censored_origins": 8,
+              "mean_distance_to_observed_window_h": 10207.957517,
+              "median_band_width_h": 4828349.238992,
+              "possible_80pct_band_coverage_observed_events": 0.971429,
+              "definite_80pct_band_coverage_observed_events": 0.742857,
+              "band_below_right_censor_count": 0
+            },
+            "first_origin_per_device": {
+              "devices": 6,
+              "origins": 6,
+              "bounded_or_exact_events": 5,
+              "right_censored_origins": 1,
+              "mean_distance_to_observed_window_h": 10137.957517,
+              "median_band_width_h": 4828349.238992,
+              "possible_80pct_band_coverage_observed_events": 1.0,
+              "definite_80pct_band_coverage_observed_events": 1.0,
+              "band_below_right_censor_count": 0
+            }
+          },
+          "log_linear": {
+            "horizons_h": {
+              "24": {
+                "resolved": 37,
+                "brier": 0.136963,
+                "brier_bounds_all_origins": [
+                  0.1094,
+                  0.284135
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 6,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "48": {
+                "resolved": 39,
+                "brier": 0.288023,
+                "brier_bounds_all_origins": [
+                  0.252437,
+                  0.386562
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 15,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "72": {
+                "resolved": 38,
+                "brier": 0.371414,
+                "brier_bounds_all_origins": [
+                  0.325558,
+                  0.4714
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 20,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              }
+            },
+            "all_origins": {
+              "devices": 6,
+              "origins": 47,
+              "bounded_or_exact_events": 39,
+              "right_censored_origins": 8,
+              "mean_distance_to_observed_window_h": 11613.829399,
+              "median_band_width_h": 2520474.14746,
+              "possible_80pct_band_coverage_observed_events": 0.860714,
+              "definite_80pct_band_coverage_observed_events": 0.332143,
+              "band_below_right_censor_count": 0
+            },
+            "first_origin_per_device": {
+              "devices": 6,
+              "origins": 6,
+              "bounded_or_exact_events": 5,
+              "right_censored_origins": 1,
+              "mean_distance_to_observed_window_h": 17824.151278,
+              "median_band_width_h": 3767909.541418,
+              "possible_80pct_band_coverage_observed_events": 1.0,
+              "definite_80pct_band_coverage_observed_events": 1.0,
+              "band_below_right_censor_count": 0
+            }
+          },
+          "neural": {
+            "horizons_h": {
+              "24": {
+                "resolved": 37,
+                "brier": 0.140122,
+                "brier_bounds_all_origins": [
+                  0.112207,
+                  0.282238
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 6,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "48": {
+                "resolved": 39,
+                "brier": 0.287845,
+                "brier_bounds_all_origins": [
+                  0.252711,
+                  0.380781
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 15,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "72": {
+                "resolved": 38,
+                "brier": 0.367118,
+                "brier_bounds_all_origins": [
+                  0.322385,
+                  0.459696
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 20,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              }
+            },
+            "all_origins": {
+              "devices": 6,
+              "origins": 47,
+              "bounded_or_exact_events": 39,
+              "right_censored_origins": 8,
+              "mean_distance_to_observed_window_h": 9765.652607,
+              "median_band_width_h": 3398986.277873,
+              "possible_80pct_band_coverage_observed_events": 0.942857,
+              "definite_80pct_band_coverage_observed_events": 0.614286,
+              "band_below_right_censor_count": 0
+            },
+            "first_origin_per_device": {
+              "devices": 6,
+              "origins": 6,
+              "bounded_or_exact_events": 5,
+              "right_censored_origins": 1,
+              "mean_distance_to_observed_window_h": 11505.327026,
+              "median_band_width_h": 3866339.528988,
+              "possible_80pct_band_coverage_observed_events": 1.0,
+              "definite_80pct_band_coverage_observed_events": 1.0,
+              "band_below_right_censor_count": 0
+            }
+          }
+        },
+        "original_48h_trend": {
+          "resolved": 39,
+          "brier": 0.150794,
+          "brier_bounds_all_origins": [
+            0.130952,
+            0.300595
+          ],
+          "correct_alerts": 9,
+          "false_alerts": 0,
+          "missed_crossings": 6,
+          "devices_with_correct_alert": 5,
+          "devices_with_false_alert": 0
+        },
+        "fixed_72h_training_followup": {
+          "training_devices": 30,
+          "test_devices": 6,
+          "origins_outside_training_feature_ranges": 0,
+          "models": {
+            "intercept_only": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 37,
+                  "brier": 0.148241,
+                  "brier_bounds_all_origins": [
+                    0.117524,
+                    0.299266
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 6,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "48": {
+                  "resolved": 39,
+                  "brier": 0.305542,
+                  "brier_bounds_all_origins": [
+                    0.267393,
+                    0.403298
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "72": {
+                  "resolved": 38,
+                  "brier": 0.388052,
+                  "brier_bounds_all_origins": [
+                    0.339852,
+                    0.484452
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 20,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                }
+              }
+            },
+            "log_linear": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 37,
+                  "brier": 0.145155,
+                  "brier_bounds_all_origins": [
+                    0.114703,
+                    0.320115
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 6,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "48": {
+                  "resolved": 39,
+                  "brier": 0.309675,
+                  "brier_bounds_all_origins": [
+                    0.269873,
+                    0.43146
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "72": {
+                  "resolved": 38,
+                  "brier": 0.396214,
+                  "brier_bounds_all_origins": [
+                    0.345712,
+                    0.523105
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 20,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                }
+              }
+            },
+            "neural": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 37,
+                  "brier": 0.139899,
+                  "brier_bounds_all_origins": [
+                    0.110774,
+                    0.316416
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 6,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "48": {
+                  "resolved": 39,
+                  "brier": 0.299281,
+                  "brier_bounds_all_origins": [
+                    0.260906,
+                    0.421018
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 15,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "72": {
+                  "resolved": 38,
+                  "brier": 0.379523,
+                  "brier_bounds_all_origins": [
+                    0.331534,
+                    0.504646
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 20,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      "PoFINN": {
+        "training_devices": 28,
+        "test_devices": 8,
+        "origins_outside_training_feature_ranges": 0,
+        "models": {
+          "intercept_only": {
+            "horizons_h": {
+              "24": {
+                "resolved": 89,
+                "brier": 0.086428,
+                "brier_bounds_all_origins": [
+                  0.086428,
+                  0.086428
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 8,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "48": {
+                "resolved": 89,
+                "brier": 0.158579,
+                "brier_bounds_all_origins": [
+                  0.158579,
+                  0.158579
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 16,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "72": {
+                "resolved": 88,
+                "brier": 0.231781,
+                "brier_bounds_all_origins": [
+                  0.225378,
+                  0.238184
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 24,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              }
+            },
+            "all_origins": {
+              "devices": 8,
+              "origins": 89,
+              "bounded_or_exact_events": 89,
+              "right_censored_origins": 0,
+              "mean_distance_to_observed_window_h": 44938.605936,
+              "median_band_width_h": 98003921.816834,
+              "possible_80pct_band_coverage_observed_events": 1.0,
+              "definite_80pct_band_coverage_observed_events": 0.904539,
+              "band_below_right_censor_count": 0
+            },
+            "first_origin_per_device": {
+              "devices": 8,
+              "origins": 8,
+              "bounded_or_exact_events": 8,
+              "right_censored_origins": 0,
+              "mean_distance_to_observed_window_h": 44860.886889,
+              "median_band_width_h": 98003921.816834,
+              "possible_80pct_band_coverage_observed_events": 1.0,
+              "definite_80pct_band_coverage_observed_events": 1.0,
+              "band_below_right_censor_count": 0
+            }
+          },
+          "log_linear": {
+            "horizons_h": {
+              "24": {
+                "resolved": 89,
+                "brier": 0.087643,
+                "brier_bounds_all_origins": [
+                  0.087643,
+                  0.087643
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 8,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "48": {
+                "resolved": 89,
+                "brier": 0.163345,
+                "brier_bounds_all_origins": [
+                  0.163345,
+                  0.163345
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 16,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "72": {
+                "resolved": 88,
+                "brier": 0.240154,
+                "brier_bounds_all_origins": [
+                  0.233456,
+                  0.246528
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 24,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              }
+            },
+            "all_origins": {
+              "devices": 8,
+              "origins": 89,
+              "bounded_or_exact_events": 89,
+              "right_censored_origins": 0,
+              "mean_distance_to_observed_window_h": 26756.062658,
+              "median_band_width_h": 22541025.812197,
+              "possible_80pct_band_coverage_observed_events": 0.904539,
+              "definite_80pct_band_coverage_observed_events": 0.809077,
+              "band_below_right_censor_count": 0
+            },
+            "first_origin_per_device": {
+              "devices": 8,
+              "origins": 8,
+              "bounded_or_exact_events": 8,
+              "right_censored_origins": 0,
+              "mean_distance_to_observed_window_h": 10972.16705,
+              "median_band_width_h": 8557947.410487,
+              "possible_80pct_band_coverage_observed_events": 1.0,
+              "definite_80pct_band_coverage_observed_events": 1.0,
+              "band_below_right_censor_count": 0
+            }
+          },
+          "neural": {
+            "horizons_h": {
+              "24": {
+                "resolved": 89,
+                "brier": 0.086433,
+                "brier_bounds_all_origins": [
+                  0.086433,
+                  0.086433
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 8,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "48": {
+                "resolved": 89,
+                "brier": 0.158822,
+                "brier_bounds_all_origins": [
+                  0.158822,
+                  0.158822
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 16,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "72": {
+                "resolved": 88,
+                "brier": 0.232268,
+                "brier_bounds_all_origins": [
+                  0.225843,
+                  0.238679
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 24,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              }
+            },
+            "all_origins": {
+              "devices": 8,
+              "origins": 89,
+              "bounded_or_exact_events": 89,
+              "right_censored_origins": 0,
+              "mean_distance_to_observed_window_h": 42612.879751,
+              "median_band_width_h": 84724792.803523,
+              "possible_80pct_band_coverage_observed_events": 1.0,
+              "definite_80pct_band_coverage_observed_events": 0.904539,
+              "band_below_right_censor_count": 0
+            },
+            "first_origin_per_device": {
+              "devices": 8,
+              "origins": 8,
+              "bounded_or_exact_events": 8,
+              "right_censored_origins": 0,
+              "mean_distance_to_observed_window_h": 40272.756022,
+              "median_band_width_h": 79603038.208558,
+              "possible_80pct_band_coverage_observed_events": 1.0,
+              "definite_80pct_band_coverage_observed_events": 1.0,
+              "band_below_right_censor_count": 0
+            }
+          }
+        },
+        "original_48h_trend": {
+          "resolved": 89,
+          "brier": 0.185714,
+          "brier_bounds_all_origins": [
+            0.185714,
+            0.185714
+          ],
+          "correct_alerts": 12,
+          "false_alerts": 12,
+          "missed_crossings": 4,
+          "devices_with_correct_alert": 7,
+          "devices_with_false_alert": 8
+        },
+        "fixed_72h_training_followup": {
+          "training_devices": 28,
+          "test_devices": 8,
+          "origins_outside_training_feature_ranges": 0,
+          "models": {
+            "intercept_only": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 89,
+                  "brier": 0.086508,
+                  "brier_bounds_all_origins": [
+                    0.086508,
+                    0.086508
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 8,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "48": {
+                  "resolved": 89,
+                  "brier": 0.159917,
+                  "brier_bounds_all_origins": [
+                    0.159917,
+                    0.159917
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "72": {
+                  "resolved": 88,
+                  "brier": 0.231814,
+                  "brier_bounds_all_origins": [
+                    0.225409,
+                    0.238219
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 24,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                }
+              }
+            },
+            "log_linear": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 89,
+                  "brier": 0.085636,
+                  "brier_bounds_all_origins": [
+                    0.085636,
+                    0.085636
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 8,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "48": {
+                  "resolved": 89,
+                  "brier": 0.15562,
+                  "brier_bounds_all_origins": [
+                    0.15562,
+                    0.15562
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "72": {
+                  "resolved": 88,
+                  "brier": 0.220817,
+                  "brier_bounds_all_origins": [
+                    0.214374,
+                    0.227653
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 24,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                }
+              }
+            },
+            "neural": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 89,
+                  "brier": 0.098013,
+                  "brier_bounds_all_origins": [
+                    0.098013,
+                    0.098013
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 8,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "48": {
+                  "resolved": 89,
+                  "brier": 0.191829,
+                  "brier_bounds_all_origins": [
+                    0.191829,
+                    0.191829
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 4,
+                  "missed_crossings": 16,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 4
+                },
+                "72": {
+                  "resolved": 88,
+                  "brier": 0.261827,
+                  "brier_bounds_all_origins": [
+                    0.258073,
+                    0.258969
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 8,
+                  "missed_crossings": 24,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 7
+                }
+              }
+            }
+          }
+        }
+      },
+      "NASA ES10/12/14": {
+        "training_devices": 14,
+        "test_devices": 22,
+        "origins_outside_training_feature_ranges": 1340,
+        "models": {
+          "intercept_only": {
+            "horizons_h": {
+              "24": {
+                "resolved": 1372,
+                "brier": 0.049963,
+                "brier_bounds_all_origins": [
+                  0.049565,
+                  0.055679
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 4,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "48": {
+                "resolved": 1375,
+                "brier": 0.113709,
+                "brier_bounds_all_origins": [
+                  0.113451,
+                  0.114658
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 8,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "72": {
+                "resolved": 1374,
+                "brier": 0.22913,
+                "brier_bounds_all_origins": [
+                  0.229127,
+                  0.229199
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 9,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              }
+            },
+            "all_origins": {
+              "devices": 22,
+              "origins": 1376,
+              "bounded_or_exact_events": 134,
+              "right_censored_origins": 1242,
+              "mean_distance_to_observed_window_h": 343.626765,
+              "median_band_width_h": 210.187412,
+              "possible_80pct_band_coverage_observed_events": 0.229566,
+              "definite_80pct_band_coverage_observed_events": 0.183937,
+              "band_below_right_censor_count": 1224
+            },
+            "first_origin_per_device": {
+              "devices": 22,
+              "origins": 22,
+              "bounded_or_exact_events": 4,
+              "right_censored_origins": 18,
+              "mean_distance_to_observed_window_h": 658.711502,
+              "median_band_width_h": 210.187412,
+              "possible_80pct_band_coverage_observed_events": 0.0,
+              "definite_80pct_band_coverage_observed_events": 0.0,
+              "band_below_right_censor_count": 18
+            }
+          },
+          "log_linear": {
+            "horizons_h": {
+              "24": {
+                "resolved": 1372,
+                "brier": 0.078706,
+                "brier_bounds_all_origins": [
+                  0.078197,
+                  0.084253
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 30,
+                "missed_crossings": 4,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 20
+              },
+              "48": {
+                "resolved": 1375,
+                "brier": 0.197348,
+                "brier_bounds_all_origins": [
+                  0.197275,
+                  0.197385
+                ],
+                "correct_alerts": 4,
+                "false_alerts": 303,
+                "missed_crossings": 4,
+                "devices_with_correct_alert": 2,
+                "devices_with_false_alert": 21
+              },
+              "72": {
+                "resolved": 1374,
+                "brier": 0.367144,
+                "brier_bounds_all_origins": [
+                  0.366201,
+                  0.367356
+                ],
+                "correct_alerts": 7,
+                "false_alerts": 742,
+                "missed_crossings": 2,
+                "devices_with_correct_alert": 3,
+                "devices_with_false_alert": 21
+              }
+            },
+            "all_origins": {
+              "devices": 22,
+              "origins": 1376,
+              "bounded_or_exact_events": 134,
+              "right_censored_origins": 1242,
+              "mean_distance_to_observed_window_h": 1504.816502,
+              "median_band_width_h": 108.620508,
+              "possible_80pct_band_coverage_observed_events": 0.074878,
+              "definite_80pct_band_coverage_observed_events": 0.045916,
+              "band_below_right_censor_count": 1213
+            },
+            "first_origin_per_device": {
+              "devices": 22,
+              "origins": 22,
+              "bounded_or_exact_events": 4,
+              "right_censored_origins": 18,
+              "mean_distance_to_observed_window_h": 3213.583642,
+              "median_band_width_h": 6102.479511,
+              "possible_80pct_band_coverage_observed_events": 0.0,
+              "definite_80pct_band_coverage_observed_events": 0.0,
+              "band_below_right_censor_count": 5
+            }
+          },
+          "neural": {
+            "horizons_h": {
+              "24": {
+                "resolved": 1372,
+                "brier": 0.051111,
+                "brier_bounds_all_origins": [
+                  0.050732,
+                  0.056393
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 43,
+                "missed_crossings": 4,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 20
+              },
+              "48": {
+                "resolved": 1375,
+                "brier": 0.134327,
+                "brier_bounds_all_origins": [
+                  0.133841,
+                  0.134953
+                ],
+                "correct_alerts": 5,
+                "false_alerts": 237,
+                "missed_crossings": 3,
+                "devices_with_correct_alert": 3,
+                "devices_with_false_alert": 21
+              },
+              "72": {
+                "resolved": 1374,
+                "brier": 0.277077,
+                "brier_bounds_all_origins": [
+                  0.275974,
+                  0.277358
+                ],
+                "correct_alerts": 8,
+                "false_alerts": 550,
+                "missed_crossings": 1,
+                "devices_with_correct_alert": 3,
+                "devices_with_false_alert": 21
+              }
+            },
+            "all_origins": {
+              "devices": 22,
+              "origins": 1376,
+              "bounded_or_exact_events": 134,
+              "right_censored_origins": 1242,
+              "mean_distance_to_observed_window_h": 344.437157,
+              "median_band_width_h": 118.941966,
+              "possible_80pct_band_coverage_observed_events": 0.337734,
+              "definite_80pct_band_coverage_observed_events": 0.050302,
+              "band_below_right_censor_count": 1234
+            },
+            "first_origin_per_device": {
+              "devices": 22,
+              "origins": 22,
+              "bounded_or_exact_events": 4,
+              "right_censored_origins": 18,
+              "mean_distance_to_observed_window_h": 670.906458,
+              "median_band_width_h": 68.231081,
+              "possible_80pct_band_coverage_observed_events": 0.25,
+              "definite_80pct_band_coverage_observed_events": 0.0,
+              "band_below_right_censor_count": 18
+            }
+          }
+        },
+        "original_48h_trend": {
+          "resolved": 1375,
+          "brier": 0.068077,
+          "brier_bounds_all_origins": [
+            0.067211,
+            0.070241
+          ],
+          "correct_alerts": 4,
+          "false_alerts": 81,
+          "missed_crossings": 4,
+          "devices_with_correct_alert": 3,
+          "devices_with_false_alert": 20
+        },
+        "fixed_72h_training_followup": {
+          "training_devices": 14,
+          "test_devices": 22,
+          "origins_outside_training_feature_ranges": 1340,
+          "models": {
+            "intercept_only": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 1372,
+                  "brier": 0.055276,
+                  "brier_bounds_all_origins": [
+                    0.054919,
+                    0.060415
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 4,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "48": {
+                  "resolved": 1375,
+                  "brier": 0.0975,
+                  "brier_bounds_all_origins": [
+                    0.097195,
+                    0.09862
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 8,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "72": {
+                  "resolved": 1374,
+                  "brier": 0.147613,
+                  "brier_bounds_all_origins": [
+                    0.147592,
+                    0.148004
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 9,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                }
+              }
+            },
+            "log_linear": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 1372,
+                  "brier": 0.088575,
+                  "brier_bounds_all_origins": [
+                    0.088116,
+                    0.09355
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 45,
+                  "missed_crossings": 4,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 20
+                },
+                "48": {
+                  "resolved": 1375,
+                  "brier": 0.189067,
+                  "brier_bounds_all_origins": [
+                    0.188897,
+                    0.189253
+                  ],
+                  "correct_alerts": 4,
+                  "false_alerts": 292,
+                  "missed_crossings": 4,
+                  "devices_with_correct_alert": 2,
+                  "devices_with_false_alert": 21
+                },
+                "72": {
+                  "resolved": 1374,
+                  "brier": 0.303088,
+                  "brier_bounds_all_origins": [
+                    0.302144,
+                    0.303341
+                  ],
+                  "correct_alerts": 7,
+                  "false_alerts": 595,
+                  "missed_crossings": 2,
+                  "devices_with_correct_alert": 3,
+                  "devices_with_false_alert": 21
+                }
+              }
+            },
+            "neural": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 1372,
+                  "brier": 0.086719,
+                  "brier_bounds_all_origins": [
+                    0.086269,
+                    0.091722
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 47,
+                  "missed_crossings": 4,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 20
+                },
+                "48": {
+                  "resolved": 1375,
+                  "brier": 0.182217,
+                  "brier_bounds_all_origins": [
+                    0.181981,
+                    0.182515
+                  ],
+                  "correct_alerts": 4,
+                  "false_alerts": 273,
+                  "missed_crossings": 4,
+                  "devices_with_correct_alert": 2,
+                  "devices_with_false_alert": 21
+                },
+                "72": {
+                  "resolved": 1374,
+                  "brier": 0.291635,
+                  "brier_bounds_all_origins": [
+                    0.290686,
+                    0.291908
+                  ],
+                  "correct_alerts": 6,
+                  "false_alerts": 540,
+                  "missed_crossings": 3,
+                  "devices_with_correct_alert": 2,
+                  "devices_with_false_alert": 21
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "repeat_confirmation": {
+      "NASA EOS-2": {
+        "training_devices": 32,
+        "test_devices": 6,
+        "origins_outside_training_feature_ranges": 0,
+        "models": {
+          "intercept_only": {
+            "horizons_h": {
+              "24": {
+                "resolved": 43,
+                "brier": 0.02451,
+                "brier_bounds_all_origins": [
+                  0.02451,
+                  0.110979
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 1,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "48": {
+                "resolved": 33,
+                "brier": 0.060989,
+                "brier_bounds_all_origins": [
+                  0.060989,
+                  0.30384
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 3,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "72": {
+                "resolved": 28,
+                "brier": 0.078515,
+                "brier_bounds_all_origins": [
+                  0.078515,
+                  0.387315
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 4,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              }
+            },
+            "all_origins": {
+              "devices": 6,
+              "origins": 48,
+              "bounded_or_exact_events": 8,
+              "right_censored_origins": 40,
+              "mean_distance_to_observed_window_h": 11659.801482,
+              "median_band_width_h": 3805905.7198,
+              "possible_80pct_band_coverage_observed_events": 0.75,
+              "definite_80pct_band_coverage_observed_events": 0.75,
+              "band_below_right_censor_count": 0
+            },
+            "first_origin_per_device": {
+              "devices": 6,
+              "origins": 6,
+              "bounded_or_exact_events": 1,
+              "right_censored_origins": 5,
+              "mean_distance_to_observed_window_h": 11588.301482,
+              "median_band_width_h": 3805905.7198,
+              "possible_80pct_band_coverage_observed_events": 1.0,
+              "definite_80pct_band_coverage_observed_events": 1.0,
+              "band_below_right_censor_count": 0
+            }
+          },
+          "log_linear": {
+            "horizons_h": {
+              "24": {
+                "resolved": 43,
+                "brier": 0.018988,
+                "brier_bounds_all_origins": [
+                  0.019436,
+                  0.107567
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 1,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "48": {
+                "resolved": 33,
+                "brier": 0.053628,
+                "brier_bounds_all_origins": [
+                  0.055321,
+                  0.313004
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 3,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "72": {
+                "resolved": 28,
+                "brier": 0.069911,
+                "brier_bounds_all_origins": [
+                  0.072724,
+                  0.407002
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 4,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              }
+            },
+            "all_origins": {
+              "devices": 6,
+              "origins": 48,
+              "bounded_or_exact_events": 8,
+              "right_censored_origins": 40,
+              "mean_distance_to_observed_window_h": 15930.176724,
+              "median_band_width_h": 1905111.433749,
+              "possible_80pct_band_coverage_observed_events": 0.0,
+              "definite_80pct_band_coverage_observed_events": 0.0,
+              "band_below_right_censor_count": 0
+            },
+            "first_origin_per_device": {
+              "devices": 6,
+              "origins": 6,
+              "bounded_or_exact_events": 1,
+              "right_censored_origins": 5,
+              "mean_distance_to_observed_window_h": 27068.142012,
+              "median_band_width_h": 3215813.540512,
+              "possible_80pct_band_coverage_observed_events": 0.0,
+              "definite_80pct_band_coverage_observed_events": 0.0,
+              "band_below_right_censor_count": 0
+            }
+          },
+          "neural": {
+            "horizons_h": {
+              "24": {
+                "resolved": 43,
+                "brier": 0.020162,
+                "brier_bounds_all_origins": [
+                  0.020502,
+                  0.108483
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 1,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "48": {
+                "resolved": 33,
+                "brier": 0.055496,
+                "brier_bounds_all_origins": [
+                  0.056686,
+                  0.311288
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 3,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "72": {
+                "resolved": 28,
+                "brier": 0.072251,
+                "brier_bounds_all_origins": [
+                  0.074152,
+                  0.402248
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 4,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              }
+            },
+            "all_origins": {
+              "devices": 6,
+              "origins": 48,
+              "bounded_or_exact_events": 8,
+              "right_censored_origins": 40,
+              "mean_distance_to_observed_window_h": 12376.935919,
+              "median_band_width_h": 2057810.431176,
+              "possible_80pct_band_coverage_observed_events": 0.25,
+              "definite_80pct_band_coverage_observed_events": 0.25,
+              "band_below_right_censor_count": 0
+            },
+            "first_origin_per_device": {
+              "devices": 6,
+              "origins": 6,
+              "bounded_or_exact_events": 1,
+              "right_censored_origins": 5,
+              "mean_distance_to_observed_window_h": 16578.83136,
+              "median_band_width_h": 2506944.960076,
+              "possible_80pct_band_coverage_observed_events": 1.0,
+              "definite_80pct_band_coverage_observed_events": 1.0,
+              "band_below_right_censor_count": 0
+            }
+          }
+        },
+        "original_48h_trend": {
+          "resolved": 33,
+          "brier": 0.020833,
+          "brier_bounds_all_origins": [
+            0.020833,
+            0.333333
+          ],
+          "correct_alerts": 2,
+          "false_alerts": 0,
+          "missed_crossings": 1,
+          "devices_with_correct_alert": 1,
+          "devices_with_false_alert": 0
+        },
+        "fixed_72h_training_followup": {
+          "training_devices": 32,
+          "test_devices": 6,
+          "origins_outside_training_feature_ranges": 0,
+          "models": {
+            "intercept_only": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 43,
+                  "brier": 0.021587,
+                  "brier_bounds_all_origins": [
+                    0.021587,
+                    0.114234
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 1,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "48": {
+                  "resolved": 33,
+                  "brier": 0.060672,
+                  "brier_bounds_all_origins": [
+                    0.060672,
+                    0.305618
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 3,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "72": {
+                  "resolved": 28,
+                  "brier": 0.081136,
+                  "brier_bounds_all_origins": [
+                    0.081136,
+                    0.370943
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 4,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                }
+              }
+            },
+            "log_linear": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 43,
+                  "brier": 0.017484,
+                  "brier_bounds_all_origins": [
+                    0.017627,
+                    0.115718
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 1,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "48": {
+                  "resolved": 33,
+                  "brier": 0.050493,
+                  "brier_bounds_all_origins": [
+                    0.053761,
+                    0.332821
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 3,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "72": {
+                  "resolved": 28,
+                  "brier": 0.0648,
+                  "brier_bounds_all_origins": [
+                    0.076332,
+                    0.424163
+                  ],
+                  "correct_alerts": 1,
+                  "false_alerts": 0,
+                  "missed_crossings": 3,
+                  "devices_with_correct_alert": 1,
+                  "devices_with_false_alert": 0
+                }
+              }
+            },
+            "neural": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 43,
+                  "brier": 0.016881,
+                  "brier_bounds_all_origins": [
+                    0.017046,
+                    0.115064
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 1,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "48": {
+                  "resolved": 33,
+                  "brier": 0.049379,
+                  "brier_bounds_all_origins": [
+                    0.053087,
+                    0.33197
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 3,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "72": {
+                  "resolved": 28,
+                  "brier": 0.064158,
+                  "brier_bounds_all_origins": [
+                    0.075422,
+                    0.425828
+                  ],
+                  "correct_alerts": 1,
+                  "false_alerts": 0,
+                  "missed_crossings": 3,
+                  "devices_with_correct_alert": 1,
+                  "devices_with_false_alert": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      "PoFINN": {
+        "training_devices": 30,
+        "test_devices": 8,
+        "origins_outside_training_feature_ranges": 0,
+        "models": {
+          "intercept_only": {
+            "horizons_h": {
+              "24": {
+                "resolved": 97,
+                "brier": 0.080467,
+                "brier_bounds_all_origins": [
+                  0.080467,
+                  0.080467
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 8,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "48": {
+                "resolved": 97,
+                "brier": 0.155531,
+                "brier_bounds_all_origins": [
+                  0.155531,
+                  0.155531
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 16,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "72": {
+                "resolved": 97,
+                "brier": 0.2282,
+                "brier_bounds_all_origins": [
+                  0.2282,
+                  0.2282
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 24,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              }
+            },
+            "all_origins": {
+              "devices": 8,
+              "origins": 97,
+              "bounded_or_exact_events": 97,
+              "right_censored_origins": 0,
+              "mean_distance_to_observed_window_h": 1019090.47466,
+              "median_band_width_h": 4269709894.987042,
+              "possible_80pct_band_coverage_observed_events": 0.128394,
+              "definite_80pct_band_coverage_observed_events": 0.128394,
+              "band_below_right_censor_count": 0
+            },
+            "first_origin_per_device": {
+              "devices": 8,
+              "origins": 8,
+              "bounded_or_exact_events": 8,
+              "right_censored_origins": 0,
+              "mean_distance_to_observed_window_h": 1019001.878084,
+              "median_band_width_h": 4269709894.987042,
+              "possible_80pct_band_coverage_observed_events": 0.625,
+              "definite_80pct_band_coverage_observed_events": 0.625,
+              "band_below_right_censor_count": 0
+            }
+          },
+          "log_linear": {
+            "horizons_h": {
+              "24": {
+                "resolved": 97,
+                "brier": 0.082358,
+                "brier_bounds_all_origins": [
+                  0.082358,
+                  0.082358
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 8,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "48": {
+                "resolved": 97,
+                "brier": 0.161468,
+                "brier_bounds_all_origins": [
+                  0.161468,
+                  0.161468
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 16,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "72": {
+                "resolved": 97,
+                "brier": 0.239137,
+                "brier_bounds_all_origins": [
+                  0.239137,
+                  0.239137
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 24,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              }
+            },
+            "all_origins": {
+              "devices": 8,
+              "origins": 97,
+              "bounded_or_exact_events": 97,
+              "right_censored_origins": 0,
+              "mean_distance_to_observed_window_h": 152950.818775,
+              "median_band_width_h": 18298543.828841,
+              "possible_80pct_band_coverage_observed_events": 0.0,
+              "definite_80pct_band_coverage_observed_events": 0.0,
+              "band_below_right_censor_count": 0
+            },
+            "first_origin_per_device": {
+              "devices": 8,
+              "origins": 8,
+              "bounded_or_exact_events": 8,
+              "right_censored_origins": 0,
+              "mean_distance_to_observed_window_h": 189388.224237,
+              "median_band_width_h": 26345845.406888,
+              "possible_80pct_band_coverage_observed_events": 0.0,
+              "definite_80pct_band_coverage_observed_events": 0.0,
+              "band_below_right_censor_count": 0
+            }
+          },
+          "neural": {
+            "horizons_h": {
+              "24": {
+                "resolved": 97,
+                "brier": 0.08163,
+                "brier_bounds_all_origins": [
+                  0.08163,
+                  0.08163
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 8,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "48": {
+                "resolved": 97,
+                "brier": 0.159873,
+                "brier_bounds_all_origins": [
+                  0.159873,
+                  0.159873
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 16,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "72": {
+                "resolved": 97,
+                "brier": 0.23666,
+                "brier_bounds_all_origins": [
+                  0.23666,
+                  0.23666
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 24,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              }
+            },
+            "all_origins": {
+              "devices": 8,
+              "origins": 97,
+              "bounded_or_exact_events": 97,
+              "right_censored_origins": 0,
+              "mean_distance_to_observed_window_h": 152272.304275,
+              "median_band_width_h": 29863431.23559,
+              "possible_80pct_band_coverage_observed_events": 0.0,
+              "definite_80pct_band_coverage_observed_events": 0.0,
+              "band_below_right_censor_count": 0
+            },
+            "first_origin_per_device": {
+              "devices": 8,
+              "origins": 8,
+              "bounded_or_exact_events": 8,
+              "right_censored_origins": 0,
+              "mean_distance_to_observed_window_h": 211861.709691,
+              "median_band_width_h": 41746242.85099,
+              "possible_80pct_band_coverage_observed_events": 0.0,
+              "definite_80pct_band_coverage_observed_events": 0.0,
+              "band_below_right_censor_count": 0
+            }
+          }
+        },
+        "original_48h_trend": {
+          "resolved": 97,
+          "brier": 0.202384,
+          "brier_bounds_all_origins": [
+            0.202384,
+            0.202384
+          ],
+          "correct_alerts": 15,
+          "false_alerts": 17,
+          "missed_crossings": 1,
+          "devices_with_correct_alert": 8,
+          "devices_with_false_alert": 8
+        },
+        "fixed_72h_training_followup": {
+          "training_devices": 30,
+          "test_devices": 8,
+          "origins_outside_training_feature_ranges": 0,
+          "models": {
+            "intercept_only": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 97,
+                  "brier": 0.080578,
+                  "brier_bounds_all_origins": [
+                    0.080578,
+                    0.080578
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 8,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "48": {
+                  "resolved": 97,
+                  "brier": 0.151036,
+                  "brier_bounds_all_origins": [
+                    0.151036,
+                    0.151036
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "72": {
+                  "resolved": 97,
+                  "brier": 0.213624,
+                  "brier_bounds_all_origins": [
+                    0.213624,
+                    0.213624
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 24,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                }
+              }
+            },
+            "log_linear": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 97,
+                  "brier": 0.078646,
+                  "brier_bounds_all_origins": [
+                    0.078646,
+                    0.078646
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 8,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "48": {
+                  "resolved": 97,
+                  "brier": 0.134673,
+                  "brier_bounds_all_origins": [
+                    0.134673,
+                    0.134673
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "72": {
+                  "resolved": 97,
+                  "brier": 0.177778,
+                  "brier_bounds_all_origins": [
+                    0.177778,
+                    0.177778
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 24,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                }
+              }
+            },
+            "neural": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 97,
+                  "brier": 0.0768,
+                  "brier_bounds_all_origins": [
+                    0.0768,
+                    0.0768
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 8,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "48": {
+                  "resolved": 97,
+                  "brier": 0.127895,
+                  "brier_bounds_all_origins": [
+                    0.127895,
+                    0.127895
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 16,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "72": {
+                  "resolved": 97,
+                  "brier": 0.167426,
+                  "brier_bounds_all_origins": [
+                    0.167426,
+                    0.167426
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 24,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      "NASA ES10/12/14": {
+        "training_devices": 14,
+        "test_devices": 24,
+        "origins_outside_training_feature_ranges": 1410,
+        "models": {
+          "intercept_only": {
+            "horizons_h": {
+              "24": {
+                "resolved": 1448,
+                "brier": 0.092105,
+                "brier_bounds_all_origins": [
+                  0.092105,
+                  0.092105
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 3,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "48": {
+                "resolved": 1448,
+                "brier": 0.08509,
+                "brier_bounds_all_origins": [
+                  0.08509,
+                  0.08509
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 3,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              },
+              "72": {
+                "resolved": 1448,
+                "brier": 0.110047,
+                "brier_bounds_all_origins": [
+                  0.110047,
+                  0.110047
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 0,
+                "missed_crossings": 6,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 0
+              }
+            },
+            "all_origins": {
+              "devices": 24,
+              "origins": 1448,
+              "bounded_or_exact_events": 68,
+              "right_censored_origins": 1380,
+              "mean_distance_to_observed_window_h": 237.027613,
+              "median_band_width_h": 273.63867,
+              "possible_80pct_band_coverage_observed_events": 0.22379,
+              "definite_80pct_band_coverage_observed_events": 0.22379,
+              "band_below_right_censor_count": 1360
+            },
+            "first_origin_per_device": {
+              "devices": 24,
+              "origins": 24,
+              "bounded_or_exact_events": 4,
+              "right_censored_origins": 20,
+              "mean_distance_to_observed_window_h": 382.288859,
+              "median_band_width_h": 273.63867,
+              "possible_80pct_band_coverage_observed_events": 0.25,
+              "definite_80pct_band_coverage_observed_events": 0.25,
+              "band_below_right_censor_count": 20
+            }
+          },
+          "log_linear": {
+            "horizons_h": {
+              "24": {
+                "resolved": 1448,
+                "brier": 0.106004,
+                "brier_bounds_all_origins": [
+                  0.106004,
+                  0.106004
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 24,
+                "missed_crossings": 3,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 21
+              },
+              "48": {
+                "resolved": 1448,
+                "brier": 0.096295,
+                "brier_bounds_all_origins": [
+                  0.096295,
+                  0.096295
+                ],
+                "correct_alerts": 1,
+                "false_alerts": 26,
+                "missed_crossings": 2,
+                "devices_with_correct_alert": 1,
+                "devices_with_false_alert": 21
+              },
+              "72": {
+                "resolved": 1448,
+                "brier": 0.142371,
+                "brier_bounds_all_origins": [
+                  0.142371,
+                  0.142371
+                ],
+                "correct_alerts": 3,
+                "false_alerts": 215,
+                "missed_crossings": 3,
+                "devices_with_correct_alert": 2,
+                "devices_with_false_alert": 21
+              }
+            },
+            "all_origins": {
+              "devices": 24,
+              "origins": 1448,
+              "bounded_or_exact_events": 68,
+              "right_censored_origins": 1380,
+              "mean_distance_to_observed_window_h": 217.602593,
+              "median_band_width_h": 112.906239,
+              "possible_80pct_band_coverage_observed_events": 0.133065,
+              "definite_80pct_band_coverage_observed_events": 0.133065,
+              "band_below_right_censor_count": 1366
+            },
+            "first_origin_per_device": {
+              "devices": 24,
+              "origins": 24,
+              "bounded_or_exact_events": 4,
+              "right_censored_origins": 20,
+              "mean_distance_to_observed_window_h": 347.22702,
+              "median_band_width_h": 153.551004,
+              "possible_80pct_band_coverage_observed_events": 0.25,
+              "definite_80pct_band_coverage_observed_events": 0.25,
+              "band_below_right_censor_count": 20
+            }
+          },
+          "neural": {
+            "horizons_h": {
+              "24": {
+                "resolved": 1448,
+                "brier": 0.070877,
+                "brier_bounds_all_origins": [
+                  0.070877,
+                  0.070877
+                ],
+                "correct_alerts": 0,
+                "false_alerts": 1,
+                "missed_crossings": 3,
+                "devices_with_correct_alert": 0,
+                "devices_with_false_alert": 1
+              },
+              "48": {
+                "resolved": 1448,
+                "brier": 0.05219,
+                "brier_bounds_all_origins": [
+                  0.05219,
+                  0.05219
+                ],
+                "correct_alerts": 2,
+                "false_alerts": 46,
+                "missed_crossings": 1,
+                "devices_with_correct_alert": 2,
+                "devices_with_false_alert": 20
+              },
+              "72": {
+                "resolved": 1448,
+                "brier": 0.093084,
+                "brier_bounds_all_origins": [
+                  0.093084,
+                  0.093084
+                ],
+                "correct_alerts": 4,
+                "false_alerts": 151,
+                "missed_crossings": 2,
+                "devices_with_correct_alert": 4,
+                "devices_with_false_alert": 21
+              }
+            },
+            "all_origins": {
+              "devices": 24,
+              "origins": 1448,
+              "bounded_or_exact_events": 68,
+              "right_censored_origins": 1380,
+              "mean_distance_to_observed_window_h": 198.080203,
+              "median_band_width_h": 120.412849,
+              "possible_80pct_band_coverage_observed_events": 0.066532,
+              "definite_80pct_band_coverage_observed_events": 0.066532,
+              "band_below_right_censor_count": 1369
+            },
+            "first_origin_per_device": {
+              "devices": 24,
+              "origins": 24,
+              "bounded_or_exact_events": 4,
+              "right_censored_origins": 20,
+              "mean_distance_to_observed_window_h": 359.814894,
+              "median_band_width_h": 29.708966,
+              "possible_80pct_band_coverage_observed_events": 0.0,
+              "definite_80pct_band_coverage_observed_events": 0.0,
+              "band_below_right_censor_count": 20
+            }
+          }
+        },
+        "original_48h_trend": {
+          "resolved": 1448,
+          "brier": 0.084604,
+          "brier_bounds_all_origins": [
+            0.084604,
+            0.084604
+          ],
+          "correct_alerts": 3,
+          "false_alerts": 90,
+          "missed_crossings": 0,
+          "devices_with_correct_alert": 3,
+          "devices_with_false_alert": 21
+        },
+        "fixed_72h_training_followup": {
+          "training_devices": 14,
+          "test_devices": 24,
+          "origins_outside_training_feature_ranges": 1410,
+          "models": {
+            "intercept_only": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 1448,
+                  "brier": 0.090272,
+                  "brier_bounds_all_origins": [
+                    0.090272,
+                    0.090272
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 3,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "48": {
+                  "resolved": 1448,
+                  "brier": 0.085064,
+                  "brier_bounds_all_origins": [
+                    0.085064,
+                    0.085064
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 3,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                },
+                "72": {
+                  "resolved": 1448,
+                  "brier": 0.111,
+                  "brier_bounds_all_origins": [
+                    0.111,
+                    0.111
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 0,
+                  "missed_crossings": 6,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 0
+                }
+              }
+            },
+            "log_linear": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 1448,
+                  "brier": 0.033538,
+                  "brier_bounds_all_origins": [
+                    0.033538,
+                    0.033538
+                  ],
+                  "correct_alerts": 2,
+                  "false_alerts": 26,
+                  "missed_crossings": 1,
+                  "devices_with_correct_alert": 2,
+                  "devices_with_false_alert": 22
+                },
+                "48": {
+                  "resolved": 1448,
+                  "brier": 0.057541,
+                  "brier_bounds_all_origins": [
+                    0.057541,
+                    0.057541
+                  ],
+                  "correct_alerts": 2,
+                  "false_alerts": 63,
+                  "missed_crossings": 1,
+                  "devices_with_correct_alert": 2,
+                  "devices_with_false_alert": 22
+                },
+                "72": {
+                  "resolved": 1448,
+                  "brier": 0.158069,
+                  "brier_bounds_all_origins": [
+                    0.158069,
+                    0.158069
+                  ],
+                  "correct_alerts": 5,
+                  "false_alerts": 334,
+                  "missed_crossings": 1,
+                  "devices_with_correct_alert": 4,
+                  "devices_with_false_alert": 22
+                }
+              }
+            },
+            "neural": {
+              "horizons_h": {
+                "24": {
+                  "resolved": 1448,
+                  "brier": 0.083753,
+                  "brier_bounds_all_origins": [
+                    0.083753,
+                    0.083753
+                  ],
+                  "correct_alerts": 0,
+                  "false_alerts": 1,
+                  "missed_crossings": 3,
+                  "devices_with_correct_alert": 0,
+                  "devices_with_false_alert": 1
+                },
+                "48": {
+                  "resolved": 1448,
+                  "brier": 0.055825,
+                  "brier_bounds_all_origins": [
+                    0.055825,
+                    0.055825
+                  ],
+                  "correct_alerts": 2,
+                  "false_alerts": 70,
+                  "missed_crossings": 1,
+                  "devices_with_correct_alert": 2,
+                  "devices_with_false_alert": 21
+                },
+                "72": {
+                  "resolved": 1448,
+                  "brier": 0.135522,
+                  "brier_bounds_all_origins": [
+                    0.135522,
+                    0.135522
+                  ],
+                  "correct_alerts": 6,
+                  "false_alerts": 257,
+                  "missed_crossings": 0,
+                  "devices_with_correct_alert": 4,
+                  "devices_with_false_alert": 22
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

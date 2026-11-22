@@ -1,0 +1,380 @@
+{
+  "0.05": {
+    "Jian": {
+      "resolved": 82,
+      "unresolved": 8,
+      "positive_origins": 10,
+      "models": {
+        "monotone_neural": {
+          "brier_device": 0.553945,
+          "auprc_window": 0.818185,
+          "auprc_device_weighted": 0.775593,
+          "auroc_device_weighted": 0.932454,
+          "true_alerts": 10,
+          "false_alerts": 64,
+          "missed_crossing_windows": 0,
+          "devices_with_detected_crossings": 5,
+          "alert_cutoff": 0.5
+        },
+        "monotone_logit": {
+          "brier_device": 0.481609,
+          "auprc_window": 0.823198,
+          "auprc_device_weighted": 0.783787,
+          "auroc_device_weighted": 0.938873,
+          "true_alerts": 10,
+          "false_alerts": 67,
+          "missed_crossing_windows": 0,
+          "devices_with_detected_crossings": 5,
+          "alert_cutoff": 0.5
+        },
+        "soft_physical": {
+          "brier_device": 0.110448,
+          "auprc_window": 0.812712,
+          "auprc_device_weighted": 0.768159,
+          "auroc_device_weighted": 0.926665,
+          "true_alerts": 7,
+          "false_alerts": 4,
+          "missed_crossing_windows": 3,
+          "devices_with_detected_crossings": 5,
+          "alert_cutoff": 0.5
+        },
+        "trend": {
+          "brier_device": 0.13125,
+          "auprc_window": 0.557724,
+          "auprc_device_weighted": 0.476586,
+          "auroc_device_weighted": 0.816864,
+          "true_alerts": 8,
+          "false_alerts": 4,
+          "missed_crossing_windows": 2,
+          "devices_with_detected_crossings": 5,
+          "alert_cutoff": 0.5
+        },
+        "neural": {
+          "brier_device": 0.176787,
+          "auprc_window": 0.566598,
+          "auprc_device_weighted": 0.563972,
+          "auroc_device_weighted": 0.823746,
+          "true_alerts": 8,
+          "false_alerts": 14,
+          "missed_crossing_windows": 2,
+          "devices_with_detected_crossings": 5,
+          "alert_cutoff": 0.5
+        }
+      }
+    },
+    "NASA EOS-2": {
+      "resolved": 36,
+      "unresolved": 1,
+      "positive_origins": 18,
+      "models": {
+        "monotone_neural": {
+          "brier_device": 0.197417,
+          "auprc_window": 1.0,
+          "auprc_device_weighted": 1.0,
+          "auroc_device_weighted": 1.0,
+          "true_alerts": 10,
+          "false_alerts": 0,
+          "missed_crossing_windows": 8,
+          "devices_with_detected_crossings": 6,
+          "alert_cutoff": 0.5
+        },
+        "monotone_logit": {
+          "brier_device": 0.207028,
+          "auprc_window": 1.0,
+          "auprc_device_weighted": 1.0,
+          "auroc_device_weighted": 1.0,
+          "true_alerts": 7,
+          "false_alerts": 0,
+          "missed_crossing_windows": 11,
+          "devices_with_detected_crossings": 6,
+          "alert_cutoff": 0.5
+        },
+        "soft_physical": {
+          "brier_device": 0.093417,
+          "auprc_window": 1.0,
+          "auprc_device_weighted": 1.0,
+          "auroc_device_weighted": 1.0,
+          "true_alerts": 11,
+          "false_alerts": 0,
+          "missed_crossing_windows": 7,
+          "devices_with_detected_crossings": 6,
+          "alert_cutoff": 0.5
+        },
+        "trend": {
+          "brier_device": 0.166667,
+          "auprc_window": 0.833333,
+          "auprc_device_weighted": 0.833333,
+          "auroc_device_weighted": 0.833333,
+          "true_alerts": 12,
+          "false_alerts": 0,
+          "missed_crossing_windows": 6,
+          "devices_with_detected_crossings": 6,
+          "alert_cutoff": 0.5
+        },
+        "neural": {
+          "brier_device": 0.339853,
+          "auprc_window": 1.0,
+          "auprc_device_weighted": 1.0,
+          "auroc_device_weighted": 1.0,
+          "true_alerts": 5,
+          "false_alerts": 0,
+          "missed_crossing_windows": 13,
+          "devices_with_detected_crossings": 5,
+          "alert_cutoff": 0.5
+        }
+      }
+    }
+  },
+  "0.1": {
+    "Jian": {
+      "resolved": 80,
+      "unresolved": 9,
+      "positive_origins": 9,
+      "models": {
+        "monotone_neural": {
+          "brier_device": 0.557174,
+          "auprc_window": 0.793974,
+          "auprc_device_weighted": 0.760292,
+          "auroc_device_weighted": 0.93205,
+          "true_alerts": 9,
+          "false_alerts": 63,
+          "missed_crossing_windows": 0,
+          "devices_with_detected_crossings": 5,
+          "alert_cutoff": 0.5
+        },
+        "monotone_logit": {
+          "brier_device": 0.483912,
+          "auprc_window": 0.800166,
+          "auprc_device_weighted": 0.769362,
+          "auroc_device_weighted": 0.938941,
+          "true_alerts": 9,
+          "false_alerts": 66,
+          "missed_crossing_windows": 0,
+          "devices_with_detected_crossings": 5,
+          "alert_cutoff": 0.5
+        },
+        "soft_physical": {
+          "brier_device": 0.108507,
+          "auprc_window": 0.787109,
+          "auprc_device_weighted": 0.752302,
+          "auroc_device_weighted": 0.926068,
+          "true_alerts": 6,
+          "false_alerts": 3,
+          "missed_crossing_windows": 3,
+          "devices_with_detected_crossings": 5,
+          "alert_cutoff": 0.5
+        },
+        "trend": {
+          "brier_device": 0.13125,
+          "auprc_window": 0.519949,
+          "auprc_device_weighted": 0.460347,
+          "auroc_device_weighted": 0.811846,
+          "true_alerts": 7,
+          "false_alerts": 4,
+          "missed_crossing_windows": 2,
+          "devices_with_detected_crossings": 5,
+          "alert_cutoff": 0.5
+        },
+        "neural": {
+          "brier_device": 0.175676,
+          "auprc_window": 0.55498,
+          "auprc_device_weighted": 0.560081,
+          "auroc_device_weighted": 0.822045,
+          "true_alerts": 7,
+          "false_alerts": 13,
+          "missed_crossing_windows": 2,
+          "devices_with_detected_crossings": 5,
+          "alert_cutoff": 0.5
+        }
+      }
+    },
+    "NASA EOS-2": {
+      "resolved": 36,
+      "unresolved": 1,
+      "positive_origins": 18,
+      "models": {
+        "monotone_neural": {
+          "brier_device": 0.197806,
+          "auprc_window": 1.0,
+          "auprc_device_weighted": 1.0,
+          "auroc_device_weighted": 1.0,
+          "true_alerts": 10,
+          "false_alerts": 0,
+          "missed_crossing_windows": 8,
+          "devices_with_detected_crossings": 6,
+          "alert_cutoff": 0.5
+        },
+        "monotone_logit": {
+          "brier_device": 0.210703,
+          "auprc_window": 1.0,
+          "auprc_device_weighted": 1.0,
+          "auroc_device_weighted": 1.0,
+          "true_alerts": 7,
+          "false_alerts": 0,
+          "missed_crossing_windows": 11,
+          "devices_with_detected_crossings": 6,
+          "alert_cutoff": 0.5
+        },
+        "soft_physical": {
+          "brier_device": 0.093417,
+          "auprc_window": 1.0,
+          "auprc_device_weighted": 1.0,
+          "auroc_device_weighted": 1.0,
+          "true_alerts": 11,
+          "false_alerts": 0,
+          "missed_crossing_windows": 7,
+          "devices_with_detected_crossings": 6,
+          "alert_cutoff": 0.5
+        },
+        "trend": {
+          "brier_device": 0.166667,
+          "auprc_window": 0.833333,
+          "auprc_device_weighted": 0.833333,
+          "auroc_device_weighted": 0.833333,
+          "true_alerts": 12,
+          "false_alerts": 0,
+          "missed_crossing_windows": 6,
+          "devices_with_detected_crossings": 6,
+          "alert_cutoff": 0.5
+        },
+        "neural": {
+          "brier_device": 0.345779,
+          "auprc_window": 1.0,
+          "auprc_device_weighted": 1.0,
+          "auroc_device_weighted": 1.0,
+          "true_alerts": 5,
+          "false_alerts": 0,
+          "missed_crossing_windows": 13,
+          "devices_with_detected_crossings": 5,
+          "alert_cutoff": 0.5
+        }
+      }
+    }
+  },
+  "0.15": {
+    "Jian": {
+      "resolved": 76,
+      "unresolved": 12,
+      "positive_origins": 6,
+      "models": {
+        "monotone_neural": {
+          "brier_device": 0.578719,
+          "auprc_window": 0.749369,
+          "auprc_device_weighted": 0.735171,
+          "auroc_device_weighted": 0.92815,
+          "true_alerts": 6,
+          "false_alerts": 62,
+          "missed_crossing_windows": 0,
+          "devices_with_detected_crossings": 4,
+          "alert_cutoff": 0.5
+        },
+        "monotone_logit": {
+          "brier_device": 0.502477,
+          "auprc_window": 0.758297,
+          "auprc_device_weighted": 0.750805,
+          "auroc_device_weighted": 0.93935,
+          "true_alerts": 6,
+          "false_alerts": 65,
+          "missed_crossing_windows": 0,
+          "devices_with_detected_crossings": 4,
+          "alert_cutoff": 0.5
+        },
+        "soft_physical": {
+          "brier_device": 0.105996,
+          "auprc_window": 0.739379,
+          "auprc_device_weighted": 0.723139,
+          "auroc_device_weighted": 0.918215,
+          "true_alerts": 4,
+          "false_alerts": 3,
+          "missed_crossing_windows": 2,
+          "devices_with_detected_crossings": 4,
+          "alert_cutoff": 0.5
+        },
+        "trend": {
+          "brier_device": 0.13125,
+          "auprc_window": 0.359649,
+          "auprc_device_weighted": 0.377083,
+          "auroc_device_weighted": 0.782974,
+          "true_alerts": 4,
+          "false_alerts": 4,
+          "missed_crossing_windows": 2,
+          "devices_with_detected_crossings": 4,
+          "alert_cutoff": 0.5
+        },
+        "neural": {
+          "brier_device": 0.183112,
+          "auprc_window": 0.43254,
+          "auprc_device_weighted": 0.501328,
+          "auroc_device_weighted": 0.796221,
+          "true_alerts": 4,
+          "false_alerts": 13,
+          "missed_crossing_windows": 2,
+          "devices_with_detected_crossings": 4,
+          "alert_cutoff": 0.5
+        }
+      }
+    },
+    "NASA EOS-2": {
+      "resolved": 36,
+      "unresolved": 1,
+      "positive_origins": 18,
+      "models": {
+        "monotone_neural": {
+          "brier_device": 0.206256,
+          "auprc_window": 1.0,
+          "auprc_device_weighted": 1.0,
+          "auroc_device_weighted": 1.0,
+          "true_alerts": 10,
+          "false_alerts": 0,
+          "missed_crossing_windows": 8,
+          "devices_with_detected_crossings": 6,
+          "alert_cutoff": 0.5
+        },
+        "monotone_logit": {
+          "brier_device": 0.240119,
+          "auprc_window": 1.0,
+          "auprc_device_weighted": 1.0,
+          "auroc_device_weighted": 1.0,
+          "true_alerts": 5,
+          "false_alerts": 0,
+          "missed_crossing_windows": 13,
+          "devices_with_detected_crossings": 5,
+          "alert_cutoff": 0.5
+        },
+        "soft_physical": {
+          "brier_device": 0.093417,
+          "auprc_window": 1.0,
+          "auprc_device_weighted": 1.0,
+          "auroc_device_weighted": 1.0,
+          "true_alerts": 11,
+          "false_alerts": 0,
+          "missed_crossing_windows": 7,
+          "devices_with_detected_crossings": 6,
+          "alert_cutoff": 0.5
+        },
+        "trend": {
+          "brier_device": 0.166667,
+          "auprc_window": 0.833333,
+          "auprc_device_weighted": 0.833333,
+          "auroc_device_weighted": 0.833333,
+          "true_alerts": 12,
+          "false_alerts": 0,
+          "missed_crossing_windows": 6,
+          "devices_with_detected_crossings": 6,
+          "alert_cutoff": 0.5
+        },
+        "neural": {
+          "brier_device": 0.325834,
+          "auprc_window": 0.986111,
+          "auprc_device_weighted": 0.986111,
+          "auroc_device_weighted": 0.981481,
+          "true_alerts": 6,
+          "false_alerts": 0,
+          "missed_crossing_windows": 12,
+          "devices_with_detected_crossings": 6,
+          "alert_cutoff": 0.5
+        }
+      }
+    }
+  }
+}

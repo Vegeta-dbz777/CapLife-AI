@@ -1,0 +1,526 @@
+{
+  "source": "https://doi.org/10.1109/TPEL.2023.3263125",
+  "endpoint": "Reported catastrophic open- or short-circuit failure",
+  "observations": "Approximate capacitance and ESR markers from published figures",
+  "devices": 11,
+  "experiments": 1,
+  "features": [
+    "capacitance_loss_pp",
+    "esr_increase_pp",
+    "capacitance_loss_rate_pph",
+    "esr_increase_rate_pph"
+  ],
+  "six_indicator_devices": 0,
+  "folds_by_minimum_observations": {
+    "3": {
+      "held_out_cases": {
+        "1": {
+          "devices_in_source": 6,
+          "devices_with_eligible_history": 6,
+          "metrics": {
+            "training_devices": 4,
+            "test_devices": 6,
+            "origins_outside_training_feature_ranges": 4,
+            "models": {
+              "intercept_only": {
+                "horizons_h": {},
+                "all_origins": {
+                  "devices": 6,
+                  "origins": 6,
+                  "bounded_or_exact_events": 6,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 254.270002,
+                  "median_band_width_h": 329.394549,
+                  "possible_80pct_band_coverage_observed_events": 0.166667,
+                  "definite_80pct_band_coverage_observed_events": 0.166667,
+                  "band_below_right_censor_count": 0
+                },
+                "first_origin_per_device": {
+                  "devices": 6,
+                  "origins": 6,
+                  "bounded_or_exact_events": 6,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 254.270002,
+                  "median_band_width_h": 329.394549,
+                  "possible_80pct_band_coverage_observed_events": 0.166667,
+                  "definite_80pct_band_coverage_observed_events": 0.166667,
+                  "band_below_right_censor_count": 0
+                }
+              },
+              "log_linear": {
+                "horizons_h": {},
+                "all_origins": {
+                  "devices": 6,
+                  "origins": 6,
+                  "bounded_or_exact_events": 6,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 189.772502,
+                  "median_band_width_h": 74.879001,
+                  "possible_80pct_band_coverage_observed_events": 0.166667,
+                  "definite_80pct_band_coverage_observed_events": 0.166667,
+                  "band_below_right_censor_count": 0
+                },
+                "first_origin_per_device": {
+                  "devices": 6,
+                  "origins": 6,
+                  "bounded_or_exact_events": 6,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 189.772502,
+                  "median_band_width_h": 74.879001,
+                  "possible_80pct_band_coverage_observed_events": 0.166667,
+                  "definite_80pct_band_coverage_observed_events": 0.166667,
+                  "band_below_right_censor_count": 0
+                }
+              },
+              "neural": {
+                "horizons_h": {},
+                "all_origins": {
+                  "devices": 6,
+                  "origins": 6,
+                  "bounded_or_exact_events": 6,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 191.543975,
+                  "median_band_width_h": 57.902114,
+                  "possible_80pct_band_coverage_observed_events": 0.0,
+                  "definite_80pct_band_coverage_observed_events": 0.0,
+                  "band_below_right_censor_count": 0
+                },
+                "first_origin_per_device": {
+                  "devices": 6,
+                  "origins": 6,
+                  "bounded_or_exact_events": 6,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 191.543975,
+                  "median_band_width_h": 57.902114,
+                  "possible_80pct_band_coverage_observed_events": 0.0,
+                  "definite_80pct_band_coverage_observed_events": 0.0,
+                  "band_below_right_censor_count": 0
+                }
+              }
+            }
+          }
+        },
+        "2": {
+          "devices_in_source": 4,
+          "devices_with_eligible_history": 4,
+          "metrics": {
+            "training_devices": 6,
+            "test_devices": 4,
+            "origins_outside_training_feature_ranges": 3,
+            "models": {
+              "intercept_only": {
+                "horizons_h": {},
+                "all_origins": {
+                  "devices": 4,
+                  "origins": 4,
+                  "bounded_or_exact_events": 4,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 286.057235,
+                  "median_band_width_h": 223.476722,
+                  "possible_80pct_band_coverage_observed_events": 0.0,
+                  "definite_80pct_band_coverage_observed_events": 0.0,
+                  "band_below_right_censor_count": 0
+                },
+                "first_origin_per_device": {
+                  "devices": 4,
+                  "origins": 4,
+                  "bounded_or_exact_events": 4,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 286.057235,
+                  "median_band_width_h": 223.476722,
+                  "possible_80pct_band_coverage_observed_events": 0.0,
+                  "definite_80pct_band_coverage_observed_events": 0.0,
+                  "band_below_right_censor_count": 0
+                }
+              },
+              "log_linear": {
+                "horizons_h": {},
+                "all_origins": {
+                  "devices": 4,
+                  "origins": 4,
+                  "bounded_or_exact_events": 4,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 254.815182,
+                  "median_band_width_h": 210.391112,
+                  "possible_80pct_band_coverage_observed_events": 0.25,
+                  "definite_80pct_band_coverage_observed_events": 0.25,
+                  "band_below_right_censor_count": 0
+                },
+                "first_origin_per_device": {
+                  "devices": 4,
+                  "origins": 4,
+                  "bounded_or_exact_events": 4,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 254.815182,
+                  "median_band_width_h": 210.391112,
+                  "possible_80pct_band_coverage_observed_events": 0.25,
+                  "definite_80pct_band_coverage_observed_events": 0.25,
+                  "band_below_right_censor_count": 0
+                }
+              },
+              "neural": {
+                "horizons_h": {},
+                "all_origins": {
+                  "devices": 4,
+                  "origins": 4,
+                  "bounded_or_exact_events": 4,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 301.122401,
+                  "median_band_width_h": 28.964463,
+                  "possible_80pct_band_coverage_observed_events": 0.0,
+                  "definite_80pct_band_coverage_observed_events": 0.0,
+                  "band_below_right_censor_count": 0
+                },
+                "first_origin_per_device": {
+                  "devices": 4,
+                  "origins": 4,
+                  "bounded_or_exact_events": 4,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 301.122401,
+                  "median_band_width_h": 28.964463,
+                  "possible_80pct_band_coverage_observed_events": 0.0,
+                  "definite_80pct_band_coverage_observed_events": 0.0,
+                  "band_below_right_censor_count": 0
+                }
+              }
+            }
+          }
+        },
+        "3": {
+          "devices_in_source": 1,
+          "devices_with_eligible_history": 0,
+          "metrics": null
+        }
+      },
+      "landmarks": [
+        {
+          "device": "yao_case_1_sample_1",
+          "case": 1,
+          "origin_h": 330.4,
+          "remaining_lower_h": 241.1,
+          "remaining_upper_h": 242.1
+        },
+        {
+          "device": "yao_case_1_sample_2",
+          "case": 1,
+          "origin_h": 329.62,
+          "remaining_lower_h": 137.88,
+          "remaining_upper_h": 138.88
+        },
+        {
+          "device": "yao_case_1_sample_3",
+          "case": 1,
+          "origin_h": 331.0,
+          "remaining_lower_h": 310.5,
+          "remaining_upper_h": 311.5
+        },
+        {
+          "device": "yao_case_1_sample_4",
+          "case": 1,
+          "origin_h": 330.51,
+          "remaining_lower_h": 249.99,
+          "remaining_upper_h": 250.99
+        },
+        {
+          "device": "yao_case_1_sample_5",
+          "case": 1,
+          "origin_h": 329.76,
+          "remaining_lower_h": 161.24,
+          "remaining_upper_h": 162.24
+        },
+        {
+          "device": "yao_case_1_sample_6",
+          "case": 1,
+          "origin_h": 330.95,
+          "remaining_lower_h": 394.55,
+          "remaining_upper_h": 395.55
+        },
+        {
+          "device": "yao_case_2_sample_1",
+          "case": 2,
+          "origin_h": 437.61,
+          "remaining_lower_h": 738.89,
+          "remaining_upper_h": 739.89
+        },
+        {
+          "device": "yao_case_2_sample_2",
+          "case": 2,
+          "origin_h": 432.62,
+          "remaining_lower_h": 529.88,
+          "remaining_upper_h": 530.88
+        },
+        {
+          "device": "yao_case_2_sample_3",
+          "case": 2,
+          "origin_h": 430.57,
+          "remaining_lower_h": 379.93,
+          "remaining_upper_h": 380.93
+        },
+        {
+          "device": "yao_case_2_sample_4",
+          "case": 2,
+          "origin_h": 431.85,
+          "remaining_lower_h": 433.65,
+          "remaining_upper_h": 434.65
+        }
+      ]
+    },
+    "2": {
+      "held_out_cases": {
+        "1": {
+          "devices_in_source": 6,
+          "devices_with_eligible_history": 6,
+          "metrics": {
+            "training_devices": 4,
+            "test_devices": 6,
+            "origins_outside_training_feature_ranges": 3,
+            "models": {
+              "intercept_only": {
+                "horizons_h": {},
+                "all_origins": {
+                  "devices": 6,
+                  "origins": 6,
+                  "bounded_or_exact_events": 6,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 325.319342,
+                  "median_band_width_h": 338.587953,
+                  "possible_80pct_band_coverage_observed_events": 0.0,
+                  "definite_80pct_band_coverage_observed_events": 0.0,
+                  "band_below_right_censor_count": 0
+                },
+                "first_origin_per_device": {
+                  "devices": 6,
+                  "origins": 6,
+                  "bounded_or_exact_events": 6,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 325.319342,
+                  "median_band_width_h": 338.587953,
+                  "possible_80pct_band_coverage_observed_events": 0.0,
+                  "definite_80pct_band_coverage_observed_events": 0.0,
+                  "band_below_right_censor_count": 0
+                }
+              },
+              "log_linear": {
+                "horizons_h": {},
+                "all_origins": {
+                  "devices": 6,
+                  "origins": 6,
+                  "bounded_or_exact_events": 6,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 279.570882,
+                  "median_band_width_h": 151.902571,
+                  "possible_80pct_band_coverage_observed_events": 0.166667,
+                  "definite_80pct_band_coverage_observed_events": 0.166667,
+                  "band_below_right_censor_count": 0
+                },
+                "first_origin_per_device": {
+                  "devices": 6,
+                  "origins": 6,
+                  "bounded_or_exact_events": 6,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 279.570882,
+                  "median_band_width_h": 151.902571,
+                  "possible_80pct_band_coverage_observed_events": 0.166667,
+                  "definite_80pct_band_coverage_observed_events": 0.166667,
+                  "band_below_right_censor_count": 0
+                }
+              },
+              "neural": {
+                "horizons_h": {},
+                "all_origins": {
+                  "devices": 6,
+                  "origins": 6,
+                  "bounded_or_exact_events": 6,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 207.435746,
+                  "median_band_width_h": 71.559959,
+                  "possible_80pct_band_coverage_observed_events": 0.166667,
+                  "definite_80pct_band_coverage_observed_events": 0.166667,
+                  "band_below_right_censor_count": 0
+                },
+                "first_origin_per_device": {
+                  "devices": 6,
+                  "origins": 6,
+                  "bounded_or_exact_events": 6,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 207.435746,
+                  "median_band_width_h": 71.559959,
+                  "possible_80pct_band_coverage_observed_events": 0.166667,
+                  "definite_80pct_band_coverage_observed_events": 0.166667,
+                  "band_below_right_censor_count": 0
+                }
+              }
+            }
+          }
+        },
+        "2": {
+          "devices_in_source": 4,
+          "devices_with_eligible_history": 4,
+          "metrics": {
+            "training_devices": 6,
+            "test_devices": 4,
+            "origins_outside_training_feature_ranges": 2,
+            "models": {
+              "intercept_only": {
+                "horizons_h": {},
+                "all_origins": {
+                  "devices": 4,
+                  "origins": 4,
+                  "bounded_or_exact_events": 4,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 346.882411,
+                  "median_band_width_h": 220.057775,
+                  "possible_80pct_band_coverage_observed_events": 0.0,
+                  "definite_80pct_band_coverage_observed_events": 0.0,
+                  "band_below_right_censor_count": 0
+                },
+                "first_origin_per_device": {
+                  "devices": 4,
+                  "origins": 4,
+                  "bounded_or_exact_events": 4,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 346.882411,
+                  "median_band_width_h": 220.057775,
+                  "possible_80pct_band_coverage_observed_events": 0.0,
+                  "definite_80pct_band_coverage_observed_events": 0.0,
+                  "band_below_right_censor_count": 0
+                }
+              },
+              "log_linear": {
+                "horizons_h": {},
+                "all_origins": {
+                  "devices": 4,
+                  "origins": 4,
+                  "bounded_or_exact_events": 4,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 342.68309,
+                  "median_band_width_h": 155.521686,
+                  "possible_80pct_band_coverage_observed_events": 0.25,
+                  "definite_80pct_band_coverage_observed_events": 0.25,
+                  "band_below_right_censor_count": 0
+                },
+                "first_origin_per_device": {
+                  "devices": 4,
+                  "origins": 4,
+                  "bounded_or_exact_events": 4,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 342.68309,
+                  "median_band_width_h": 155.521686,
+                  "possible_80pct_band_coverage_observed_events": 0.25,
+                  "definite_80pct_band_coverage_observed_events": 0.25,
+                  "band_below_right_censor_count": 0
+                }
+              },
+              "neural": {
+                "horizons_h": {},
+                "all_origins": {
+                  "devices": 4,
+                  "origins": 4,
+                  "bounded_or_exact_events": 4,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 407.538327,
+                  "median_band_width_h": 53.134509,
+                  "possible_80pct_band_coverage_observed_events": 0.25,
+                  "definite_80pct_band_coverage_observed_events": 0.25,
+                  "band_below_right_censor_count": 0
+                },
+                "first_origin_per_device": {
+                  "devices": 4,
+                  "origins": 4,
+                  "bounded_or_exact_events": 4,
+                  "right_censored_origins": 0,
+                  "mean_distance_to_observed_window_h": 407.538327,
+                  "median_band_width_h": 53.134509,
+                  "possible_80pct_band_coverage_observed_events": 0.25,
+                  "definite_80pct_band_coverage_observed_events": 0.25,
+                  "band_below_right_censor_count": 0
+                }
+              }
+            }
+          }
+        },
+        "3": {
+          "devices_in_source": 1,
+          "devices_with_eligible_history": 0,
+          "metrics": null
+        }
+      },
+      "landmarks": [
+        {
+          "device": "yao_case_1_sample_1",
+          "case": 1,
+          "origin_h": 180.62,
+          "remaining_lower_h": 390.88,
+          "remaining_upper_h": 391.88
+        },
+        {
+          "device": "yao_case_1_sample_2",
+          "case": 1,
+          "origin_h": 179.53,
+          "remaining_lower_h": 287.97,
+          "remaining_upper_h": 288.97
+        },
+        {
+          "device": "yao_case_1_sample_3",
+          "case": 1,
+          "origin_h": 181.0,
+          "remaining_lower_h": 460.5,
+          "remaining_upper_h": 461.5
+        },
+        {
+          "device": "yao_case_1_sample_4",
+          "case": 1,
+          "origin_h": 179.96,
+          "remaining_lower_h": 400.54,
+          "remaining_upper_h": 401.54
+        },
+        {
+          "device": "yao_case_1_sample_5",
+          "case": 1,
+          "origin_h": 180.41,
+          "remaining_lower_h": 310.59,
+          "remaining_upper_h": 311.59
+        },
+        {
+          "device": "yao_case_1_sample_6",
+          "case": 1,
+          "origin_h": 180.95,
+          "remaining_lower_h": 544.55,
+          "remaining_upper_h": 545.55
+        },
+        {
+          "device": "yao_case_2_sample_1",
+          "case": 2,
+          "origin_h": 217.09,
+          "remaining_lower_h": 959.41,
+          "remaining_upper_h": 960.41
+        },
+        {
+          "device": "yao_case_2_sample_2",
+          "case": 2,
+          "origin_h": 217.02,
+          "remaining_lower_h": 745.48,
+          "remaining_upper_h": 746.48
+        },
+        {
+          "device": "yao_case_2_sample_3",
+          "case": 2,
+          "origin_h": 215.29,
+          "remaining_lower_h": 595.21,
+          "remaining_upper_h": 596.21
+        },
+        {
+          "device": "yao_case_2_sample_4",
+          "case": 2,
+          "origin_h": 216.56,
+          "remaining_lower_h": 648.94,
+          "remaining_upper_h": 649.94
+        }
+      ]
+    }
+  },
+  "source_sha256": {
+    "markers": "be599328694a2c7a229f0181a9dd792af054d9e9c7563a7d01d802334f89d9d1",
+    "endpoints": "10522d78ce8a06d39b33f29f4231c879541c63ecb7b8125f650b830a9330dba4"
+  }
+}

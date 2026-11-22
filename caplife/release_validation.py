@@ -86,6 +86,8 @@ def make_origins(loss: pd.DataFrame, cohort: str, horizon: float,
                 "loss_pct": current, "older_rate_pct_per_h": older, "recent_rate_pct_per_h": recent,
                 "relative_headroom": (threshold - current) / threshold,
                 "projected_margin": projection, "robust_margin": robust_projection,
+                "remaining_lower_h": last_below - t[i],
+                "remaining_upper_h": first_above - t[i],
                 "outcome": 1.0 if first_above <= end else 0.0 if last_below >= end else np.nan,
                 "persistence": 0.0, "trend": float(projection >= 0), "robust": float(robust_projection >= 0),
             })

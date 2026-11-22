@@ -158,6 +158,43 @@ if workflow == "Public-data neural experiment":
             "Download extended validation results", validation_bytes,
             "caplife_release_validation.json", mime="application/json",
         )
+    with st.expander("Threshold warnings and physical failure research"):
+        failure_bytes = (ARTIFACTS / "physical_failure_validation.json").read_bytes()
+        failure = json.loads(failure_bytes)
+        rows = []
+        for case, result in failure["folds_by_minimum_observations"]["3"]["held_out_cases"].items():
+            if result["metrics"] is None:
+                continue
+            for name, model in result["metrics"]["models"].items():
+                scores = model["first_origin_per_device"]
+                rows.append({
+                    "Held-out condition": f"Case {case}",
+                    "Model": {"intercept_only": "Intercept only", "log_linear": "Log-linear",
+                              "neural": "Neural"}[name],
+                    "Capacitors": result["devices_with_eligible_history"],
+                    "Mean distance to failure window (h)": scores["mean_distance_to_observed_window_h"],
+                    "Possible coverage of nominal 80% band":
+                        scores["possible_80pct_band_coverage_observed_events"],
+                })
+        st.write(
+            "The physical failure study reports catastrophic open or short circuits. "
+            "The exploratory test used capacitance and ESR read from the published figures, "
+            "with one forecast per eligible capacitor. The nominal 80% neural bands "
+            "failed the held-out condition checks."
+        )
+        st.dataframe(pd.DataFrame(rows).round(3), hide_index=True)
+        st.caption(
+            "Possible coverage counts any overlap with the reported failure window. "
+            "The third condition had insufficient pre-failure readings for a forecast."
+        )
+        st.markdown(f"[Aalborg study and test conditions]({failure['source']})")
+        for label, filename, contents in (
+            ("Download physical failure validation", "physical_failure_validation.json", failure_bytes),
+            ("Download time-to-threshold validation", "remaining_time_validation.json", None),
+            ("Download constrained warning benchmark", "constrained_validation.json", None),
+        ):
+            st.download_button(label, contents if contents is not None else (ARTIFACTS / filename).read_bytes(),
+                               f"caplife_{filename}", mime="application/json")
     st.stop()
 
 if workflow == "Public-data forecast benchmark":

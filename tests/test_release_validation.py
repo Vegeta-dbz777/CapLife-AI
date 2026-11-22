@@ -13,12 +13,16 @@ def test_public_validation_uses_past_data_and_preserves_interval_labels():
     pd.testing.assert_series_equal(ordinary["outcome"].rename_axis("origin_h"), original["outcome"])
     assert np.isnan(ordinary.loc[40, "outcome"])
     assert ordinary.loc[60, "outcome"] == 1
+    assert ordinary.loc[60, "remaining_lower_h"] == 0
+    assert ordinary.loc[60, "remaining_upper_h"] == 40
 
     future_changes = loss.copy()
     future_changes.loc[100:, "a"] = 17
     new = make_origins(future_changes, "test", 48, 20).set_index("age_h")
-    pd.testing.assert_series_equal(ordinary.loc[60].drop("outcome"), new.loc[60].drop("outcome"))
+    label_columns = ["outcome", "remaining_lower_h", "remaining_upper_h"]
+    pd.testing.assert_series_equal(ordinary.loc[60].drop(label_columns), new.loc[60].drop(label_columns))
     assert new.loc[60, "outcome"] == 0
+    assert np.isposinf(new.loc[60, "remaining_upper_h"])
 
     repeated = make_origins(loss, "test", 48, 20, repeated=True).set_index("age_h")
     assert repeated.loc[60, "outcome"] == 0
