@@ -13,7 +13,9 @@ import streamlit as st
 from caplife.accounts import save_controls, saved_picker, saving_available
 from caplife.measurement_review import read_experimental_csv
 from caplife.real_data import RealDataValidationError, validate_real_measurements
-from caplife.six_rul import INDICATOR_LABELS, MIN_READINGS, NOMINAL_LIMITS, SixRULModel, example_fleet
+from caplife.six_rul import (
+    COMMON_SUBSET, INDICATOR_LABELS, MIN_READINGS, NOMINAL_LIMITS, SixRULModel, example_fleet, subset_key,
+)
 from caplife.six_sim import ATMOSPHERE_KPA, EOL_LIMITS, SIGNALS
 from caplife.versioning import code_version
 
@@ -62,14 +64,16 @@ def _status(health: float, reached: bool) -> str:
 
 
 def _limit_value(signal: str, baseline: pd.Series) -> float:
-    return {
-        "Capacitance_uF": baseline["Capacitance_uF"] * (1 - EOL_LIMITS["capacitance_loss_pct"] / 100),
-        "ESR_ohm": baseline["ESR_ohm"] * EOL_LIMITS["esr_ratio"],
-        "Leakage_uA": baseline["Leakage_uA"] * EOL_LIMITS["leakage_ratio"],
-        "Case_Expansion_um": baseline["Case_Expansion_um"] + NOMINAL_LIMITS["Case_Expansion_um"],
-        "H2_Generated_mL_STP": baseline["H2_Generated_mL_STP"] + NOMINAL_LIMITS["H2_Generated_mL_STP"],
-        "Pressure_Abs_kPa": EOL_LIMITS["pressure_abs_kpa"],
-    }[signal]
+    """The parameter's end-of-life (or nominal) limit in its own units; only that parameter is looked up."""
+    if signal == "Capacitance_uF":
+        return baseline[signal] * (1 - EOL_LIMITS["capacitance_loss_pct"] / 100)
+    if signal == "ESR_ohm":
+        return baseline[signal] * EOL_LIMITS["esr_ratio"]
+    if signal == "Leakage_uA":
+        return baseline[signal] * EOL_LIMITS["leakage_ratio"]
+    if signal in NOMINAL_LIMITS:
+        return baseline[signal] + NOMINAL_LIMITS[signal]
+    return EOL_LIMITS["pressure_abs_kpa"]
 
 
 def _hours(value) -> str:
@@ -89,6 +93,9 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
         st.caption("Eight simulated capacitors, two for each way a capacitor can reach end of life, observed part "
                    "of the way there. Because they are simulated, their true end of life is known and shown for "
                    "comparison.")
+        if st.checkbox("Use only capacitance, ESR and leakage current", key="caplife_six_three_only",
+                       help="Shows how the prediction works when the other three parameters are not measured."):
+            measurements = measurements.loc[:, ["Cap_ID", "Hours", *COMMON_SUBSET]]
         st.download_button("Download example CSV", measurements.to_csv(index=False),
                            "caplife_six_parameter_example.csv", mime="text/csv")
         return measurements, truth, "Simulated example"
@@ -103,10 +110,10 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
     left.download_button("Download CSV template", template, "caplife_six_parameter_template.csv", mime="text/csv")
     with right.expander("Columns and units"):
         st.markdown(
-            "One row per reading: `Cap_ID`, `Hours`, `Capacitance_uF`, `ESR_ohm`, `Leakage_uA`, "
+            "One row per reading: `Cap_ID`, `Hours`, and any of `Capacitance_uF`, `ESR_ohm`, `Leakage_uA`, "
             "`Case_Expansion_um`, `H2_Generated_mL_STP` (cumulative, at 0 °C and 1 atm) and `Pressure_Abs_kPa` "
-            "(absolute). The first reading of each capacitor is its baseline. Remaining life needs at least "
-            f"{MIN_READINGS} complete readings."
+            "(absolute). You don't need all six; more parameters give a more precise prediction. The first "
+            f"reading of each capacitor is its baseline. Remaining life needs at least {MIN_READINGS} readings."
         )
     st.caption("Uploads are processed on the app server and are not stored unless you sign in and save them.")
     if upload is None:
@@ -120,25 +127,24 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
 def _parse(payload: bytes, label: str, save: bool) -> tuple[pd.DataFrame, dict | None, str] | None:
     try:
         raw = read_experimental_csv(payload)
-        missing = [INDICATOR_LABELS[s] for s in SIGNALS if s not in raw.columns]
-        if missing:
-            raise RealDataValidationError("Missing indicator column(s): " + ", ".join(missing))
         readings = validate_real_measurements(raw)
     except INPUT_ERRORS as error:
         st.error(f"The CSV could not be used: {error}")
         return None
     if save:
         save_controls("six_parameter", {"measurements": payload}, label.removesuffix(".csv"), "caplife_six")
-    complete = readings.dropna(subset=list(SIGNALS))
+    measured = [signal for signal in SIGNALS if signal in readings and readings[signal].notna().any()]
+    complete = readings.dropna(subset=measured)
     if len(complete) < len(readings):
-        st.warning(f"{len(readings) - len(complete)} reading(s) with a missing indicator were left out. "
-                   "No values were filled in.")
+        st.warning(f"{len(readings) - len(complete)} reading(s) missing one of the measured parameters were left "
+                   "out. No values were filled in.")
     if complete.empty:
-        st.error("No reading has all six indicators.")
+        st.error("No reading has all the parameters this file contains.")
         return None
     # Capacitance, ESR and leakage are scored as ratios to the first reading, so it must be positive.
     first = complete.sort_values("Hours").groupby("Cap_ID").first()
-    unusable = first.index[(first[["Capacitance_uF", "ESR_ohm", "Leakage_uA"]] <= 0).any(axis=1)].tolist()
+    ratio_based = [signal for signal in ("Capacitance_uF", "ESR_ohm", "Leakage_uA") if signal in measured]
+    unusable = first.index[(first[ratio_based] <= 0).any(axis=1)].tolist()
     if unusable:
         shown = ", ".join(unusable[:5]) + (" …" if len(unusable) > 5 else "")
         st.warning(f"Left out {len(unusable)} capacitor(s) whose first reading has zero leakage current, which "
@@ -146,14 +152,19 @@ def _parse(payload: bytes, label: str, save: bool) -> tuple[pd.DataFrame, dict |
         complete = complete.loc[~complete["Cap_ID"].isin(unusable)]
         if complete.empty:
             return None
-    return complete.loc[:, ["Cap_ID", "Hours", *SIGNALS]], None, label
+    return complete.loc[:, ["Cap_ID", "Hours", *measured]], None, label
 
 
 @st.cache_data(show_spinner="Assessing capacitors…", max_entries=4)
 def _assess_cached(measurements: pd.DataFrame, version: str) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
     model = _model()
-    return {device: (readings.sort_values("Hours").reset_index(drop=True), model.assess(readings))
+    measured = _measured(measurements)
+    return {device: (readings.sort_values("Hours").reset_index(drop=True), model.assess(readings, measured))
             for device, readings in measurements.groupby("Cap_ID", sort=True)}
+
+
+def _measured(measurements: pd.DataFrame) -> tuple[str, ...]:
+    return tuple(signal for signal in SIGNALS if signal in measurements)
 
 
 def _assess(measurements: pd.DataFrame) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
@@ -217,7 +228,7 @@ def _sparkline(hours: pd.Series, values: pd.Series, label: str, status: str = "g
 def _health_cards(readings: pd.DataFrame, assessment: pd.DataFrame) -> None:
     baseline, latest, last = readings.iloc[0], readings.iloc[-1], assessment.iloc[-1]
     cards = []
-    for signal in SIGNALS:
+    for signal in _measured(readings):
         health = last[f"{signal}_health_pct"]
         status = _status(health, health <= 0 and signal not in NOMINAL_LIMITS)
         status_key = status.lower().replace(" ", "-")
@@ -268,7 +279,7 @@ def _chart_domain(values: pd.Series, limit: float, digits: int) -> tuple[float, 
 def _signal_charts(readings: pd.DataFrame) -> None:
     baseline = readings.iloc[0]
     columns = st.columns(3)
-    for index, signal in enumerate(SIGNALS):
+    for index, signal in enumerate(_measured(readings)):
         data = readings[["Hours", signal]].rename(columns={signal: "value"}).reset_index(drop=True)
         data["trend"] = _smooth(data["value"])
         limit = _limit_value(signal, baseline)
@@ -321,15 +332,31 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None) -> alt.Chart:
     return alt.layer(*layers).properties(height=280)
 
 
-def _model_card() -> None:
+# Labels for use mid-sentence: lower case except abbreviations (ESR, H₂).
+INLINE_LABELS = {"Capacitance_uF": "capacitance", "ESR_ohm": "ESR", "Leakage_uA": "leakage current",
+                 "Case_Expansion_um": "case expansion", "H2_Generated_mL_STP": "H₂ generated",
+                 "Pressure_Abs_kPa": "internal pressure"}
+
+
+def _names(signals) -> str:
+    """'capacitance, ESR and leakage current' style list for use inside a sentence."""
+    labels = [INLINE_LABELS[signal] for signal in signals]
+    return labels[0] if len(labels) == 1 else ", ".join(labels[:-1]) + " and " + labels[-1]
+
+
+def _model_card(measured: tuple[str, ...]) -> None:
     meta = _model().metadata
-    metrics = meta["test_metrics"]
-    neural, trend = metrics["neural_calibrated"], metrics["trend_baseline"]
+    key = subset_key(measured)
+    neural = meta["test_metrics_by_subset"][key]
+    trend = meta["trend_baseline_by_subset"].get(key)
+    full = meta["test_metrics_by_subset"][subset_key(SIGNALS)]
     fleets = meta["fleets"]
     st.markdown(
         f"- **Network:** a GRU (recurrent neural network) reads up to the last {meta['window']} readings. Each "
-        "indicator enters as the fraction of its limit already used, with the capacitor's age and the time "
-        "between readings. It outputs the 10th, 50th and 90th percentiles of remaining life.\n"
+        "indicator enters as the fraction of its limit already used, with a flag saying whether it was measured, "
+        "plus the capacitor's age and the time between readings. During training, indicators were hidden at "
+        "random, so the same network predicts from any combination of them. It outputs the 10th, 50th and 90th "
+        "percentiles of remaining life.\n"
         f"- **Training data:** {fleets['train']['capacitors']:,} simulated capacitors "
         f"({fleets['train']['predictions']:,} prediction points) from a physics-inspired simulator: "
         "temperature-accelerated electrolyte loss lowers capacitance and raises ESR; leakage current generates "
@@ -340,18 +367,24 @@ def _model_card() -> None:
         f"pressure ≥ {EOL_LIMITS['pressure_abs_kpa']:g} kPa (vent). Expansion and H₂ use nominal limits that "
         "correspond to the vent pressure for a typical simulated capacitor.\n"
         f"- **80% range:** calibrated on {fleets['calibration']['capacitors']} further simulated capacitors "
-        "(conformalized quantile regression)."
+        "(conformalized quantile regression), separately for every combination of measured parameters, so it "
+        "widens when fewer parameters are available."
     )
     st.markdown(f"**Test on {fleets['test']['capacitors']} simulated capacitors the model never saw** "
-                f"({neural['predictions']:,} predictions)")
-    st.dataframe(pd.DataFrame([
-        {"Method": "Neural network (GRU)", "Typical error (h)": neural["median_absolute_error_h"],
-         "Typical relative error": neural["median_relative_error"],
-         "True RUL inside 80% range": neural["interval_coverage"],
-         "Typical 80% range width (h)": neural["median_interval_width_h"]},
-        {"Method": "Trend line to nearest limit", "Typical error (h)": trend["median_absolute_error_h"],
-         "Typical relative error": None, "True RUL inside 80% range": None, "Typical 80% range width (h)": None},
-    ]), hide_index=True, width="stretch", column_config={
+                f"({neural['predictions']:,} predictions), using {_names(measured)}")
+
+    def row(method, metrics):
+        return {"Method": method, "Typical error (h)": metrics["median_absolute_error_h"],
+                "Typical relative error": metrics.get("median_relative_error"),
+                "True RUL inside 80% range": metrics.get("interval_coverage"),
+                "Typical 80% range width (h)": metrics.get("median_interval_width_h")}
+
+    rows = [row("Neural network (GRU), these parameters", neural)]
+    if key != subset_key(SIGNALS):
+        rows.append(row("Neural network (GRU), all six parameters", full))
+    if trend:
+        rows.append(row("Trend line to nearest limit, these parameters", trend))
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", column_config={
         "Typical error (h)": st.column_config.NumberColumn(format="%.0f"),
         "Typical relative error": st.column_config.NumberColumn(format="percent"),
         "True RUL inside 80% range": st.column_config.NumberColumn(format="percent"),
@@ -366,8 +399,8 @@ def _model_card() -> None:
 def render() -> None:
     st.header("Six-parameter health and remaining-life prediction")
     st.write("Upload measurement histories of capacitance, ESR, leakage current, case expansion, generated "
-             "hydrogen and internal pressure. CapLife scores the health of each parameter against its limit and a "
-             "neural network predicts remaining useful life with an 80% range.")
+             "hydrogen and internal pressure, or any of them you have. CapLife scores the health of each parameter "
+             "against its limit and a neural network predicts remaining useful life with an 80% range.")
     st.info("**Demonstration model.** The neural network learned from simulated capacitors, not laboratory "
             "measurements. It shows how six-parameter RUL prediction works; its accuracy on real capacitors "
             "has not been tested.")
@@ -375,8 +408,16 @@ def render() -> None:
     if loaded is None:
         return
     measurements, truth, label = loaded
+    measured = _measured(measurements)
     results = _assess(measurements)
     fleet = _fleet_table(results, truth)
+    if len(measured) < len(SIGNALS):
+        accuracy = _model().metrics_for(measured)
+        missing = [signal for signal in SIGNALS if signal not in measured]
+        st.info(f"**Using {len(measured)} of 6 parameters:** {_names(measured)}. Not in this data: "
+                f"{_names(missing)}. With these parameters, the model's typical error on simulated test "
+                f"capacitors is {accuracy['median_absolute_error_h']:,.0f} h "
+                f"({accuracy['median_relative_error']:.0%} of remaining life), and its 80% range is wider to match.")
 
     st.subheader("Fleet overview")
     st.caption(label)
@@ -418,7 +459,7 @@ def render() -> None:
                        "is an extrapolation.")
     _health_cards(readings, assessment)
 
-    st.markdown("##### Six-parameter history")
+    st.markdown("##### Parameter history" if len(measured) < len(SIGNALS) else "##### Six-parameter history")
     st.caption("Dots are the individual readings; the line is a running average of neighbouring readings, "
                "which shows the trend through measurement noise.")
     _signal_charts(readings)
@@ -430,7 +471,7 @@ def render() -> None:
                    + (" Dashed orange line: the simulated true remaining life." if truth else ""))
 
     with st.expander("About the model and how well it did on simulated data"):
-        _model_card()
+        _model_card(measured)
 
     st.subheader("Downloads")
     left, right = st.columns(2)

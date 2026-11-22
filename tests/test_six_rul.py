@@ -155,3 +155,40 @@ def test_running_average_follows_the_trend_and_keeps_every_reading():
     assert smooth.diff().abs().max() < noisy.diff().abs().max()  # steps shrink
     rising = pd.Series(range(20), dtype=float)
     assert (_smooth(rising).iloc[2:-2] == rising.iloc[2:-2]).all()  # a straight trend is unchanged
+
+
+def test_three_parameter_histories_get_health_and_remaining_life(model):
+    from caplife.six_rul import COMMON_SUBSET
+    measurements, _ = example_fleet()
+    readings = measurements.loc[measurements["Cap_ID"].eq("DEMO_02"), ["Cap_ID", "Hours", *COMMON_SUBSET]]
+    result = model.assess(readings)
+    last = result.iloc[-1]
+    assert pd.notna(last["RUL_median_h"]) and last["RUL_low_h"] <= last["RUL_median_h"] <= last["RUL_high_h"]
+    assert np.isnan(last["Pressure_Abs_kPa_health_pct"]) and not np.isnan(last["ESR_ohm_health_pct"])
+    assert last["Overall_health_pct"] == min(last[f"{s}_health_pct"] for s in COMMON_SUBSET)
+    assert model.metrics_for(COMMON_SUBSET)["predictions"] > 0
+
+
+def test_hidden_indicators_in_training_match_a_real_partial_file():
+    from caplife.six_rul import COMMON_SUBSET, _subset_mask, hide_indicators
+    measurements, _ = example_fleet()
+    readings = measurements.loc[measurements["Cap_ID"].eq("DEMO_03")]
+    full = sequences(readings, SIGNALS)
+    hidden = hide_indicators(full, np.tile(_subset_mask(COMMON_SUBSET), (len(full), 1)))
+    assert np.allclose(hidden, sequences(readings[["Cap_ID", "Hours", *COMMON_SUBSET]]))
+
+
+def test_every_parameter_combination_is_calibrated_and_tested():
+    metadata = json.loads((ARTIFACTS / "metadata.json").read_text())
+    by_subset = metadata["test_metrics_by_subset"]
+    assert len(by_subset) == 63 == len(metadata["conformal_adjustment_log_by_subset"])
+    assert all(0.74 <= metrics["interval_coverage"] <= 0.87 for metrics in by_subset.values())
+    # Fewer parameters must not look more precise than all six.
+    full = by_subset["+".join(SIGNALS)]["median_absolute_error_h"]
+    assert by_subset["Capacitance_uF"]["median_absolute_error_h"] > full
+
+
+def test_parameter_lists_keep_abbreviations_capitalised():
+    from caplife.six_rul_page import _names
+    assert _names(("Capacitance_uF", "ESR_ohm", "Leakage_uA")) == "capacitance, ESR and leakage current"
+    assert _names(("H2_Generated_mL_STP",)) == "H₂ generated"
