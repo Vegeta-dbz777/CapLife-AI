@@ -67,9 +67,6 @@ with st.sidebar:
     )
     st.divider()
     sidebar_account()
-    with st.popover("Share this app"):
-        st.write("Copy the public link")
-        st.code(PUBLIC_APP_URL, language=None)
     st.markdown(f"[Project and methods ↗]({PROJECT_URL}) · [Privacy]({PUBLIC_APP_URL}?page=privacy)")
 
 if workflow == MEASUREMENT_WORKFLOW:
