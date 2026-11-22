@@ -425,6 +425,8 @@ if workflow == MEASUREMENT_WORKFLOW:
             "CSV format", ("CapLife measurement template", REFERENCE_FORMAT),
             horizontal=True, key="caplife_measurement_format",
             format_func=lambda value: "Reference-age CSV" if value == REFERENCE_FORMAT else "CapLife CSV",
+            captions=("Up to six parameters plus test conditions · full report",
+                      "Capacitance and resistance by aging hour, NASA style · quick summary"),
             on_change=clear_public_sample,
         )
         reference_age = measurement_format == REFERENCE_FORMAT
