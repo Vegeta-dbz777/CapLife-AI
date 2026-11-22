@@ -1,0 +1,194 @@
+/* Layout and branded surfaces. Native widgets take their colors from config.toml. */
+[data-testid="stMainBlockContainer"] {
+    max-width: 76rem;
+    padding: 3rem clamp(1.05rem, 3.3vw, 3.2rem) 4rem;
+}
+
+[data-testid="stHeader"] {
+    background-color: var(--st-background-color, #0b1214);
+}
+
+[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+    padding-top: 1.15rem;
+}
+
+.caplife-brand {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    margin-bottom: .9rem;
+    color: #eef5f4;
+    font-size: 1.23rem;
+    font-weight: 730;
+    letter-spacing: -.025em;
+}
+
+.caplife-brand-mark {
+    display: grid;
+    width: 2.45rem;
+    height: 2.45rem;
+    place-items: center;
+    border: 1px solid #4a7e75;
+    border-radius: .72rem;
+    background: #203f3b;
+    color: #9cf9e5;
+    font-size: .81rem;
+    font-weight: 780;
+    letter-spacing: .04em;
+}
+
+.caplife-hero {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    min-height: 17.2rem;
+    padding: clamp(1.6rem, 4.3vw, 3.2rem);
+    align-items: center;
+    overflow: hidden;
+    border: 1px solid #30484a;
+    border-radius: 1.18rem;
+    background: #0a1d1e;
+}
+
+.caplife-hero img {
+    position: absolute;
+    z-index: -2;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: right 59%;
+}
+
+.caplife-hero::before {
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    background: linear-gradient(90deg, #091c1e 0%, #091c1ef0 29%, #091c1e9c 51%, #091c1e0a 76%);
+    content: "";
+}
+
+.caplife-hero h1 {
+    padding: .24rem 0 .3rem;
+    color: #f1fbfa;
+    font-family: system-ui, sans-serif;
+    font-size: clamp(2.6rem, 6.3vw, 5rem);
+    font-weight: 720;
+    letter-spacing: -.065em;
+    line-height: 1.02;
+}
+
+.caplife-hero p {
+    max-width: 27rem;
+    margin: .72rem 0 0;
+    color: #c9dedc;
+    font-size: clamp(1.02rem, 1.6vw, 1.2rem);
+    line-height: 1.5;
+}
+
+.caplife-overline {
+    color: #8ce7d5;
+    font-size: .74rem;
+    font-weight: 750;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+}
+
+.caplife-scope {
+    display: flex;
+    align-items: baseline;
+    gap: .65rem;
+    margin: .78rem 0 .5rem;
+    color: #b7cacb;
+    font-size: .9rem;
+    line-height: 1.45;
+}
+
+.caplife-scope span {
+    color: #ffc995;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+[data-testid="stMetric"] {
+    min-width: 0;
+    padding: .9rem 1rem;
+    border: 1px solid #2b4144;
+    border-radius: .75rem;
+    background: #121f22;
+}
+
+[data-testid="stMetricLabel"] p {
+    color: #aec4c6;
+}
+
+[data-testid="stMetricValue"] {
+    font-variant-numeric: tabular-nums;
+}
+
+[data-testid="stFileUploaderDropzone"] {
+    border: 1px dashed #486a6c;
+    border-radius: .72rem;
+}
+
+.st-key-caplife_upload_card h3,
+.st-key-caplife_sample_card h3 {
+    padding-top: 0;
+    font-size: 1.28rem;
+    letter-spacing: -.02em;
+}
+
+.st-key-caplife_upload_card,
+.st-key-caplife_sample_card {
+    min-width: 0;
+}
+
+.st-key-caplife_sample_card [data-testid="stBaseButton-primary"] {
+    border-color: #73e8d4;
+    background: #4fddc5;
+    color: #092825;
+    font-weight: 680;
+}
+
+.st-key-caplife_sample_card [data-testid="stBaseButton-primary"]:hover {
+    background: #82ecdb;
+    color: #092825;
+}
+
+[data-testid="stTabs"] [role="tablist"] {
+    gap: .9rem;
+    overflow-x: auto;
+}
+
+[data-testid="stTabs"] [role="tabpanel"] {
+    padding-top: 1rem;
+}
+
+@media (max-width: 640px) {
+    [data-testid="stMainBlockContainer"] {
+        padding-top: 2.6rem;
+    }
+
+    .caplife-hero {
+        min-height: 14.5rem;
+        padding: 1.45rem;
+    }
+
+    .caplife-hero img {
+        object-position: 70% center;
+        opacity: .66;
+    }
+
+    .caplife-hero::before {
+        background: linear-gradient(90deg, #091c1efc 0%, #091c1ed9 56%, #091c1e18 100%);
+    }
+
+    .caplife-hero p {
+        max-width: 16rem;
+    }
+
+    .caplife-scope {
+        flex-wrap: wrap;
+        gap: .14rem .6rem;
+    }
+}

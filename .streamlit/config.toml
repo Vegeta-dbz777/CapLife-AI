@@ -1,0 +1,20 @@
+[theme]
+base = "dark"
+primaryColor = "#4FDDC5"
+backgroundColor = "#0B1214"
+secondaryBackgroundColor = "#142125"
+textColor = "#EEF5F4"
+font = "sans serif"
+baseRadius = "0.65rem"
+borderColor = "#2D4145"
+showWidgetBorder = true
+showSidebarBorder = true
+dataframeHeaderBackgroundColor = "#1A2B2F"
+chartCategoricalColors = ["#4FDDC5", "#F6B77B", "#8CA9FF", "#F689A4", "#ACD078"]
+
+[theme.sidebar]
+backgroundColor = "#101B1E"
+secondaryBackgroundColor = "#19292D"
+
+[server]
+maxUploadSize = 8

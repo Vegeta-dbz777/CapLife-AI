@@ -1,6 +1,7 @@
 """CapLife AI measurement assessments and forecast research."""
 from __future__ import annotations
 
+from base64 import b64encode
 import hashlib
 import json
 from pathlib import Path
@@ -18,39 +19,60 @@ from caplife.trend import assess_trend
 ROOT = Path(__file__).resolve().parent
 DEMO_DATA = ROOT / "sample_data" / "demo_capacitors.csv"
 TEMPLATE_DATA = ROOT / "sample_data" / "upload_template.csv"
+PUBLIC_SAMPLE = ROOT / "sample_data" / "nasa_es14_reference.csv"
 ARTIFACTS = ROOT / "artifacts"
+ASSETS = ROOT / "assets"
 UNCERTAINTY_JSON = ARTIFACTS / "trend_uncertainty_synthetic_v0_5.json"
+PUBLIC_APP_URL = "https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/"
+PROJECT_URL = "https://github.com/Vegeta-dbz777/CapLife-AI"
+MEASUREMENT_WORKFLOW = "Experimental measurements (v0.8)"
+REFERENCE_FORMAT = "Reference-age CSV (ES14 format)"
+WORKFLOWS = {
+    MEASUREMENT_WORKFLOW: "Analyze measurements",
+    "Public-data forecast benchmark": "Forecast benchmarks",
+    "Public-data neural experiment": "Neural research",
+    "Synthetic RUL demonstration (v0.5)": "Synthetic demo",
+}
 
 st.set_page_config(
-    page_title="CapLife AI — AEC RUL Prototype",
+    page_title="CapLife AI | Capacitor research",
     page_icon="⚡",
     layout="wide",
 )
-st.title("⚡ CapLife AI")
-st.caption("Aluminum Electrolytic Capacitor Health Monitoring & Remaining Useful Life")
-st.warning(
-    "**RESEARCH PROTOTYPE — NOT VALIDATED FOR REAL CAPACITORS.** "
-    "The synthetic RUL mode uses a GRU trained on invented histories. "
-    "The experimental-measurement mode provides descriptive checks and observed changes only. "
-    "Public-data benchmarks compare forecasts against recorded capacitance loss."
-)
+st.html(ASSETS / "interface.css")
 
-
-# v0.6 introduces a separate mode. The original GRU RUL page below is unchanged
-# for users who select the synthetic demonstrator. Real-data uploads NEVER enter it.
 with st.sidebar:
-    st.subheader("Workflow")
+    st.html(
+        '<div class="caplife-brand"><span class="caplife-brand-mark" aria-hidden="true">CL</span>'
+        '<span>CapLife AI</span></div>'
+    )
     workflow = st.radio(
-        "Choose an assessment mode",
-        (
-            "Experimental measurements (v0.8)",
-            "Public-data forecast benchmark",
-            "Public-data neural experiment",
-            "Synthetic RUL demonstration (v0.5)",
-        ),
+        "Workspace",
+        tuple(WORKFLOWS),
+        format_func=WORKFLOWS.__getitem__,
         key="caplife_workflow_v07",
     )
     st.divider()
+    with st.popover("Share this app"):
+        st.write("Copy the public link")
+        st.code(PUBLIC_APP_URL, language=None)
+    st.markdown(f"[Project and methods ↗]({PROJECT_URL})")
+
+if workflow == MEASUREMENT_WORKFLOW:
+    hero = b64encode((ASSETS / "capacitor-hero.webp").read_bytes()).decode("ascii")
+    st.html(
+        '<section class="caplife-hero">'
+        f'<img src="data:image/webp;base64,{hero}" alt="">'
+        '<div><div class="caplife-overline">Aluminum electrolytic capacitors</div>'
+        '<h1>CapLife AI</h1>'
+        '<p>Explore measured degradation, inspect thresholds, and export a report.</p></div>'
+        '</section>'
+    )
+
+st.html(
+    '<p class="caplife-scope"><span>Research prototype</span>'
+    'Real-device lifetime estimates await validation.</p>'
+)
 
 if workflow == "Public-data neural experiment":
     benchmark = json.loads((ARTIFACTS / "neural_benchmark.json").read_text(encoding="utf-8"))
@@ -334,7 +356,7 @@ if workflow == "Public-data forecast benchmark":
             st.markdown(f"- [{study}]({url})")
     st.stop()
 
-if workflow == "Experimental measurements (v0.8)":
+if workflow == MEASUREMENT_WORKFLOW:
     from io import BytesIO
     from caplife.measurement_review import observed_capacitance_threshold, read_experimental_csv
     from caplife.real_data import (
@@ -349,66 +371,67 @@ if workflow == "Experimental measurements (v0.8)":
         assessment_zip_with_readiness_bytes,
     )
 
-    st.subheader("1 · Upload experimental measurements")
-    reference_age_format = "Reference-age CSV (ES14 format)"
-    measurement_format = st.radio(
-        "CSV format", ("CapLife measurement template", reference_age_format),
-        horizontal=True, key="caplife_measurement_format",
-    )
-    reference_age = measurement_format == reference_age_format
-    if reference_age:
-        st.caption("Required columns: " + ", ".join(REFERENCE_AGE_COLUMNS))
-        st.caption(
-            "In the ES14 sample, Age_h is NASA reference aging time and Resistance_Ohm "
-            "is the real part of impedance measured near 10 kHz."
+    def clear_public_sample() -> None:
+        st.session_state.pop("caplife_public_sample_active", None)
+
+    def load_public_sample() -> None:
+        st.session_state["caplife_measurement_format"] = REFERENCE_FORMAT
+        st.session_state["caplife_public_sample_active"] = True
+
+    using_sample = st.session_state.get("caplife_public_sample_active", False)
+    upload_column, sample_column = st.columns([1.7, 1])
+    with upload_column, st.container(border=True, key="caplife_upload_card"):
+        st.subheader("Upload measurements")
+        measurement_format = st.radio(
+            "CSV format", ("CapLife measurement template", REFERENCE_FORMAT),
+            horizontal=True, key="caplife_measurement_format",
+            format_func=lambda value: "Reference-age CSV" if value == REFERENCE_FORMAT else "CapLife CSV",
+            on_change=clear_public_sample,
         )
-    else:
-        st.write(
-            "Upload one CSV containing one or multiple capacitor histories. "
-            "Only **Cap_ID** and **Hours** and at least one measured degradation "
-            "indicator are required. Keep unavailable measurements blank."
+        reference_age = measurement_format == REFERENCE_FORMAT
+        upload_real = st.file_uploader(
+            "Measurement CSV", type=["csv"],
+            key="caplife_reference_age_csv" if reference_age else "caplife_real_csv_v06",
+            on_change=clear_public_sample,
         )
-        st.download_button(
-            "Download real-data CSV template",
-            data=blank_template_csv(),
-            file_name="CapLife_Real_Data_Template_v0_8.csv",
-            mime="text/csv",
-        )
-        st.caption(
-            "Measured columns: Capacitance_uF, ESR_ohm, Leakage_uA, "
-            "Case_Expansion_um, H2_Generated_mL_STP, Pressure_Abs_kPa. "
-            "The final two channels are optional DIRECT measurements: H₂ must be cumulative volume at 0°C/1 atm; pressure must be absolute kPa, not gauge. "
-            "Optional: environmental, electrical, and ESR test conditions. "
-            "Units must match the column names; do not upload normalized GRU features as raw measurements."
-        )
-    upload_real = st.file_uploader(
-        "Upload real-data CSV (8 MB maximum)", type=["csv"],
-        key="caplife_reference_age_csv" if reference_age else "caplife_real_csv_v06",
-    )
-    if upload_real is None:
-        if reference_age:
-            st.info("Upload your reference-age CSV to see one summary and a measured history for each capacitor.")
-            st.stop()
-        st.info(
-            "Choose a CSV to view measurement completeness, recorded changes, and graphs. "
-            "The synthetic GRU is **not** run in this mode."
-        )
-        with st.expander("How to prepare measurement data"):
-            st.write(
-                "A row is one measurement for one capacitor at a stated operating hour. "
-                "Include actual measured capacitance, ESR, leakage, or case expansion in the "
-                "documented units. Supply a measured hour-zero baseline when possible. "
-                "For meaningful ESR comparison, document the same ESR_Test_Hz and "
-                "ESR_Test_Temp_C for the readings being compared. "
-                "Do not fill unknown measurements with artificial values."
+        with st.expander("CSV columns and units"):
+            if reference_age:
+                st.code(", ".join(REFERENCE_AGE_COLUMNS), language=None)
+                st.write("The example uses NASA reference aging hours. Resistance is the real impedance measured near 10 kHz.")
+            else:
+                st.write(
+                    "Include **Cap_ID**, **Hours**, and at least one measured indicator. "
+                    "Use the units in the template and leave unavailable values blank. "
+                    "Add an hour-zero baseline when available. Record comparable ESR test frequency and temperature. "
+                    "H₂ volume is cumulative at 0°C and 1 atm. Internal pressure uses absolute kPa."
+                )
+                st.download_button(
+                    "Download CSV template", blank_template_csv(),
+                    "CapLife_measurements_template.csv", mime="text/csv",
+                )
+        st.caption("Uploads are processed on the app server. Share data you have permission to use.")
+    with sample_column, st.container(border=True, key="caplife_sample_card"):
+        st.subheader("Explore the NASA example")
+        st.write("Follow measured capacitance and resistance in eight capacitors from the ES14 study.")
+        if using_sample:
+            st.caption("NASA ES14 is loaded.")
+            st.button("Clear example", on_click=clear_public_sample)
+            st.download_button(
+                "Download example CSV", PUBLIC_SAMPLE.read_bytes(),
+                "nasa_es14_reference.csv", mime="text/csv",
             )
+        else:
+            st.button("Load public example", type="primary", on_click=load_public_sample)
+        st.markdown("[NASA source ↗](https://data.phmsociety.org/nasa/#12-capacitor-electrical-stress)")
+    if not using_sample and upload_real is None:
         st.stop()
 
-    if upload_real.size > 8 * 1024 * 1024:
-        st.error("This prototype accepts at most 8 MB per uploaded file.")
+    payload = PUBLIC_SAMPLE.read_bytes() if using_sample else upload_real.getvalue()
+    if len(payload) > 8 * 1024 * 1024:
+        st.error("The CSV exceeds the 8 MB limit.")
         st.stop()
     try:
-        uploaded_frame = read_experimental_csv(upload_real.getvalue(), reference_age)
+        uploaded_frame = read_experimental_csv(payload, reference_age)
         if reference_age:
             summary, history = assess_reference_age_measurements(uploaded_frame)
         else:
@@ -418,10 +441,8 @@ if workflow == "Experimental measurements (v0.8)":
         st.info("Correct the source CSV and upload it again. No values were generated to replace missing readings.")
         st.stop()
 
-    st.info(
-        "**Measured health only.** A lifetime forecast needs validation on independent capacitors "
-        "with comparable operating conditions and observed outcomes."
-    )
+    st.header("Measurement results")
+    st.caption("NASA ES14 example" if using_sample else upload_real.name)
 
     def show_observed_threshold(capacitance_history: pd.DataFrame) -> None:
         with st.expander("Check an observed capacitance-loss threshold"):
@@ -439,31 +460,44 @@ if workflow == "Experimental measurements (v0.8)":
                                "caplife_observed_threshold.csv", mime="text/csv")
 
     if reference_age:
-        st.subheader("2 · Measured health summary")
-        total_caps, total_rows = st.columns(2)
+        total_caps, total_rows, latest_age = st.columns(3)
         total_caps.metric("Capacitors", len(summary))
         total_rows.metric("Measurement rows", f"{len(uploaded_frame):,}")
-        st.caption(
-            "Changes are relative to each capacitor’s earliest recorded age. "
-            "Readings at the same age are summarized by their median."
-        )
-        st.dataframe(summary.round(2), hide_index=True, use_container_width=True)
-        st.download_button(
-            "Download measured-health summary", data=summary.to_csv(index=False),
-            file_name="caplife_measured_health.csv", mime="text/csv",
-        )
+        latest_age.metric("Latest reference age", f"{summary['Latest_age_h'].max():,.1f} h")
+        overview, signals, exports = st.tabs(["Overview", "Signal history", "Downloads"])
+        with overview:
+            st.subheader("Measured changes")
+            st.caption(
+                "Changes use each capacitor’s earliest recorded age as its baseline. "
+                "Readings at the same age are summarized by their median."
+            )
+            st.dataframe(
+                summary.round(2), hide_index=True,
+                column_config={
+                    "Cap_ID": "Capacitor", "Baseline_age_h": "Baseline (h)",
+                    "Latest_age_h": "Latest age (h)", "Capacitance_loss_pct": "Capacitance loss (%)",
+                    "Resistance_change_pct": "Resistance change (%)", "RUL_status": "Remaining life",
+                },
+            )
+            show_observed_threshold(history)
 
-        st.subheader("3 · Measured history")
-        cap_choice = st.selectbox("Capacitor ID", summary["Cap_ID"].tolist())
-        cap_rows = history.loc[history["Cap_ID"].eq(cap_choice)].rename(columns={
-            "Age_h": "Reference age (h)",
-            "Capacitance_loss_pct": "Capacitance loss (%)",
-            "Resistance_change_pct": "Resistance change (%)",
-        })
-        for chart, metric in zip(st.columns(2), ("Capacitance loss (%)", "Resistance change (%)")):
-            with chart:
-                st.scatter_chart(cap_rows, x="Reference age (h)", y=metric, height=280)
-        show_observed_threshold(history)
+        with signals:
+            st.subheader("Measured history")
+            cap_choice = st.selectbox("Capacitor ID", summary["Cap_ID"].tolist())
+            cap_rows = history.loc[history["Cap_ID"].eq(cap_choice)].rename(columns={
+                "Age_h": "Reference age (h)",
+                "Capacitance_loss_pct": "Capacitance loss (%)",
+                "Resistance_change_pct": "Resistance change (%)",
+            })
+            for chart, metric in zip(st.columns(2), ("Capacitance loss (%)", "Resistance change (%)")):
+                with chart:
+                    st.scatter_chart(cap_rows, x="Reference age (h)", y=metric, height=280)
+        with exports:
+            st.subheader("Export measured changes")
+            st.download_button(
+                "Download measured-health summary", data=summary.to_csv(index=False),
+                file_name="caplife_measured_health.csv", mime="text/csv", type="primary",
+            )
         st.stop()
 
     readings = real_report["measurements"]
@@ -482,381 +516,388 @@ if workflow == "Experimental measurements (v0.8)":
     for warning in warnings:
         st.warning(warning)
 
-    st.subheader("2 · Measurement-quality report")
-    st.caption("Zero recorded readings means 'not supplied' or 'no measurements' — not a zero sensor reading.")
-    st.dataframe(quality, hide_index=True, use_container_width=True)
+    overview, signals, research, exports = st.tabs(["Overview", "Signal history", "Research tools", "Downloads"])
+    with overview:
+        st.subheader("Measurement quality")
+        st.caption("Zero recorded readings means 'not supplied' or 'no measurements' — not a zero sensor reading.")
+        st.dataframe(quality, hide_index=True, use_container_width=True)
 
-    st.subheader("2A · Research-data readiness (NOT a health score)")
-    audit = audit_measurement_readiness(real_report)
-    st.caption(
-        "This audit flags missing baselines, sparse histories, unrecorded conditions "
-        "and measurement gaps. It does not certify sensor accuracy or predict RUL."
-    )
-    st.dataframe(audit["summary"], hide_index=True, use_container_width=True)
-    with st.expander("Recommended measurement and documentation improvements"):
-        st.dataframe(audit["actions"], hide_index=True, use_container_width=True)
-    with st.expander("Recorded operating and test conditions"):
-        st.dataframe(audit["conditions"], hide_index=True, use_container_width=True)
+        st.subheader("Research-data readiness")
+        audit = audit_measurement_readiness(real_report)
+        st.caption(
+            "This audit flags missing baselines, sparse histories, unrecorded conditions "
+            "and measurement gaps. It does not certify sensor accuracy or predict RUL."
+        )
+        st.dataframe(audit["summary"], hide_index=True, use_container_width=True)
+        with st.expander("Recommended measurement and documentation improvements"):
+            st.dataframe(audit["actions"], hide_index=True, use_container_width=True)
+        with st.expander("Recorded operating and test conditions"):
+            st.dataframe(audit["conditions"], hide_index=True, use_container_width=True)
 
-    st.subheader("3 · Observed degradation (no forecasting)")
-    st.dataframe(changes.round(3), hide_index=True, use_container_width=True)
-    st.caption(
-        "Changes are calculated only with an available hour-zero baseline; percentages "
-        "refer to the observed raw measurement, not to remaining life. "
-        "Case expansion is expressed as an absolute µm difference. "
-        "Inconsistent ESR test conditions suppress the ESR ratio."
-    )
-    capacitance_history = readings[["Cap_ID", "Hours"]].rename(columns={"Hours": "Age_h"})
-    capacitance_history["Capacitance_loss_pct"] = 100 * (1 - readings["C_ratio"])
-    show_observed_threshold(capacitance_history)
+        st.subheader("Observed degradation")
+        st.dataframe(changes.round(3), hide_index=True, use_container_width=True)
+        st.caption(
+            "Changes are calculated only with an available hour-zero baseline; percentages "
+            "refer to the observed raw measurement, not to remaining life. "
+            "Case expansion is expressed as an absolute µm difference. "
+            "Inconsistent ESR test conditions suppress the ESR ratio."
+        )
+        capacitance_history = readings[["Cap_ID", "Hours"]].rename(columns={"Hours": "Age_h"})
+        capacitance_history["Capacitance_loss_pct"] = 100 * (1 - readings["C_ratio"])
+        show_observed_threshold(capacitance_history)
 
-    st.subheader("4 · Inspect a capacitor's measured history")
-    cap_choice = st.selectbox("Capacitor ID", sorted(readings["Cap_ID"].unique()))
-    cap_rows = readings.loc[readings["Cap_ID"] == cap_choice].sort_values("Hours")
-    plot_groups = (
-        ("C_ratio", "Capacitance ratio"),
-        ("ESR_ratio", "ESR ratio"),
-        ("Leakage_ratio", "Leakage current ratio"),
-        ("Case_Expansion_um", "Case expansion (µm)"),
-    )
-    left, right = st.columns(2)
-    for idx, (column, label) in enumerate(plot_groups):
-        place = left if idx % 2 == 0 else right
-        with place:
-            st.markdown(f"**{label}**")
-            if column not in cap_rows or cap_rows[column].notna().sum() == 0:
-                st.caption("No comparable measured values are available.")
-            else:
-                # Scatter only: connecting points could conceal missing measurements.
-                actual_points = cap_rows[["Hours", column]].dropna()
-                st.scatter_chart(actual_points, x="Hours", y=column, height=240)
-                missing_hours = cap_rows.loc[cap_rows[column].isna(), "Hours"].tolist()
-                if missing_hours:
-                    preview = ", ".join(f"{x:g}" for x in missing_hours[:12])
-                    st.caption(
-                        f"Missing / unavailable at {preview} h"
-                        + (" (more omitted)" if len(missing_hours) > 12 else "")
-                    )
-    # Two additional measured channels. Missing channels remain missing;
-    # no assumed physics output is passed off as sensor data.
-    present_measured_gas = [
-        ("H2_Generated_mL_STP", "Measured H₂ generation (mL at 0°C, 1 atm)"),
-        ("Pressure_Abs_kPa", "Measured internal absolute pressure (kPa)"),
-    ]
-    if any(col in cap_rows and cap_rows[col].notna().any() for col, _ in present_measured_gas):
-        st.markdown("**Additional directly measured indicators (if recorded)**")
-        mleft, mright = st.columns(2)
-        for place, (column, label) in zip((mleft, mright), present_measured_gas):
+    with signals:
+        st.subheader("Measured history")
+        cap_choice = st.selectbox("Capacitor ID", sorted(readings["Cap_ID"].unique()))
+        cap_rows = readings.loc[readings["Cap_ID"] == cap_choice].sort_values("Hours")
+        plot_groups = (
+            ("C_ratio", "Capacitance ratio"),
+            ("ESR_ratio", "ESR ratio"),
+            ("Leakage_ratio", "Leakage current ratio"),
+            ("Case_Expansion_um", "Case expansion (µm)"),
+        )
+        left, right = st.columns(2)
+        for idx, (column, label) in enumerate(plot_groups):
+            place = left if idx % 2 == 0 else right
             with place:
                 st.markdown(f"**{label}**")
-                if column in cap_rows and cap_rows[column].notna().any():
-                    st.scatter_chart(cap_rows[["Hours", column]].dropna(), x="Hours", y=column, height=240)
+                if column not in cap_rows or cap_rows[column].notna().sum() == 0:
+                    st.caption("No comparable measured values are available.")
                 else:
-                    st.caption("No direct measurements supplied for this channel.")
-    with st.expander("View processed measurements"):
-        st.dataframe(cap_rows, hide_index=True, use_container_width=True)
-    gas_df = None
-    scenario_params = None
-    # v0.8 PREVIEW: optional assumption-based calculation; never treated as a measurement.
-    st.subheader("4A · H₂ generation and internal pressure (v0.8 physics preview)")
-    st.caption(
-        "Explore how **assumed** hydrogen production from a fraction of measured leakage "
-        "current could change gas quantity and internal pressure over the recorded history. "
-        "This is **not** a pressure measurement, vent-opening model, EOL assessment, or RUL prediction."
-    )
-    show_gas_preview = st.checkbox(
-        "Enable assumption-based H₂ / pressure scenario",
-        value=False,
-        key="caplife_gas_scenario_v08",
-    )
-    if show_gas_preview:
-        from caplife.gas_pressure import (
-            GasPressureInputError, calculate_h2_pressure_history,
-        )
-        with st.expander("Physics assumptions — please review before interpreting", expanded=True):
-            st.write(
-                "**Leakage current is not equivalent to hydrogen-generation current.** "
-                "This preview uses a user-selected assumed fraction of leakage current; "
-                "it then assumes a fixed fraction of generated hydrogen stays in the gas space. "
-                "Core_C is used as an assumed gas-temperature proxy. The gas is ideal and the gas space is fixed; the model does not describe "
-                "electrolyte vapor, diffusion, dissolution, venting, swelling, or actual gas chemistry. "
-                "Values shown are a *scenario*, not experimentally validated quantities."
-            )
-            scenario_left, scenario_right = st.columns(2)
-            with scenario_left:
-                assumed_headspace = st.number_input(
-                    "Assumed internal free-gas volume (mL)",
-                    min_value=0.01, value=5.0, step=0.5,
-                    key="caplife_gas_space_ml_v08",
-                )
-                assumed_h2_fraction = st.slider(
-                    "Assumed fraction of leakage current producing H₂",
-                    0.0, 1.0, 0.10, 0.05,
-                    key="caplife_gas_h2_fraction_v08",
-                )
-            with scenario_right:
-                assumed_initial_p = st.number_input(
-                    "Assumed initial absolute pressure (kPa; NOT gauge)",
-                    min_value=0.01, value=101.325, step=1.0,
-                    key="caplife_gas_initial_p_v08",
-                )
-                assumed_retained = st.slider(
-                    "Assumed fraction of formed H₂ retained in gas space",
-                    0.0, 1.0, 0.50, 0.05,
-                    key="caplife_gas_retention_v08",
-                )
-        try:
-            gas_df = calculate_h2_pressure_history(
-                cap_rows,
-                headspace_ml=assumed_headspace,
-                initial_pressure_abs_kpa=assumed_initial_p,
-                h2_current_fraction=assumed_h2_fraction,
-                retained_fraction=assumed_retained,
-            )
-        except GasPressureInputError as exc:
-            st.info(f"Gas/pressure scenario unavailable for this capacitor: {exc}")
-            st.caption(
-                "For this first preview, the selected capacitor must have a 0-hour reading "
-                "and complete Leakage_uA and Core_C readings at each recorded time. "
-                "No missing values are invented or interpolated."
-            )
-        else:
-            scenario_params = {
-                "headspace_ml": float(assumed_headspace),
-                "initial_pressure_abs_kpa": float(assumed_initial_p),
-                "h2_current_fraction": float(assumed_h2_fraction),
-                "retained_fraction": float(assumed_retained),
-                "reference_H2_volume": "0 C, 1 atm",
-                "input_provenance": "Measured leakage-current history; estimated hydrogen and pressure",
-                "model_status": "UNVALIDATED hypothetical physics scenario; NOT directly measured",
-            }
-            last = gas_df.iloc[-1]
-            indicators = st.columns(3)
-            indicators[0].metric(
-                "Calculated H₂ formed (STP equivalent)",
-                f"{last['H2_Generated_mL_STP_est']:.3g} mL",
-            )
-            indicators[1].metric(
-                "Calculated pressure (absolute)",
-                f"{last['Pressure_Abs_kPa_est']:.1f} kPa",
-            )
-            indicators[2].metric(
-                "Calculated pressure change from initial",
-                f"{last['Pressure_Change_From_Initial_kPa_est']:+.1f} kPa",
-            )
-            st.caption(
-                "H₂ volume is expressed at 0°C and 1 atm. The pressure model uses the "
-                "assumed physical headspace, not the STP gas volume. Thermal pressure "
-                "changes of the initial gas are included. Positive pressure change is "
-                "not necessarily only caused by H₂."
-            )
-            chart_left, chart_right = st.columns(2)
-            with chart_left:
-                st.markdown("**Calculated H₂ formed and retained over time (mmol)**")
-                st.line_chart(
-                    gas_df.set_index("Hours")[[
-                        "H2_Generated_mmol_est", "H2_Retained_mmol_est"
-                    ]], height=260,
-                )
-            with chart_right:
-                st.markdown("**Calculated internal pressure over time (absolute kPa)**")
-                st.line_chart(
-                    gas_df.set_index("Hours")["Pressure_Abs_kPa_est"],
-                    height=260,
-                )
-            with st.expander("Inspect calculation table and equations"):
-                st.dataframe(gas_df, hide_index=True, use_container_width=True)
-                st.latex(r"Q(t) = \int_0^t I_{\rm leakage}(\tau) \, d\tau")
-                st.latex(r"n_{H_2,\rm generated}(t) = \eta \frac{Q(t)}{2F}")
-                st.latex(r"P_{\rm abs}(t) = P_0\frac{T(t)}{T_0} + \frac{n_{H_2,\rm retained}(t) R T(t)}{V_{\rm headspace}}")
-                st.caption(
-                    "The integral uses trapezoidal approximation between observed leakage "
-                    "readings. η and retention are assumptions, not inferred physical constants."
-                )
-            st.info(
-                "This is an **assumption-based estimate**, not measured H₂/pressure. "
-                "When you download a report, the scenario will be included in separately "
-                "labeled columns or sheets/pages, never merged into raw measurements."
-            )
-
-    # v0.9: descriptive rates from six direct measurement channels only.
-    # This module NEVER consumes hypothetical H2 / pressure scenario outputs.
-    from caplife.degradation_rates import calculate_degradation_rates
-    st.subheader("4B · Six-indicator degradation rates (v0.9 preview)")
-    st.caption(
-        "Rate = observed change divided by elapsed hours. Acceleration = change in "
-        "successive interval rates divided by elapsed midpoint time. Both use "
-        "measured points only: missing readings are never filled or bridged. "
-        "No health score, failure threshold, RUL, or forecasting is calculated."
-    )
-    rate_report = calculate_degradation_rates(readings)
-    rate_summary = rate_report["summary"].loc[
-        lambda df: df["Cap_ID"] == cap_choice
-    ]
-    # Display very small accelerations in scientific notation without
-    # incorrectly rounding a nonzero value to zero.
-    rate_summary_display = rate_summary.copy()
-    for numeric_column in (
-        "Time_weighted_rate_per_hour", "Latest_rate_per_hour",
-        "Latest_acceleration_per_hour2",
-    ):
-        rate_summary_display[numeric_column] = rate_summary_display[numeric_column].map(
-            lambda value: "—" if pd.isna(value) else f"{value:+.5g}"
-        )
-    st.dataframe(rate_summary_display, hide_index=True, use_container_width=True)
-    for warning in rate_report["warnings"]:
-        if str(cap_choice) in warning:
-            st.warning(warning)
-    with st.expander("View interval-by-interval rates for all six indicators", expanded=False):
-        rate_rows = rate_report["intervals"].loc[
-            lambda df: df["Cap_ID"] == cap_choice
+                    # Scatter only: connecting points could conceal missing measurements.
+                    actual_points = cap_rows[["Hours", column]].dropna()
+                    st.scatter_chart(actual_points, x="Hours", y=column, height=240)
+                    missing_hours = cap_rows.loc[cap_rows[column].isna(), "Hours"].tolist()
+                    if missing_hours:
+                        preview = ", ".join(f"{x:g}" for x in missing_hours[:12])
+                        st.caption(
+                            f"Missing / unavailable at {preview} h"
+                            + (" (more omitted)" if len(missing_hours) > 12 else "")
+                        )
+        # Two additional measured channels. Missing channels remain missing;
+        # no assumed physics output is passed off as sensor data.
+        present_measured_gas = [
+            ("H2_Generated_mL_STP", "Measured H₂ generation (mL at 0°C, 1 atm)"),
+            ("Pressure_Abs_kPa", "Measured internal absolute pressure (kPa)"),
         ]
-        two_cols = st.columns(2)
-        for chart_idx, (_, display_name, unit) in enumerate((
-            ("Capacitance_uF", "Capacitance", "µF"),
-            ("ESR_ohm", "ESR", "Ω"),
-            ("Leakage_uA", "Leakage current", "µA"),
-            ("Case_Expansion_um", "Case expansion", "µm"),
-            ("H2_Generated_mL_STP", "H₂ generated (directly measured)", "mL STP"),
-            ("Pressure_Abs_kPa", "Internal absolute pressure (directly measured)", "kPa absolute"),
-        )):
-            with two_cols[chart_idx % 2]:
-                st.markdown(f"**{display_name}: {unit}/h**")
-                present = rate_rows.loc[rate_rows["Indicator"] == display_name]
-                if present.empty:
-                    st.caption("Insufficient adjacent comparable measurements.")
-                else:
-                    st.scatter_chart(
-                        present[["Midpoint_Hour", "Rate_per_hour"]],
-                        x="Midpoint_Hour", y="Rate_per_hour", height=220,
+        if any(col in cap_rows and cap_rows[col].notna().any() for col, _ in present_measured_gas):
+            st.markdown("**Additional directly measured indicators (if recorded)**")
+            mleft, mright = st.columns(2)
+            for place, (column, label) in zip((mleft, mright), present_measured_gas):
+                with place:
+                    st.markdown(f"**{label}**")
+                    if column in cap_rows and cap_rows[column].notna().any():
+                        st.scatter_chart(cap_rows[["Hours", column]].dropna(), x="Hours", y=column, height=240)
+                    else:
+                        st.caption("No direct measurements supplied for this channel.")
+        with st.expander("View processed measurements"):
+            st.dataframe(cap_rows, hide_index=True, use_container_width=True)
+        gas_df = None
+        scenario_params = None
+        # v0.8 PREVIEW: optional assumption-based calculation; never treated as a measurement.
+
+    with research:
+        st.subheader("H₂ and internal pressure scenario")
+        st.caption(
+            "Explore how **assumed** hydrogen production from a fraction of measured leakage "
+            "current could change gas quantity and internal pressure over the recorded history. "
+            "This is **not** a pressure measurement, vent-opening model, EOL assessment, or RUL prediction."
+        )
+        show_gas_preview = st.checkbox(
+            "Enable assumption-based H₂ / pressure scenario",
+            value=False,
+            key="caplife_gas_scenario_v08",
+        )
+        if show_gas_preview:
+            from caplife.gas_pressure import (
+                GasPressureInputError, calculate_h2_pressure_history,
+            )
+            with st.expander("Physics assumptions — please review before interpreting", expanded=True):
+                st.write(
+                    "**Leakage current is not equivalent to hydrogen-generation current.** "
+                    "This preview uses a user-selected assumed fraction of leakage current; "
+                    "it then assumes a fixed fraction of generated hydrogen stays in the gas space. "
+                    "Core_C is used as an assumed gas-temperature proxy. The gas is ideal and the gas space is fixed; the model does not describe "
+                    "electrolyte vapor, diffusion, dissolution, venting, swelling, or actual gas chemistry. "
+                    "Values shown are a *scenario*, not experimentally validated quantities."
+                )
+                scenario_left, scenario_right = st.columns(2)
+                with scenario_left:
+                    assumed_headspace = st.number_input(
+                        "Assumed internal free-gas volume (mL)",
+                        min_value=0.01, value=5.0, step=0.5,
+                        key="caplife_gas_space_ml_v08",
                     )
+                    assumed_h2_fraction = st.slider(
+                        "Assumed fraction of leakage current producing H₂",
+                        0.0, 1.0, 0.10, 0.05,
+                        key="caplife_gas_h2_fraction_v08",
+                    )
+                with scenario_right:
+                    assumed_initial_p = st.number_input(
+                        "Assumed initial absolute pressure (kPa; NOT gauge)",
+                        min_value=0.01, value=101.325, step=1.0,
+                        key="caplife_gas_initial_p_v08",
+                    )
+                    assumed_retained = st.slider(
+                        "Assumed fraction of formed H₂ retained in gas space",
+                        0.0, 1.0, 0.50, 0.05,
+                        key="caplife_gas_retention_v08",
+                    )
+            try:
+                gas_df = calculate_h2_pressure_history(
+                    cap_rows,
+                    headspace_ml=assumed_headspace,
+                    initial_pressure_abs_kpa=assumed_initial_p,
+                    h2_current_fraction=assumed_h2_fraction,
+                    retained_fraction=assumed_retained,
+                )
+            except GasPressureInputError as exc:
+                st.info(f"Gas/pressure scenario unavailable for this capacitor: {exc}")
+                st.caption(
+                    "For this first preview, the selected capacitor must have a 0-hour reading "
+                    "and complete Leakage_uA and Core_C readings at each recorded time. "
+                    "No missing values are invented or interpolated."
+                )
+            else:
+                scenario_params = {
+                    "headspace_ml": float(assumed_headspace),
+                    "initial_pressure_abs_kpa": float(assumed_initial_p),
+                    "h2_current_fraction": float(assumed_h2_fraction),
+                    "retained_fraction": float(assumed_retained),
+                    "reference_H2_volume": "0 C, 1 atm",
+                    "input_provenance": "Measured leakage-current history; estimated hydrogen and pressure",
+                    "model_status": "UNVALIDATED hypothetical physics scenario; NOT directly measured",
+                }
+                last = gas_df.iloc[-1]
+                indicators = st.columns(3)
+                indicators[0].metric(
+                    "Calculated H₂ formed (STP equivalent)",
+                    f"{last['H2_Generated_mL_STP_est']:.3g} mL",
+                )
+                indicators[1].metric(
+                    "Calculated pressure (absolute)",
+                    f"{last['Pressure_Abs_kPa_est']:.1f} kPa",
+                )
+                indicators[2].metric(
+                    "Calculated pressure change from initial",
+                    f"{last['Pressure_Change_From_Initial_kPa_est']:+.1f} kPa",
+                )
+                st.caption(
+                    "H₂ volume is expressed at 0°C and 1 atm. The pressure model uses the "
+                    "assumed physical headspace, not the STP gas volume. Thermal pressure "
+                    "changes of the initial gas are included. Positive pressure change is "
+                    "not necessarily only caused by H₂."
+                )
+                chart_left, chart_right = st.columns(2)
+                with chart_left:
+                    st.markdown("**Calculated H₂ formed and retained over time (mmol)**")
+                    st.line_chart(
+                        gas_df.set_index("Hours")[[
+                            "H2_Generated_mmol_est", "H2_Retained_mmol_est"
+                        ]], height=260,
+                    )
+                with chart_right:
+                    st.markdown("**Calculated internal pressure over time (absolute kPa)**")
+                    st.line_chart(
+                        gas_df.set_index("Hours")["Pressure_Abs_kPa_est"],
+                        height=260,
+                    )
+                with st.expander("Inspect calculation table and equations"):
+                    st.dataframe(gas_df, hide_index=True, use_container_width=True)
+                    st.latex(r"Q(t) = \int_0^t I_{\rm leakage}(\tau) \, d\tau")
+                    st.latex(r"n_{H_2,\rm generated}(t) = \eta \frac{Q(t)}{2F}")
+                    st.latex(r"P_{\rm abs}(t) = P_0\frac{T(t)}{T_0} + \frac{n_{H_2,\rm retained}(t) R T(t)}{V_{\rm headspace}}")
+                    st.caption(
+                        "The integral uses trapezoidal approximation between observed leakage "
+                        "readings. η and retention are assumptions, not inferred physical constants."
+                    )
+                st.info(
+                    "This is an **assumption-based estimate**, not measured H₂/pressure. "
+                    "When you download a report, the scenario will be included in separately "
+                    "labeled columns or sheets/pages, never merged into raw measurements."
+                )
+
+        # v0.9: descriptive rates from six direct measurement channels only.
+        # This module NEVER consumes hypothetical H2 / pressure scenario outputs.
+        from caplife.degradation_rates import calculate_degradation_rates
+        st.subheader("Measured degradation rates")
         st.caption(
-            "Dots represent rates between adjacent recorded timestamps, plotted at "
-            "interval midpoints. They are NOT continuously measured rates. "
-            "Each graph uses its own units and scale."
+            "Rate = observed change divided by elapsed hours. Acceleration = change in "
+            "successive interval rates divided by elapsed midpoint time. Both use "
+            "measured points only: missing readings are never filled or bridged. "
+            "No health score, failure threshold, RUL, or forecasting is calculated."
         )
-        st.dataframe(rate_rows.round(10), hide_index=True, use_container_width=True)
-    with st.expander("Inspect rate acceleration calculations", expanded=False):
-        accel_rows = rate_report["accelerations"].loc[
+        rate_report = calculate_degradation_rates(readings)
+        rate_summary = rate_report["summary"].loc[
             lambda df: df["Cap_ID"] == cap_choice
         ]
-        st.caption(
-            "Acceleration here means a change in *measurement rate*, not mechanical "
-            "acceleration. It requires three consecutive nonmissing readings "
-            "and has units of indicator per hour squared. Negative capacitance "
-            "acceleration can indicate faster loss, but neither sign is a health verdict."
-        )
-        if accel_rows.empty:
-            st.info("No comparable three-point sequences are available for this capacitor.")
-        else:
-            chosen_indicator = st.selectbox(
-                "Indicator for rate-acceleration chart",
-                sorted(accel_rows["Indicator"].unique()),
-                key="caplife_v09_accel_indicator",
+        # Display very small accelerations in scientific notation without
+        # incorrectly rounding a nonzero value to zero.
+        rate_summary_display = rate_summary.copy()
+        for numeric_column in (
+            "Time_weighted_rate_per_hour", "Latest_rate_per_hour",
+            "Latest_acceleration_per_hour2",
+        ):
+            rate_summary_display[numeric_column] = rate_summary_display[numeric_column].map(
+                lambda value: "—" if pd.isna(value) else f"{value:+.5g}"
             )
-            accel_subset = accel_rows.loc[accel_rows["Indicator"] == chosen_indicator]
-            st.scatter_chart(
-                accel_subset[["At_Hours", "Acceleration_per_hour2"]],
-                x="At_Hours", y="Acceleration_per_hour2", height=250,
-            )
-            st.dataframe(accel_rows.round(12), hide_index=True, use_container_width=True)
-    st.download_button(
-        "Download observed interval-rate table (CSV)",
-        data=rate_report["intervals"].to_csv(index=False).encode("utf-8-sig"),
-        file_name="CapLife_v0_9_Observed_Interval_Rates.csv", mime="text/csv",
-        key="caplife_v09_rate_csv",
-    )
-    st.caption(
-        "Rates and changes may reflect ambient/core temperature, voltage, load, "
-        "measurement methods, or test conditions—not only aging. A slope sign "
-        "alone is not a failure or health classification."
-    )
-    st.caption(
-        "This v0.9 preview adds descriptive rates to the Excel/PDF downloads. "
-        "CSV measured histories remain unchanged; the separate rate CSV is above. "
-        "Rates have not been validated for health inference."
-    )
-
-    st.subheader("5 · Download your assessment")
-    from caplife.report_exports import csv_report_bytes, csv_measurement_history_bytes, xlsx_report_bytes, pdf_report_bytes
-
-    chosen_format = st.radio(
-        "Choose one file format",
-        ("CSV (.csv)", "Excel (.xlsx)", "PDF (.pdf)"),
-        horizontal=True,
-        index=1,
-        key="caplife_report_format_v07",
-    )
-    if chosen_format == "CSV (.csv)":
-        csv_content = st.radio(
-            "What should the CSV contain?",
-            ("Complete measured history (all capacitors)", "Per-capacitor assessment summary"),
-            horizontal=True,
-            key="caplife_csv_content_v08",
-        )
-        if csv_content.startswith("Complete measured history"):
+        st.dataframe(rate_summary_display, hide_index=True, use_container_width=True)
+        for warning in rate_report["warnings"]:
+            if str(cap_choice) in warning:
+                st.warning(warning)
+        with st.expander("View interval-by-interval rates for all six indicators", expanded=False):
+            rate_rows = rate_report["intervals"].loc[
+                lambda df: df["Cap_ID"] == cap_choice
+            ]
+            two_cols = st.columns(2)
+            for chart_idx, (_, display_name, unit) in enumerate((
+                ("Capacitance_uF", "Capacitance", "µF"),
+                ("ESR_ohm", "ESR", "Ω"),
+                ("Leakage_uA", "Leakage current", "µA"),
+                ("Case_Expansion_um", "Case expansion", "µm"),
+                ("H2_Generated_mL_STP", "H₂ generated (directly measured)", "mL STP"),
+                ("Pressure_Abs_kPa", "Internal absolute pressure (directly measured)", "kPa absolute"),
+            )):
+                with two_cols[chart_idx % 2]:
+                    st.markdown(f"**{display_name}: {unit}/h**")
+                    present = rate_rows.loc[rate_rows["Indicator"] == display_name]
+                    if present.empty:
+                        st.caption("Insufficient adjacent comparable measurements.")
+                    else:
+                        st.scatter_chart(
+                            present[["Midpoint_Hour", "Rate_per_hour"]],
+                            x="Midpoint_Hour", y="Rate_per_hour", height=220,
+                        )
             st.caption(
-                "Every recorded measurement row, including all available six indicators "
-                "and their baseline-normalized ratios. Physics scenario estimates are "
-                "never mixed into the measured history."
+                "Dots represent rates between adjacent recorded timestamps, plotted at "
+                "interval midpoints. They are NOT continuously measured rates. "
+                "Each graph uses its own units and scale."
             )
-            output_bytes = csv_measurement_history_bytes(real_report)
-            export_basename = "CapLife_AI_v0_8_Measured_History"
-        else:
+            st.dataframe(rate_rows.round(10), hide_index=True, use_container_width=True)
+        with st.expander("Inspect rate acceleration calculations", expanded=False):
+            accel_rows = rate_report["accelerations"].loc[
+                lambda df: df["Cap_ID"] == cap_choice
+            ]
             st.caption(
-                "One row per capacitor with observed changes. If enabled, assumption-based "
-                "gas/pressure results appear in clearly named estimate columns."
+                "Acceleration here means a change in *measurement rate*, not mechanical "
+                "acceleration. It requires three consecutive nonmissing readings "
+                "and has units of indicator per hour squared. Negative capacitance "
+                "acceleration can indicate faster loss, but neither sign is a health verdict."
             )
-            output_bytes = csv_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params)
-            export_basename = "CapLife_AI_v0_8_Assessment_Summary"
-        extension = "csv"
-        mime_type = "text/csv"
-    elif chosen_format == "Excel (.xlsx)":
-        st.caption("Includes measured histories, six-indicator rate/acceleration tables and separate charts; optional physics estimates remain separately labeled.")
-        output_bytes = xlsx_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params, rate_report=rate_report)
-        export_basename = "CapLife_AI_v0_9_Assessment"
-        extension = "xlsx"
-        mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    else:
-        st.caption("Includes descriptive rate and acceleration appendices for the selected capacitor, plus optional separately labeled physics scenario.")
-        output_bytes = pdf_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params, rate_report=rate_report)
-        export_basename = "CapLife_AI_v0_9_Assessment"
-        extension = "pdf"
-        mime_type = "application/pdf"
-    st.download_button(
-        f"Download {chosen_format} assessment",
-        data=output_bytes,
-        file_name=f"{export_basename}.{extension}",
-        mime=mime_type,
-        type="primary",
-    )
-    with st.expander("Advanced: download every assessment table as separate CSV files (ZIP)"):
-        original_zip = assessment_zip_with_readiness_bytes(real_report, audit)
-        if gas_df is not None:
-            # Add explicitly named assumption-based files without altering the
-            # existing measured and audit CSVs or inventing readings.
-            from zipfile import ZIP_DEFLATED, ZipFile
-            with BytesIO() as new_zip_buf:
-                with ZipFile(BytesIO(original_zip), "r") as original, ZipFile(new_zip_buf, "w", ZIP_DEFLATED) as archive:
-                    for filename in original.namelist():
-                        archive.writestr(filename, original.read(filename))
-                    archive.writestr("hypothetical_H2_pressure_scenario_estimates.csv", gas_df.to_csv(index=False))
-                    archive.writestr("hypothetical_H2_pressure_scenario_assumptions.json", json.dumps(scenario_params, indent=2))
-                original_zip = new_zip_buf.getvalue()
+            if accel_rows.empty:
+                st.info("No comparable three-point sequences are available for this capacitor.")
+            else:
+                chosen_indicator = st.selectbox(
+                    "Indicator for rate-acceleration chart",
+                    sorted(accel_rows["Indicator"].unique()),
+                    key="caplife_v09_accel_indicator",
+                )
+                accel_subset = accel_rows.loc[accel_rows["Indicator"] == chosen_indicator]
+                st.scatter_chart(
+                    accel_subset[["At_Hours", "Acceleration_per_hour2"]],
+                    x="At_Hours", y="Acceleration_per_hour2", height=250,
+                )
+                st.dataframe(accel_rows.round(12), hide_index=True, use_container_width=True)
         st.download_button(
-            "Download complete CSV package (ZIP)",
-            data=original_zip,
-            file_name="CapLife_v0_8_Measurement_and_Physics.zip",
-            mime="application/zip",
+            "Download observed interval-rate table (CSV)",
+            data=rate_report["intervals"].to_csv(index=False).encode("utf-8-sig"),
+            file_name="CapLife_v0_9_Observed_Interval_Rates.csv", mime="text/csv",
+            key="caplife_v09_rate_csv",
         )
-    st.info(
-        "**Limitations:** This mode does not determine health, EOL, RUL, uncertainty "
-        "intervals, or maintenance actions. A complete dataset can still have inaccurate "
-        "sensors, changing operating conditions, or incomparable test settings. "
-        "The uploaded file is processed by the web-app server; check hosting/privacy "
-        "policies before submitting confidential experiments."
-    )
-    st.caption("CapLife AI v0.8 · six-indicator observation plus optional hypothetical physics · no real-data neural-network prediction")
+        st.caption(
+            "Rates and changes may reflect ambient/core temperature, voltage, load, "
+            "measurement methods, or test conditions—not only aging. A slope sign "
+            "alone is not a failure or health classification."
+        )
+        st.caption(
+            "This v0.9 preview adds descriptive rates to the Excel/PDF downloads. "
+            "CSV measured histories remain unchanged; the separate rate CSV is above. "
+            "Rates have not been validated for health inference."
+        )
+
+    with exports:
+        st.subheader("Download your assessment")
+        from caplife.report_exports import csv_report_bytes, csv_measurement_history_bytes, xlsx_report_bytes, pdf_report_bytes
+
+        chosen_format = st.radio(
+            "Choose one file format",
+            ("CSV (.csv)", "Excel (.xlsx)", "PDF (.pdf)"),
+            horizontal=True,
+            index=1,
+            key="caplife_report_format_v07",
+        )
+        if chosen_format == "CSV (.csv)":
+            csv_content = st.radio(
+                "What should the CSV contain?",
+                ("Complete measured history (all capacitors)", "Per-capacitor assessment summary"),
+                horizontal=True,
+                key="caplife_csv_content_v08",
+            )
+            if csv_content.startswith("Complete measured history"):
+                st.caption(
+                    "Every recorded measurement row, including all available six indicators "
+                    "and their baseline-normalized ratios. Physics scenario estimates are "
+                    "never mixed into the measured history."
+                )
+                output_bytes = csv_measurement_history_bytes(real_report)
+                export_basename = "CapLife_AI_v0_8_Measured_History"
+            else:
+                st.caption(
+                    "One row per capacitor with observed changes. If enabled, assumption-based "
+                    "gas/pressure results appear in clearly named estimate columns."
+                )
+                output_bytes = csv_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params)
+                export_basename = "CapLife_AI_v0_8_Assessment_Summary"
+            extension = "csv"
+            mime_type = "text/csv"
+        elif chosen_format == "Excel (.xlsx)":
+            st.caption("Includes measured histories, six-indicator rate/acceleration tables and separate charts; optional physics estimates remain separately labeled.")
+            output_bytes = xlsx_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params, rate_report=rate_report)
+            export_basename = "CapLife_AI_v0_9_Assessment"
+            extension = "xlsx"
+            mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        else:
+            st.caption("Includes descriptive rate and acceleration appendices for the selected capacitor, plus optional separately labeled physics scenario.")
+            output_bytes = pdf_report_bytes(real_report, audit, cap_choice, gas_df, scenario_params, rate_report=rate_report)
+            export_basename = "CapLife_AI_v0_9_Assessment"
+            extension = "pdf"
+            mime_type = "application/pdf"
+        st.download_button(
+            f"Download {chosen_format} assessment",
+            data=output_bytes,
+            file_name=f"{export_basename}.{extension}",
+            mime=mime_type,
+            type="primary",
+        )
+        with st.expander("Advanced: download every assessment table as separate CSV files (ZIP)"):
+            original_zip = assessment_zip_with_readiness_bytes(real_report, audit)
+            if gas_df is not None:
+                # Add explicitly named assumption-based files without altering the
+                # existing measured and audit CSVs or inventing readings.
+                from zipfile import ZIP_DEFLATED, ZipFile
+                with BytesIO() as new_zip_buf:
+                    with ZipFile(BytesIO(original_zip), "r") as original, ZipFile(new_zip_buf, "w", ZIP_DEFLATED) as archive:
+                        for filename in original.namelist():
+                            archive.writestr(filename, original.read(filename))
+                        archive.writestr("hypothetical_H2_pressure_scenario_estimates.csv", gas_df.to_csv(index=False))
+                        archive.writestr("hypothetical_H2_pressure_scenario_assumptions.json", json.dumps(scenario_params, indent=2))
+                    original_zip = new_zip_buf.getvalue()
+            st.download_button(
+                "Download complete CSV package (ZIP)",
+                data=original_zip,
+                file_name="CapLife_v0_8_Measurement_and_Physics.zip",
+                mime="application/zip",
+            )
+        st.info(
+            "**Limitations:** This mode does not determine health, EOL, RUL, uncertainty "
+            "intervals, or maintenance actions. A complete dataset can still have inaccurate "
+            "sensors, changing operating conditions, or incomparable test settings. "
+            "The uploaded file is processed by the web-app server; check hosting/privacy "
+            "policies before submitting confidential experiments."
+        )
+        st.caption("CapLife AI v0.8 · six-indicator observation plus optional hypothetical physics · no real-data neural-network prediction")
+
     st.stop()
 
 # Previous synthetic RUL page is intentionally preserved below this line.

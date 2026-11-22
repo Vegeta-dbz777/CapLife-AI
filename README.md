@@ -8,9 +8,13 @@ demonstration illustrates a PyTorch GRU and a remaining-life estimate.
 > **Research release.** Uploads return measurement assessments and observed
 > threshold status. Real-device RUL and its uncertainty still need validation.
 
-Open [CapLife AI](https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/) to
-use the app in a browser. Select **Experimental measurements** to upload one
-or more capacitors in a CSV. Use **Check an observed capacitance-loss threshold**
+Open [CapLife AI](https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/) in a
+browser. Choose **Load public example** to explore measurements from eight NASA
+ES14 capacitors, or upload a CSV with your own measurements. The **Overview**,
+**Signal history**, and **Downloads** tabs organize the results. Use **Share this
+app** in the sidebar to copy the public link.
+
+Use **Check an observed capacitance-loss threshold**
 to set a loss threshold, inspect the first recorded crossing window, and export
 device status. The general CSV uses an hour-zero baseline when present. The
 reference-age CSV uses its first recorded age as the baseline.
@@ -42,7 +46,8 @@ subsequent below-threshold reading where available.
    ```
 
 6. Your browser should open the application, usually at `http://localhost:8501`.
-   With no upload, it shows a pre-generated synthetic example automatically.
+   Choose **Load public example** for measured NASA data or **Synthetic demo**
+   in the sidebar for the simulated histories.
 
 The bundled `artifacts/gru_demo_state.pt` and `artifacts/metadata.json` contain
 trained model weights and preprocessing statistics. You **do not need to train**
@@ -50,7 +55,7 @@ the example model to open the website.
 
 ### Public-data forecast benchmark
 
-Choose **Public-data forecast benchmark** in the sidebar to inspect the results
+Choose **Forecast benchmarks** in the sidebar to inspect the results
 and download the device-level forecasts. The inputs are the six devices in
 [NASA EOS-2](https://data.nasa.gov/dataset/capacitor-electrical-stress-2) and the
 eight devices in the

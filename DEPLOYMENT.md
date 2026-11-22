@@ -8,14 +8,14 @@
 4. Enter `py -m pip install -r requirements.txt`.
 5. Enter `py -m streamlit run app.py`.
 6. A browser tab opens, usually at `http://localhost:8501`.
-7. Click **Analyze capacitor**; the bundled simulated dataset will work with no upload.
+7. Click **Load public example** to explore the bundled NASA ES14 measurements.
 8. To stop the local server, return to PowerShell and press **Ctrl+C**.
 
 ## Option B: Share an online website
 
 1. Create an empty GitHub repository.
 2. Add the **contents** of `CapLife_AI_Starter` to the repository root. In particular:
-   `app.py`, `requirements.txt`, `caplife/`, `artifacts/`, `sample_data/`.
+   `app.py`, `requirements.txt`, `.streamlit/`, `assets/`, `caplife/`, `artifacts/`, `sample_data/`.
 3. Check that `artifacts/gru_demo_state.pt` and `artifacts/metadata.json` were committed.
 4. Go to https://share.streamlit.io and choose to deploy a new app.
 5. Select your repository and branch. Enter `app.py` as the main file.
