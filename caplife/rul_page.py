@@ -187,7 +187,7 @@ def _show_results(result: dict, attempts: int) -> None:
 
     st.subheader("2 · Test on capacitors the model never saw")
     st.dataframe(
-        result["model_table"], hide_index=True, use_container_width=True,
+        result["model_table"], hide_index=True, width="stretch",
         column_config={
             "Average miss (h)": st.column_config.NumberColumn(format="%.0f"),
             "Failures inside 80% range": st.column_config.NumberColumn(format="percent"),
@@ -197,12 +197,12 @@ def _show_results(result: dict, attempts: int) -> None:
     st.caption("Average miss is how far the predicted failure age fell outside each test capacitor's observed "
                "failure window (zero when inside it). The two simpler models show whether the neural network "
                "adds anything.")
-    st.altair_chart(_interval_chart(result["test_table"], observed=True), use_container_width=True)
+    st.altair_chart(_interval_chart(result["test_table"], observed=True), width="stretch")
     st.caption("Teal bars: the neural network's 80% range, with the dot at its predicted failure age. "
                "Orange: when each test capacitor actually failed (between last seen working and found failed), "
                "or a triangle where it was still working when testing stopped.")
     with st.expander("Each test capacitor"):
-        st.dataframe(result["test_table"].round(1), hide_index=True, use_container_width=True)
+        st.dataframe(result["test_table"].round(1), hide_index=True, width="stretch")
 
     st.subheader("3 · Verdict")
     if result["passed"]:
@@ -230,10 +230,10 @@ def _show_results(result: dict, attempts: int) -> None:
                  "shown because the test did not pass.")
     else:
         if forecasts is not None and len(forecasts):
-            st.altair_chart(_interval_chart(forecasts, observed=False), use_container_width=True)
+            st.altair_chart(_interval_chart(forecasts, observed=False), width="stretch")
             st.caption("Teal bars: 80% range for the age at failure, with the dot at the predicted failure age. "
                        "Orange tick: each capacitor's latest reading.")
-            st.dataframe(_forecast_display(forecasts), hide_index=True, use_container_width=True)
+            st.dataframe(_forecast_display(forecasts), hide_index=True, width="stretch")
             made_at = forecasts["Forecast made at (h)"].unique()
             when = f"{made_at[0]:,.0f} h" if len(made_at) == 1 else "each capacitor's third complete reading"
             st.caption(f"Each forecast uses readings up to {when}, the same point used in testing. "

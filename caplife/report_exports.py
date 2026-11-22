@@ -452,10 +452,8 @@ def _flowables_height(flowables, width: float, frame_height: float) -> float:
 def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=None, assumptions=None, rate_report=None) -> bytes:
     """Print-ready A4 landscape report. Summary covers all caps, plots selected cap."""
     from reportlab.lib import colors
-    from reportlab.lib.enums import TA_CENTER
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-    from reportlab.lib.units import mm
     from reportlab.platypus import (
         SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak,
     )
@@ -585,7 +583,6 @@ def pdf_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario=
     story.append(Paragraph(f"Measured history / {_pdf_txt(selected_cap)}", styles["CapTitle"]))
     story.append(Paragraph("Observed data only. Points are not connected or interpolated across gaps.", styles["CapSub"]))
     plot_bytes = _trend_png(history)
-    from reportlab.lib.utils import ImageReader
     extra_plots = len(_graph_channels_for(history)) > 4
     # Six measured plots need to share the page with operating conditions and
     # the research-limitations notice. 0.62 fits all three without orphaning

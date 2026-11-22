@@ -85,3 +85,11 @@ def test_saved_model_beats_the_trend_baseline_and_is_calibrated():
     assert neural["median_absolute_error_h"] < metrics["trend_baseline"]["median_absolute_error_h"]
     assert np.isfinite(neural["median_interval_width_h"])
     assert list(json.loads((ARTIFACTS / "metadata.json").read_text())["signals"]) == list(SIGNALS)
+
+
+def test_zero_baseline_leakage_is_refused_rather_than_reported_as_end_of_life(model):
+    measurements, _ = example_fleet()
+    readings = measurements.loc[measurements["Cap_ID"].eq("DEMO_01")].reset_index(drop=True)
+    readings.loc[0, "Leakage_uA"] = 0.0
+    with pytest.raises(ValueError, match="baseline"):
+        model.assess(readings)

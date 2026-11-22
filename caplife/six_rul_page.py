@@ -111,9 +111,20 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
     if complete.empty:
         st.error("No reading has all six indicators.")
         return None
+    # Capacitance, ESR and leakage are scored as ratios to the first reading, so it must be positive.
+    first = complete.sort_values("Hours").groupby("Cap_ID").first()
+    unusable = first.index[(first[["Capacitance_uF", "ESR_ohm", "Leakage_uA"]] <= 0).any(axis=1)].tolist()
+    if unusable:
+        shown = ", ".join(unusable[:5]) + (" …" if len(unusable) > 5 else "")
+        st.warning(f"Left out {len(unusable)} capacitor(s) whose first reading has zero leakage current, which "
+                   f"cannot serve as a baseline: {shown}.")
+        complete = complete.loc[~complete["Cap_ID"].isin(unusable)]
+        if complete.empty:
+            return None
     return complete.loc[:, ["Cap_ID", "Hours", *SIGNALS]], None, upload.name
 
 
+@st.cache_data(show_spinner="Assessing capacitors…", max_entries=4)
 def _assess(measurements: pd.DataFrame) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
     model = _model()
     return {device: (readings.sort_values("Hours").reset_index(drop=True), model.assess(readings))
@@ -122,7 +133,7 @@ def _assess(measurements: pd.DataFrame) -> dict[str, tuple[pd.DataFrame, pd.Data
 
 def _fleet_table(results: dict, truth: dict | None) -> pd.DataFrame:
     rows = []
-    for device, (readings, assessment) in results.items():
+    for device, (_, assessment) in results.items():
         last = assessment.iloc[-1]
         has_rul = "RUL_median_h" in assessment and pd.notna(last.get("RUL_median_h"))
         row = {
@@ -184,7 +195,7 @@ def _signal_charts(readings: pd.DataFrame) -> None:
             y="limit:Q", tooltip=[alt.Tooltip("limit:Q", title="Limit", format=f",.{DIGITS[signal]}f")])
         with columns[index % 3]:
             st.caption(f"**{INDICATOR_LABELS[signal]}** · dashed line: limit, {LIMIT_TEXT[signal]}")
-            st.altair_chart((line + rule).properties(height=170), use_container_width=True)
+            st.altair_chart((line + rule).properties(height=170), width="stretch")
 
 
 def _rul_chart(assessment: pd.DataFrame, true_eol: float | None) -> alt.Chart:
@@ -236,7 +247,7 @@ def _model_card() -> None:
          "Typical 80% range width (h)": neural["median_interval_width_h"]},
         {"Method": "Trend line to nearest limit", "Typical error (h)": trend["median_absolute_error_h"],
          "Typical relative error": None, "True RUL inside 80% range": None, "Typical 80% range width (h)": None},
-    ]), hide_index=True, use_container_width=True, column_config={
+    ]), hide_index=True, width="stretch", column_config={
         "Typical error (h)": st.column_config.NumberColumn(format="%.0f"),
         "Typical relative error": st.column_config.NumberColumn(format="percent"),
         "True RUL inside 80% range": st.column_config.NumberColumn(format="percent"),
@@ -276,7 +287,7 @@ def render() -> None:
               "Overall health (%)": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%d%%")}
     if truth:
         config["Simulated true end of life (h)"] = st.column_config.NumberColumn(format="%.0f")
-    st.dataframe(fleet, hide_index=True, use_container_width=True, column_config=config)
+    st.dataframe(fleet, hide_index=True, width="stretch", column_config=config)
 
     st.subheader("Capacitor detail")
     device = st.selectbox("Capacitor", list(results), key="caplife_six_device")
@@ -308,7 +319,7 @@ def render() -> None:
     if assessment["RUL_median_h"].notna().any() if "RUL_median_h" in assessment else False:
         st.markdown("##### Remaining-life prediction over time")
         true_eol = truth[device]["eol_h"] if truth else None
-        st.altair_chart(_rul_chart(assessment, true_eol), use_container_width=True)
+        st.altair_chart(_rul_chart(assessment, true_eol), width="stretch")
         st.caption("Each point uses only the readings available at that age. Shaded band: 80% range."
                    + (" Dashed orange line: the simulated true remaining life." if truth else ""))
 

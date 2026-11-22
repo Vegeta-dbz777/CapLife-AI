@@ -242,6 +242,8 @@ class SixRULModel:
     def assess(self, readings: pd.DataFrame) -> pd.DataFrame:
         """Health and remaining life at every reading from the third onward, each using only past readings."""
         readings = readings.sort_values("Hours").reset_index(drop=True)
+        if (readings.loc[0, ["Capacitance_uF", "ESR_ohm", "Leakage_uA"]] <= 0).any():
+            raise ValueError("The first reading needs positive capacitance, ESR and leakage current to serve as a baseline.")
         used = limit_used(readings)
         rows = []
         if len(readings) >= MIN_READINGS:

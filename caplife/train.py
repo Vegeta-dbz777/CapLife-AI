@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 import random
 import numpy as np
-import pandas as pd
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score

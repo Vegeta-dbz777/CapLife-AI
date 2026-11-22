@@ -571,7 +571,7 @@ if workflow == MEASUREMENT_WORKFLOW:
     with overview:
         st.subheader("Measurement quality")
         st.caption("Zero recorded readings means 'not supplied' or 'no measurements' — not a zero sensor reading.")
-        st.dataframe(quality, hide_index=True, use_container_width=True)
+        st.dataframe(quality, hide_index=True, width="stretch")
 
         st.subheader("Research-data readiness")
         audit = audit_measurement_readiness(real_report)
@@ -579,14 +579,14 @@ if workflow == MEASUREMENT_WORKFLOW:
             "This audit flags missing baselines, sparse histories, unrecorded conditions "
             "and measurement gaps. It does not certify sensor accuracy or predict RUL."
         )
-        st.dataframe(audit["summary"], hide_index=True, use_container_width=True)
+        st.dataframe(audit["summary"], hide_index=True, width="stretch")
         with st.expander("Recommended measurement and documentation improvements"):
-            st.dataframe(audit["actions"], hide_index=True, use_container_width=True)
+            st.dataframe(audit["actions"], hide_index=True, width="stretch")
         with st.expander("Recorded operating and test conditions"):
-            st.dataframe(audit["conditions"], hide_index=True, use_container_width=True)
+            st.dataframe(audit["conditions"], hide_index=True, width="stretch")
 
         st.subheader("Observed degradation")
-        st.dataframe(changes.round(3), hide_index=True, use_container_width=True)
+        st.dataframe(changes.round(3), hide_index=True, width="stretch")
         st.caption(
             "Changes are calculated only with an available hour-zero baseline; percentages "
             "refer to the observed raw measurement, not to remaining life. "
@@ -642,7 +642,7 @@ if workflow == MEASUREMENT_WORKFLOW:
                     else:
                         st.caption("No direct measurements supplied for this channel.")
         with st.expander("View processed measurements"):
-            st.dataframe(cap_rows, hide_index=True, use_container_width=True)
+            st.dataframe(cap_rows, hide_index=True, width="stretch")
         gas_df = None
         scenario_params = None
         # v0.8 PREVIEW: optional assumption-based calculation; never treated as a measurement.
@@ -755,7 +755,7 @@ if workflow == MEASUREMENT_WORKFLOW:
                         height=260,
                     )
                 with st.expander("Inspect calculation table and equations"):
-                    st.dataframe(gas_df, hide_index=True, use_container_width=True)
+                    st.dataframe(gas_df, hide_index=True, width="stretch")
                     st.latex(r"Q(t) = \int_0^t I_{\rm leakage}(\tau) \, d\tau")
                     st.latex(r"n_{H_2,\rm generated}(t) = \eta \frac{Q(t)}{2F}")
                     st.latex(r"P_{\rm abs}(t) = P_0\frac{T(t)}{T_0} + \frac{n_{H_2,\rm retained}(t) R T(t)}{V_{\rm headspace}}")
@@ -793,7 +793,7 @@ if workflow == MEASUREMENT_WORKFLOW:
             rate_summary_display[numeric_column] = rate_summary_display[numeric_column].map(
                 lambda value: "—" if pd.isna(value) else f"{value:+.5g}"
             )
-        st.dataframe(rate_summary_display, hide_index=True, use_container_width=True)
+        st.dataframe(rate_summary_display, hide_index=True, width="stretch")
         for warning in rate_report["warnings"]:
             if str(cap_choice) in warning:
                 st.warning(warning)
@@ -825,7 +825,7 @@ if workflow == MEASUREMENT_WORKFLOW:
                 "interval midpoints. They are NOT continuously measured rates. "
                 "Each graph uses its own units and scale."
             )
-            st.dataframe(rate_rows.round(10), hide_index=True, use_container_width=True)
+            st.dataframe(rate_rows.round(10), hide_index=True, width="stretch")
         with st.expander("Inspect rate acceleration calculations", expanded=False):
             accel_rows = rate_report["accelerations"].loc[
                 lambda df: df["Cap_ID"] == cap_choice
@@ -849,7 +849,7 @@ if workflow == MEASUREMENT_WORKFLOW:
                     accel_subset[["At_Hours", "Acceleration_per_hour2"]],
                     x="At_Hours", y="Acceleration_per_hour2", height=250,
                 )
-                st.dataframe(accel_rows.round(12), hide_index=True, use_container_width=True)
+                st.dataframe(accel_rows.round(12), hide_index=True, width="stretch")
         st.download_button(
             "Download observed interval-rate table (CSV)",
             data=rate_report["intervals"].to_csv(index=False).encode("utf-8-sig"),
@@ -1045,7 +1045,7 @@ with st.sidebar:
         data=TEMPLATE_DATA.read_bytes(),
         file_name="aec_measurements_template.csv",
         mime="text/csv",
-        use_container_width=True,
+        width="stretch",
     )
     with st.expander("Measurement units"):
         for key, description in metadata["unit_conventions"].items():
@@ -1130,7 +1130,7 @@ st.caption(
     f"{prediction_hour:,.0f} hours. Future measurements are excluded."
 )
 
-if st.button("Analyze capacitor", type="primary", use_container_width=True):
+if st.button("Analyze capacitor", type="primary", width="stretch"):
     try:
         assessment = assess_capacitor(history_to_show, net, metadata)
         trend_assessment = assess_trend(history_to_show, window_size=SEQ_LEN)
@@ -1295,7 +1295,7 @@ if result_is_current:
             }
             for name, hours in trend_result["indicator_rul_hours"].items()
         ]
-        st.dataframe(pd.DataFrame(detail_rows), hide_index=True, use_container_width=True)
+        st.dataframe(pd.DataFrame(detail_rows), hide_index=True, width="stretch")
         st.caption(trend_result["message"])
 
     st.caption(
@@ -1366,7 +1366,7 @@ with right:
     st.line_chart(plot_df[["Case_Strain_Index"]])
 
 with st.expander("View measurements used at the selected prediction time"):
-    st.dataframe(history_to_show, use_container_width=True, hide_index=True)
+    st.dataframe(history_to_show, width="stretch", hide_index=True)
     st.download_button(
         "Download measurements up to prediction time",
         data=history_to_show.to_csv(index=False),
@@ -1379,7 +1379,7 @@ with st.expander("View full capacitor history (reference only — includes futur
         "For retrospective research only. These later readings are NOT passed to "
         "the GRU when predicting at an earlier time."
     )
-    st.dataframe(cap_df, use_container_width=True, hide_index=True)
+    st.dataframe(cap_df, width="stretch", hide_index=True)
     st.download_button(
         "Download full selected history",
         data=cap_df.to_csv(index=False),
@@ -1505,7 +1505,7 @@ else:
         "validated lifetime ground truth."
     )
 
-if st.button("Analyze RUL across the available history", use_container_width=True):
+if st.button("Analyze RUL across the available history", width="stretch"):
     try:
         with st.spinner("Calculating retrospective predictions…"):
             trajectory = make_prediction_trajectory(
@@ -1592,7 +1592,7 @@ if trajectory_is_current:
             "90% simultaneous coverage across a capacitor's history.**"
         )
     with st.expander("View time-by-time predictions"):
-        st.dataframe(trajectory, use_container_width=True, hide_index=True)
+        st.dataframe(trajectory, width="stretch", hide_index=True)
     st.download_button(
         "Download retrospective RUL results (CSV)",
         data=trajectory.to_csv(index=False),

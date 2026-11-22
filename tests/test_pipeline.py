@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from caplife.simulator import simulate_capacitors
-from caplife.data import DataValidationError, validate_measurements, windowize, last_window
+from caplife.data import DataValidationError, validate_measurements, windowize
 from caplife.predict import load_engine, assess_capacitor
 
 
