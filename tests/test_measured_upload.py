@@ -3,8 +3,8 @@ import io
 import pandas as pd
 import pytest
 
-from caplife.observed_threshold import observed_capacitance_threshold
-from caplife.real_data import RealDataValidationError, assess_real_measurements, read_experimental_csv
+from caplife.measurement_review import observed_capacitance_threshold, read_experimental_csv
+from caplife.real_data import RealDataValidationError, assess_real_measurements
 
 
 def test_literal_capacitor_id_and_missing_measurement_are_preserved():

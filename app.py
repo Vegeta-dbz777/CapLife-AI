@@ -299,14 +299,13 @@ if workflow == "Public-data forecast benchmark":
 
 if workflow == "Experimental measurements (v0.8)":
     from io import BytesIO
-    from caplife.observed_threshold import observed_capacitance_threshold
+    from caplife.measurement_review import observed_capacitance_threshold, read_experimental_csv
     from caplife.real_data import (
         REFERENCE_AGE_COLUMNS,
         RealDataValidationError,
         assess_real_measurements,
         assess_reference_age_measurements,
         blank_template_csv,
-        read_experimental_csv,
     )
     from caplife.readiness import (
         audit_measurement_readiness,
