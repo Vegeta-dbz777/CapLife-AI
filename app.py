@@ -114,6 +114,26 @@ if workflow == "Public-data forecast benchmark":
     )
     st.download_button("Download all device forecasts", predictions.to_csv(index=False),
                        "caplife_public_benchmark.csv", mime="text/csv")
+    with st.expander("How results change with forecast age"):
+        sensitivity = pd.DataFrame(benchmark["inspection_age_sensitivity"])
+        study_ages = sensitivity.loc[sensitivity["test_study"] == test_study]
+        age_columns = ["eos2_age_h", "pofinn_age_h", "observed_crossings"]
+        st.write(
+            "Mean forecast miss in hours at six pairs of actual inspection ages. Each row uses "
+            "devices that were still below the threshold at their forecast inspection."
+        )
+        st.dataframe(study_ages.pivot(index=age_columns, columns="model", values="mean_gap_h")
+                     .reset_index().rename(columns={
+                         "eos2_age_h": "EOS-2 age (h)",
+                         "pofinn_age_h": "PoFINN age (h)",
+                         "observed_crossings": "Observed crossings",
+                     }).round(1), hide_index=True)
+        st.caption(
+            "The same devices contribute at multiple ages. Later rows can contain fewer devices "
+            "because earlier crossings have already occurred."
+        )
+        st.download_button("Download age sensitivity results", sensitivity.to_csv(index=False),
+                           "caplife_benchmark_by_forecast_age.csv", mime="text/csv")
     with st.expander("Methods and sources"):
         st.write(
             "Age only uses the training study's crossing windows. Recent trend extrapolates the last "

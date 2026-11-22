@@ -18,6 +18,11 @@ def test_first_crossing_and_right_censoring():
     assert np.isinf(actual.loc["Censored", "rul_upper_h"])
     assert actual.loc["Crossing", "trend_h"] == actual.loc["Censored", "trend_h"]
 
+    later = landmark_outcomes(loss, 142).set_index("device")
+    assert later.index.tolist() == ["Censored"]
+    assert later.loc["Censored", "rul_lower_h"] == 24
+    assert np.isinf(later.loc["Censored", "rul_upper_h"])
+
 
 def test_held_out_outcomes_do_not_change_forecasts():
     data = json.loads(Path("artifacts/public_benchmark.json").read_text(encoding="utf-8"))

@@ -59,6 +59,13 @@ device in the other source, with test inputs limited to measurements through
 94 hours. The benchmark uses original inspections and retains each study's
 recorded aging clock.
 
+**How results change with forecast age** compares six pairs of nearby original
+inspections. Each study keeps its actual age in a pair. The forecast cohort
+at each age consists of devices still below the threshold, based on their
+measurements through that inspection. The same devices can contribute at
+multiple ages. The sensitivity download includes the number of observed
+crossings and censored devices, point errors, and prediction-band metrics.
+
 - **Age only** fits a log-normal distribution to the training study's remaining
   times at 94 hours. Its median is the same for every test device.
 - **Recent trend** fits a straight line to the last three available losses and

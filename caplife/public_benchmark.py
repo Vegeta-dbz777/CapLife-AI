@@ -1,4 +1,4 @@
-"""Reproduce the 94-hour cross-study benchmark on public capacitor measurements."""
+"""Reproduce the cross-study forecasts and inspection-age sensitivity check."""
 from __future__ import annotations
 
 import argparse
@@ -18,6 +18,8 @@ from scipy.stats import norm
 
 
 LANDMARK_H = 94
+# Pair actual inspection ages to keep every forecast on its study's measured clock.
+INSPECTION_PAIRS_H = ((47, 46), (71, 70), (94, 94), (116, 118), (139, 142), (161, 166))
 THRESHOLD_PCT = 20
 BAND_MASS = 0.80
 EOS2_URLS = (
@@ -65,19 +67,22 @@ def load_pofinn(payload: bytes) -> pd.DataFrame:
     return 100 * (1 - capacitance.div(capacitance.iloc[0]))
 
 
-def landmark_outcomes(loss: pd.DataFrame) -> pd.DataFrame:
+def landmark_outcomes(loss: pd.DataFrame, landmark_h: int = LANDMARK_H) -> pd.DataFrame:
     """Use originals to bracket first recorded crossings and preserve right censoring."""
     ages = loss.index.to_numpy(dtype=float)
     if (not np.isfinite(ages).all() or not np.isfinite(loss).all().all()
             or ages[0] != 0 or not np.all(np.diff(ages) > 0)
-            or LANDMARK_H not in ages):
-        raise ValueError("Expected complete, increasing inspection ages from zero through 94 h.")
-    history = loss.loc[:LANDMARK_H]
-    if len(history) < 3 or (history >= THRESHOLD_PCT).any().any():
-        raise ValueError("All benchmark devices must be below the threshold at and before 94 h.")
+            or landmark_h not in ages):
+        raise ValueError(f"Expected complete, increasing inspections from zero including {landmark_h} h.")
+    history = loss.loc[:landmark_h]
+    if len(history) < 3 or landmark_h >= ages[-1]:
+        raise ValueError("The origin must have three inspections and later follow-up.")
+    eligible = loss.columns[~(history >= THRESHOLD_PCT).any()]
+    if eligible.empty:
+        raise ValueError("No devices are still below the threshold at the forecast origin.")
 
     rows = []
-    for device, series in loss.items():
+    for device, series in loss[eligible].items():
         values = series.to_numpy()
         hits = np.flatnonzero(values >= THRESHOLD_PCT)
         lower_h, upper_h = (ages[hits[0] - 1], ages[hits[0]]) if hits.size else (ages[-1], np.inf)
@@ -88,8 +93,8 @@ def landmark_outcomes(loss: pd.DataFrame) -> pd.DataFrame:
         rows.append({
             "device": device,
             "loss_at_origin_pct": float(recent.iloc[-1]),
-            "rul_lower_h": lower_h - LANDMARK_H,
-            "rul_upper_h": upper_h - LANDMARK_H,
+            "rul_lower_h": lower_h - landmark_h,
+            "rul_upper_h": upper_h - landmark_h,
             "trend_h": (THRESHOLD_PCT - recent.iloc[-1]) / slope,
         })
     return pd.DataFrame(rows)
@@ -181,12 +186,19 @@ def evaluate(train: pd.DataFrame, test: pd.DataFrame, train_name: str,
 def build_benchmark(eos2: bytes, pofinn: bytes) -> dict:
     eos2_loss, eos2_mat = load_eos2(eos2)
     pofinn_loss = load_pofinn(pofinn)
-    studies = {"NASA EOS-2": landmark_outcomes(eos2_loss), "PoFINN": landmark_outcomes(pofinn_loss)}
-    summary, predictions = [], []
-    for train_study, test_study in (("NASA EOS-2", "PoFINN"), ("PoFINN", "NASA EOS-2")):
-        metrics, detail = evaluate(studies[train_study], studies[test_study], train_study, test_study)
-        summary.extend(metrics)
-        predictions.extend(detail)
+    summary, predictions, sensitivity = [], [], []
+    for eos2_age, pofinn_age in INSPECTION_PAIRS_H:
+        studies = {
+            "NASA EOS-2": landmark_outcomes(eos2_loss, eos2_age),
+            "PoFINN": landmark_outcomes(pofinn_loss, pofinn_age),
+        }
+        for train_study, test_study in (("NASA EOS-2", "PoFINN"), ("PoFINN", "NASA EOS-2")):
+            metrics, detail = evaluate(studies[train_study], studies[test_study], train_study, test_study)
+            if eos2_age == pofinn_age == LANDMARK_H:
+                summary.extend(metrics)
+                predictions.extend(detail)
+            sensitivity.extend({"eos2_age_h": eos2_age, "pofinn_age_h": pofinn_age, **row}
+                               for row in metrics)
     return {
         "reference_age_h": LANDMARK_H,
         "capacitance_loss_threshold_pct": THRESHOLD_PCT,
@@ -198,6 +210,7 @@ def build_benchmark(eos2: bytes, pofinn: bytes) -> dict:
         },
         "summary": summary,
         "predictions": predictions,
+        "inspection_age_sensitivity": sensitivity,
     }
 
 
