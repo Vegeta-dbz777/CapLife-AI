@@ -15,6 +15,7 @@ from caplife.measurement_review import read_experimental_csv
 from caplife.real_data import RealDataValidationError, validate_real_measurements
 from caplife.six_rul import INDICATOR_LABELS, MIN_READINGS, NOMINAL_LIMITS, SixRULModel, example_fleet
 from caplife.six_sim import ATMOSPHERE_KPA, EOL_LIMITS, SIGNALS
+from caplife.versioning import code_version
 
 ARTIFACT_DIR = Path(__file__).resolve().parents[1] / "artifacts" / "six_rul"
 UPLOAD, EXAMPLE, SAVED = "Upload my data", "Use simulated example capacitors", "My saved datasets"
@@ -35,14 +36,23 @@ INPUT_ERRORS = (RealDataValidationError, ValueError, pd.errors.ParserError,
                 pd.errors.EmptyDataError, UnicodeError)
 
 
+# Each cache takes code_version() so an app update (new model, simulator or code) refreshes it.
 @st.cache_resource(show_spinner=False)
-def _model() -> SixRULModel:
+def _load_model(version: str) -> SixRULModel:
     return SixRULModel(ARTIFACT_DIR)
 
 
+def _model() -> SixRULModel:
+    return _load_model(code_version())
+
+
 @st.cache_data(show_spinner=False)
-def _example() -> tuple[pd.DataFrame, dict]:
+def _load_example(version: str) -> tuple[pd.DataFrame, dict]:
     return example_fleet()
+
+
+def _example() -> tuple[pd.DataFrame, dict]:
+    return _load_example(code_version())
 
 
 def _status(health: float, reached: bool) -> str:
@@ -140,10 +150,14 @@ def _parse(payload: bytes, label: str, save: bool) -> tuple[pd.DataFrame, dict |
 
 
 @st.cache_data(show_spinner="Assessing capacitors…", max_entries=4)
-def _assess(measurements: pd.DataFrame) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
+def _assess_cached(measurements: pd.DataFrame, version: str) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
     model = _model()
     return {device: (readings.sort_values("Hours").reset_index(drop=True), model.assess(readings))
             for device, readings in measurements.groupby("Cap_ID", sort=True)}
+
+
+def _assess(measurements: pd.DataFrame) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
+    return _assess_cached(measurements, code_version())
 
 
 def _fleet_table(results: dict, truth: dict | None) -> pd.DataFrame:
