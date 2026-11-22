@@ -46,6 +46,7 @@ with st.sidebar:
         '<div class="caplife-brand"><span class="caplife-brand-mark" aria-hidden="true">CL</span>'
         '<span>CapLife AI</span></div>'
     )
+    st.html(ASSETS / "theme-switch.html", unsafe_allow_javascript=True)
     workflow = st.radio(
         "Workspace",
         tuple(WORKFLOWS),

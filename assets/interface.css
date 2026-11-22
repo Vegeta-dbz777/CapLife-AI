@@ -4,10 +4,6 @@
     padding: 3rem clamp(1.05rem, 3.3vw, 3.2rem) 4rem;
 }
 
-[data-testid="stHeader"] {
-    background-color: var(--st-background-color, #0b1214);
-}
-
 [data-testid="stSidebar"] [data-testid="stSidebarContent"] {
     padding-top: 1.15rem;
 }
@@ -17,7 +13,7 @@
     align-items: center;
     gap: .8rem;
     margin-bottom: .9rem;
-    color: #eef5f4;
+    color: inherit;
     font-size: 1.23rem;
     font-weight: 730;
     letter-spacing: -.025em;
@@ -28,13 +24,66 @@
     width: 2.45rem;
     height: 2.45rem;
     place-items: center;
-    border: 1px solid #4a7e75;
+    border: 1px solid light-dark(#82afa5, #4a7e75);
     border-radius: .72rem;
-    background: #203f3b;
-    color: #9cf9e5;
+    background: light-dark(#d0e9e3, #203f3b);
+    color: light-dark(#1b5b51, #9cf9e5);
     font-size: .81rem;
     font-weight: 780;
     letter-spacing: .04em;
+}
+
+.caplife-theme-switch {
+    display: flex;
+    width: 100%;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: .7rem;
+    padding: .4rem .7rem;
+    border: 1px solid light-dark(#b8cdca, #2d4145);
+    border-radius: .65rem;
+    background: light-dark(#f7faf9, #142125);
+    color: inherit;
+    font: inherit;
+    font-size: .9rem;
+    cursor: pointer;
+}
+
+.caplife-theme-switch:hover {
+    border-color: light-dark(#08796b, #4fddc5);
+}
+
+.caplife-theme-switch:focus-visible {
+    outline: 2px solid light-dark(#08796b, #4fddc5);
+    outline-offset: 2px;
+}
+
+.caplife-theme-switch span {
+    display: flex;
+    width: 2.05rem;
+    height: 1.12rem;
+    align-items: center;
+    padding: .15rem;
+    border-radius: 1rem;
+    background: #617672;
+}
+
+.caplife-theme-switch span::before {
+    width: .82rem;
+    height: .82rem;
+    border-radius: 50%;
+    background: white;
+    content: "";
+}
+
+.caplife-theme-switch[aria-checked="true"] span {
+    justify-content: flex-end;
+    background: #4fddc5;
+}
+
+.caplife-theme-switch[aria-checked="true"] span::before {
+    background: #0b2524;
 }
 
 .caplife-hero {
@@ -99,13 +148,13 @@
     align-items: baseline;
     gap: .65rem;
     margin: .78rem 0 .5rem;
-    color: #b7cacb;
+    color: light-dark(#486361, #b7cacb);
     font-size: .9rem;
     line-height: 1.45;
 }
 
 .caplife-scope span {
-    color: #ffc995;
+    color: light-dark(#80451d, #ffc995);
     font-weight: 650;
     white-space: nowrap;
 }
@@ -113,13 +162,13 @@
 [data-testid="stMetric"] {
     min-width: 0;
     padding: .9rem 1rem;
-    border: 1px solid #2b4144;
+    border: 1px solid light-dark(#b8cdca, #2b4144);
     border-radius: .75rem;
-    background: #121f22;
+    background: light-dark(#edf5f3, #121f22);
 }
 
 [data-testid="stMetricLabel"] p {
-    color: #aec4c6;
+    color: light-dark(#405d5b, #aec4c6);
 }
 
 [data-testid="stMetricValue"] {
@@ -127,7 +176,7 @@
 }
 
 [data-testid="stFileUploaderDropzone"] {
-    border: 1px dashed #486a6c;
+    border: 1px dashed light-dark(#779a96, #486a6c);
     border-radius: .72rem;
 }
 
@@ -144,15 +193,15 @@
 }
 
 .st-key-caplife_sample_card [data-testid="stBaseButton-primary"] {
-    border-color: #73e8d4;
-    background: #4fddc5;
-    color: #092825;
+    border-color: light-dark(#08796b, #73e8d4);
+    background: light-dark(#08796b, #4fddc5);
+    color: light-dark(white, #092825);
     font-weight: 680;
 }
 
 .st-key-caplife_sample_card [data-testid="stBaseButton-primary"]:hover {
-    background: #82ecdb;
-    color: #092825;
+    background: light-dark(#07665b, #82ecdb);
+    color: light-dark(white, #092825);
 }
 
 [data-testid="stTabs"] [role="tablist"] {

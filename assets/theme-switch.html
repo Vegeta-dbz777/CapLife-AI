@@ -1,0 +1,50 @@
+<button class="caplife-theme-switch" type="button" role="switch" aria-checked="false">
+    Dark mode <span aria-hidden="true"></span>
+</button>
+<script>
+(() => {
+    const control = document.querySelector(".caplife-theme-switch");
+    const app = control?.closest(".stApp");
+    if (!app || control.dataset.ready) return;
+    control.dataset.ready = "true";
+
+    const isDark = () => getComputedStyle(app).colorScheme === "dark";
+    const sync = () => control.setAttribute("aria-checked", String(isDark()));
+    sync();
+    const activeTheme = new MutationObserver(() => {
+        if (control.isConnected) sync();
+        else activeTheme.disconnect();
+    });
+    activeTheme.observe(app, { attributes: true, attributeFilter: ["class"] });
+
+    control.addEventListener("click", () => {
+        const menu = app.querySelector('[data-testid="stMainMenuButton"]');
+        if (!menu || control.hasAttribute("aria-busy")) return;
+        const target = isDark() ? "Light" : "Dark";
+        const selector = `[data-testid="stMainMenuItem-theme-${target}"]`;
+        control.setAttribute("aria-busy", "true");
+
+        // Choose the native theme so charts, tables, and saved browser settings follow it.
+        const menuOpened = new MutationObserver(selectTheme);
+        const timeout = setTimeout(finish, 1000);
+        function finish() {
+            menuOpened.disconnect();
+            clearTimeout(timeout);
+            control.removeAttribute("aria-busy");
+        }
+        function selectTheme() {
+            const option = document.querySelector(selector);
+            if (!option) return;
+            finish();
+            option.click();
+            requestAnimationFrame(() => {
+                sync();
+                control.focus({ preventScroll: true });
+            });
+        }
+        menuOpened.observe(document.body, { childList: true, subtree: true });
+        if (menu.getAttribute("aria-expanded") !== "true") menu.click();
+        selectTheme();
+    });
+})();
+</script>

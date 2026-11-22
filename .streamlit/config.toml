@@ -1,18 +1,32 @@
 [theme]
-base = "dark"
+font = "sans serif"
+baseRadius = "0.65rem"
+showWidgetBorder = true
+showSidebarBorder = true
+
+[theme.light]
+primaryColor = "#08796B"
+backgroundColor = "#F7FAF9"
+secondaryBackgroundColor = "#E9F2F0"
+textColor = "#142A2A"
+borderColor = "#B8CDCA"
+dataframeHeaderBackgroundColor = "#DFECE9"
+chartCategoricalColors = ["#08796B", "#A24D16", "#345BB2", "#A03762", "#567529"]
+
+[theme.light.sidebar]
+backgroundColor = "#EAF3F1"
+secondaryBackgroundColor = "#F7FAF9"
+
+[theme.dark]
 primaryColor = "#4FDDC5"
 backgroundColor = "#0B1214"
 secondaryBackgroundColor = "#142125"
 textColor = "#EEF5F4"
-font = "sans serif"
-baseRadius = "0.65rem"
 borderColor = "#2D4145"
-showWidgetBorder = true
-showSidebarBorder = true
 dataframeHeaderBackgroundColor = "#1A2B2F"
 chartCategoricalColors = ["#4FDDC5", "#F6B77B", "#8CA9FF", "#F689A4", "#ACD078"]
 
-[theme.sidebar]
+[theme.dark.sidebar]
 backgroundColor = "#101B1E"
 secondaryBackgroundColor = "#19292D"
 
