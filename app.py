@@ -30,7 +30,6 @@ MEASUREMENT_WORKFLOW = "Experimental measurements (v0.8)"
 RUL_WORKFLOW = "Train an RUL model on uploaded outcomes"
 SIX_RUL_WORKFLOW = "Six-parameter RUL prediction (demonstration model)"
 MY_DATA_WORKFLOW = "My saved datasets"
-REFERENCE_FORMAT = "Reference-age CSV (ES14 format)"
 MAIN_WORKFLOWS = {
     MEASUREMENT_WORKFLOW: "Analyze measurements",
     SIX_RUL_WORKFLOW: "RUL prediction",
@@ -396,13 +395,12 @@ if workflow == "Public-data forecast benchmark":
 if workflow == MEASUREMENT_WORKFLOW:
     from io import BytesIO
     from caplife.measurement_review import (
-        observed_capacitance_threshold, read_experimental_csv, reference_age_observations,
+        group_capacitor_warnings, nasa_reference_to_caplife, observed_capacitance_threshold,
+        read_experimental_csv, reference_age_observations,
     )
     from caplife.real_data import (
-        REFERENCE_AGE_COLUMNS,
         RealDataValidationError,
         assess_real_measurements,
-        assess_reference_age_measurements,
         blank_template_csv,
     )
     from caplife.readiness import (
@@ -414,52 +412,41 @@ if workflow == MEASUREMENT_WORKFLOW:
         st.session_state.pop("caplife_public_sample_active", None)
 
     def load_public_sample() -> None:
-        st.session_state["caplife_measurement_format"] = REFERENCE_FORMAT
         st.session_state["caplife_public_sample_active"] = True
+
+    @st.cache_data(show_spinner=False)
+    def public_sample_frame() -> pd.DataFrame:
+        return nasa_reference_to_caplife(pd.read_csv(PUBLIC_SAMPLE, dtype={"Cap_ID": str}))
 
     using_sample = st.session_state.get("caplife_public_sample_active", False)
     upload_column, sample_column = st.columns([1.7, 1])
     with upload_column, st.container(border=True, key="caplife_upload_card"):
         st.subheader("Upload measurements")
-        measurement_format = st.radio(
-            "CSV format", ("CapLife measurement template", REFERENCE_FORMAT),
-            horizontal=True, key="caplife_measurement_format",
-            format_func=lambda value: "Reference-age CSV" if value == REFERENCE_FORMAT else "CapLife CSV",
-            captions=("Up to six parameters plus test conditions · full report",
-                      "Capacitance and resistance by aging hour, NASA style · quick summary"),
-            on_change=clear_public_sample,
-        )
-        reference_age = measurement_format == REFERENCE_FORMAT
         upload_real = st.file_uploader(
-            "Measurement CSV", type=["csv"],
-            key="caplife_reference_age_csv" if reference_age else "caplife_real_csv_v06",
-            on_change=clear_public_sample,
+            "Measurement CSV", type=["csv"], key="caplife_real_csv_v06", on_change=clear_public_sample,
         )
         with st.expander("CSV columns and units"):
-            if reference_age:
-                st.code(", ".join(REFERENCE_AGE_COLUMNS), language=None)
-                st.write("The example uses NASA reference aging hours. Resistance is the real impedance measured near 10 kHz.")
-            else:
-                st.write(
-                    "Include **Cap_ID**, **Hours**, and at least one measured indicator. "
-                    "Use the units in the template and leave unavailable values blank. "
-                    "Add an hour-zero baseline when available. Record comparable ESR test frequency and temperature. "
-                    "H₂ volume is cumulative at 0°C and 1 atm. Internal pressure uses absolute kPa."
-                )
-                st.download_button(
-                    "Download CSV template", blank_template_csv(),
-                    "CapLife_measurements_template.csv", mime="text/csv",
-                )
+            st.write(
+                "Include **Cap_ID**, **Hours**, and any of the six parameters you measured: capacitance, ESR, "
+                "leakage current, case expansion, generated H₂ and internal pressure. You don't need all six; "
+                "leave unavailable values blank. Use the units in the template and add an hour-zero baseline "
+                "when available. Record the ESR test frequency and temperature. H₂ volume is cumulative at "
+                "0°C and 1 atm. Internal pressure uses absolute kPa."
+            )
+            st.download_button(
+                "Download CSV template", blank_template_csv(),
+                "CapLife_measurements_template.csv", mime="text/csv",
+            )
         st.caption("Uploads are processed on the app server. Share data you have permission to use.")
     with sample_column, st.container(border=True, key="caplife_sample_card"):
         st.subheader("Explore the NASA example")
-        st.write("Follow measured capacitance and resistance in eight capacitors from the ES14 study.")
+        st.write("Follow measured capacitance and ESR (near 10 kHz) in eight capacitors from the ES14 study.")
         if using_sample:
             st.caption("NASA ES14 is loaded.")
             st.button("Clear example", on_click=clear_public_sample)
             st.download_button(
-                "Download example CSV", PUBLIC_SAMPLE.read_bytes(),
-                "nasa_es14_reference.csv", mime="text/csv",
+                "Download example CSV", public_sample_frame().to_csv(index=False),
+                "nasa_es14_caplife.csv", mime="text/csv",
             )
         else:
             st.button("Load public example", type="primary", on_click=load_public_sample)
@@ -467,16 +454,12 @@ if workflow == MEASUREMENT_WORKFLOW:
     if not using_sample and upload_real is None:
         st.stop()
 
-    payload = PUBLIC_SAMPLE.read_bytes() if using_sample else upload_real.getvalue()
-    if len(payload) > 8 * 1024 * 1024:
+    if not using_sample and upload_real.size > 8 * 1024 * 1024:
         st.error("The CSV exceeds the 8 MB limit.")
         st.stop()
     try:
-        uploaded_frame = read_experimental_csv(payload, reference_age)
-        if reference_age:
-            summary, history = assess_reference_age_measurements(uploaded_frame)
-        else:
-            real_report = assess_real_measurements(uploaded_frame)
+        uploaded_frame = public_sample_frame() if using_sample else read_experimental_csv(upload_real.getvalue())
+        real_report = assess_real_measurements(uploaded_frame)
     except (RealDataValidationError, ValueError, pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeError) as exc:
         st.error(f"Upload could not be assessed: {exc}")
         st.info("Correct the source CSV and upload it again. No values were generated to replace missing readings.")
@@ -500,71 +483,6 @@ if workflow == MEASUREMENT_WORKFLOW:
             st.download_button("Download measured threshold status", status.to_csv(index=False),
                                "caplife_observed_threshold.csv", mime="text/csv")
 
-    if reference_age:
-        total_caps, total_rows, latest_age = st.columns(3)
-        total_caps.metric("Capacitors", len(summary))
-        total_rows.metric("Measurement rows", f"{len(uploaded_frame):,}")
-        latest_age.metric("Latest reference age", f"{summary['Latest_age_h'].max():,.1f} h")
-        overview, signals, exports = st.tabs(["Overview", "Signal history", "Downloads"])
-        with overview:
-            st.subheader("Measured changes")
-            st.caption(
-                "Changes use each capacitor’s earliest recorded age as its baseline. "
-                "Readings at the same age are summarized by their median."
-            )
-            st.dataframe(
-                summary.round(2), hide_index=True,
-                column_config={
-                    "Cap_ID": "Capacitor", "Baseline_age_h": "Baseline (h)",
-                    "Latest_age_h": "Latest age (h)", "Capacitance_loss_pct": "Capacitance loss (%)",
-                    "Resistance_change_pct": "Resistance change (%)", "RUL_status": "Remaining life",
-                },
-            )
-            notes = reference_age_observations(history)
-            share = notes["median_early_share"]
-            if share is not None and share >= 0.5:
-                low, high = notes["first_step_loss_range"]
-                first_age_low, first_age_high = notes["first_step_age_range"]
-                first_age = (f"{first_age_low:,.0f} h" if first_age_low == first_age_high
-                             else f"{first_age_low:,.0f}–{first_age_high:,.0f} h")
-                st.info(
-                    f"**Much of the capacitance loss appeared early.** Within the first "
-                    f"{notes['early_fraction']:.0%} of the recorded age span (about "
-                    f"{notes['early_cutoff_h']:,.0f} h), the median capacitor had reached "
-                    f"{share:.0%} of its latest loss. The first reading after the baseline "
-                    f"({first_age}) already showed {low:.1f}–{high:.1f}% loss. Early threshold "
-                    "crossings can reflect this initial step, so check the test protocol before "
-                    "reading them as gradual aging."
-                )
-            show_observed_threshold(history)
-
-        with signals:
-            st.subheader("Measured history")
-            cap_choice = st.selectbox("Capacitor ID", summary["Cap_ID"].tolist())
-            cap_notes = reference_age_observations(history.loc[history["Cap_ID"].eq(cap_choice)])
-            gap = cap_notes["largest_gap"]
-            if gap and (cap_notes["largest_gap_fraction_of_span"] or 0) >= 0.2:
-                st.caption(
-                    f"Longest interval without readings: {gap['start_h']:,.1f}–{gap['end_h']:,.1f} h "
-                    f"({gap['hours']:,.0f} h, {cap_notes['largest_gap_fraction_of_span']:.0%} of this "
-                    "capacitor's recorded span)."
-                )
-            cap_rows = history.loc[history["Cap_ID"].eq(cap_choice)].rename(columns={
-                "Age_h": "Reference age (h)",
-                "Capacitance_loss_pct": "Capacitance loss (%)",
-                "Resistance_change_pct": "Resistance change (%)",
-            })
-            for chart, metric in zip(st.columns(2), ("Capacitance loss (%)", "Resistance change (%)")):
-                with chart:
-                    st.scatter_chart(cap_rows, x="Reference age (h)", y=metric, height=280)
-        with exports:
-            st.subheader("Export measured changes")
-            st.download_button(
-                "Download measured-health summary", data=summary.to_csv(index=False),
-                file_name="caplife_measured_health.csv", mime="text/csv", type="primary",
-            )
-        st.stop()
-
     readings = real_report["measurements"]
     quality = real_report["quality"]
     changes = real_report["changes"]
@@ -578,7 +496,7 @@ if workflow == MEASUREMENT_WORKFLOW:
         for c in ("Capacitance_uF", "ESR_ohm", "Leakage_uA", "Case_Expansion_um", "H2_Generated_mL_STP", "Pressure_Abs_kPa")
     )))
     st.success("Basic data checks passed. This does not establish measurement validity or real-world reliability.")
-    for warning in warnings:
+    for warning in group_capacitor_warnings(warnings):
         st.warning(warning)
 
     overview, signals, research, exports = st.tabs(["Overview", "Signal history", "Research tools", "Downloads"])
@@ -609,12 +527,36 @@ if workflow == MEASUREMENT_WORKFLOW:
         )
         capacitance_history = readings[["Cap_ID", "Hours"]].rename(columns={"Hours": "Age_h"})
         capacitance_history["Capacitance_loss_pct"] = 100 * (1 - readings["C_ratio"])
+        notes = reference_age_observations(capacitance_history)
+        share = notes["median_early_share"]
+        if share is not None and share >= 0.5:
+            low, high = notes["first_step_loss_range"]
+            first_age_low, first_age_high = notes["first_step_age_range"]
+            first_age = (f"{first_age_low:,.0f} h" if first_age_low == first_age_high
+                         else f"{first_age_low:,.0f}–{first_age_high:,.0f} h")
+            st.info(
+                f"**Much of the capacitance loss appeared early.** Within the first "
+                f"{notes['early_fraction']:.0%} of the recorded time span (about "
+                f"{notes['early_cutoff_h']:,.0f} h), the median capacitor had reached "
+                f"{share:.0%} of its latest loss. The first reading after the baseline "
+                f"({first_age}) already showed {low:.1f}–{high:.1f}% loss. Early threshold "
+                "crossings can reflect this initial step, so check the test protocol before "
+                "reading them as gradual aging."
+            )
         show_observed_threshold(capacitance_history)
 
     with signals:
         st.subheader("Measured history")
         cap_choice = st.selectbox("Capacitor ID", sorted(readings["Cap_ID"].unique()))
         cap_rows = readings.loc[readings["Cap_ID"] == cap_choice].sort_values("Hours")
+        cap_notes = reference_age_observations(capacitance_history.loc[capacitance_history["Cap_ID"].eq(cap_choice)])
+        gap = cap_notes["largest_gap"]
+        if gap and (cap_notes["largest_gap_fraction_of_span"] or 0) >= 0.2:
+            st.caption(
+                f"Longest interval without readings: {gap['start_h']:,.1f}–{gap['end_h']:,.1f} h "
+                f"({gap['hours']:,.0f} h, {cap_notes['largest_gap_fraction_of_span']:.0%} of this "
+                "capacitor's recorded span)."
+            )
         plot_groups = (
             ("C_ratio", "Capacitance ratio"),
             ("ESR_ratio", "ESR ratio"),

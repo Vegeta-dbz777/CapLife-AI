@@ -162,6 +162,9 @@ def validate_real_measurements(raw: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+ESR_STATE_WORDING = {"incomplete documentation": "only partly documented", "undocumented": "not documented"}
+
+
 def _esr_comparability(group: pd.DataFrame) -> str:
     """Return documented, undocumented, or inconsistent conditions.
 
@@ -208,7 +211,8 @@ def assess_real_measurements(raw: pd.DataFrame) -> dict:
             )
         elif esr_state != "documented" and esr_state != "not measured":
             warnings.append(
-                f"{cap_id}: ESR test conditions are {esr_state}; ESR comparisons are provisional, "
+                f"{cap_id}: ESR test conditions are {ESR_STATE_WORDING.get(esr_state, esr_state)}; "
+                "ESR comparisons are provisional, "
                 "not confirmed as degradation."
             )
 
