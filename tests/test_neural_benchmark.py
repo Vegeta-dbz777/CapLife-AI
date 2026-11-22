@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from caplife.neural_benchmark import evaluate_transfer, make_examples
-from caplife.real_data import observed_capacitance_threshold
+from caplife.observed_threshold import observed_capacitance_threshold
 
 
 def test_horizon_labels_respect_crossing_windows_and_censoring():
