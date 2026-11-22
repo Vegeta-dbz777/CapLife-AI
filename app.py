@@ -5,10 +5,31 @@ from base64 import b64encode
 import hashlib
 import json
 from pathlib import Path
+import sys
 
 import numpy as np
 import pandas as pd
 import streamlit as st
+
+
+def _forget_outdated_caplife_modules() -> None:
+    """Make the next imports load the current ``caplife`` code after a repository update.
+
+    Streamlit Community Cloud pulls an update into the running server and reruns this
+    script, but modules imported by an earlier run stay in ``sys.modules`` with their old
+    code, so a page could keep showing behaviour that has already been replaced.
+    """
+    package = sys.modules.get("caplife")
+    if package is None:
+        return
+    fingerprint = getattr(package, "source_fingerprint", None)
+    if fingerprint is not None and fingerprint() == getattr(package, "LOADED_FINGERPRINT", None):
+        return
+    for name in [name for name in sys.modules if name == "caplife" or name.startswith("caplife.")]:
+        del sys.modules[name]
+
+
+_forget_outdated_caplife_modules()
 
 from caplife.config import EOL_THRESHOLDS, FEATURES, SEQ_LEN
 from caplife.data import DataValidationError, validate_measurements
