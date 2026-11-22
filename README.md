@@ -1,14 +1,19 @@
 # CapLife AI — End-to-end AEC RUL **research demonstrator**
 
-A working starter application that accepts capacitor measurement histories, checks
-input quality, runs a PyTorch GRU neural network, and displays health indicator
-curves, a demonstration RUL estimate, and a downloadable assessment.
+A browser app that accepts capacitor measurement histories, checks input quality,
+and displays measured health indicators and downloadable assessments. The public
+benchmarks evaluate threshold forecasts on real experiments. A separate synthetic
+demonstration illustrates a PyTorch GRU and a remaining-life estimate.
 
-> **NOT A REAL-WORLD LIFETIME PREDICTOR.** The bundled model is trained entirely
-> on *invented synthetic trajectories*. The simplified degradation equations,
-> threshold criteria, failure labels, and resulting predictions have **not**
-> been validated on experimental AEC data. The application must not be used to
-> determine maintenance schedules, replacement decisions, or safety-critical life.
+> **Research release.** Uploads return measurement assessments and observed
+> threshold status. Real-device RUL and its uncertainty still need validation.
+
+Open [CapLife AI](https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/) to
+use the app in a browser. Select **Experimental measurements** to upload one
+or more capacitors in a CSV. Use **Check an observed capacitance-loss threshold**
+to set a loss threshold, inspect the first recorded crossing window, and export
+device status. The general CSV uses an hour-zero baseline when present. The
+reference-age CSV uses its first recorded age as the baseline.
 
 ## 1 — Try the web app locally (Windows / macOS / Linux)
 
@@ -101,6 +106,30 @@ The output records the SHA-256 of the source measurements for reproducibility.
 
 ```bash
 python -m caplife.public_benchmark
+```
+
+### Public-data neural experiment
+
+The neural experiment estimates 48-hour crossing probability for a 20% loss
+threshold. It uses current capacitance loss and the loss rates over the previous
+two inspection intervals. The evaluation holds out the entire other study in
+both directions. Fits and Brier scores give equal weight to each capacitor.
+A horizon is unresolved if it falls inside an inspection bracket or beyond the
+available follow-up. The published artifact includes all origins, their status,
+held-out predictions, flags for inputs outside training ranges, and inspection traces
+normalized to initial capacitance.
+
+The four-unit neural network and logistic model use identical features and L2
+regularization. The fixed baselines are training event frequency and a three-point
+linear trend. The neural result averages three fixed initializations, whose spread
+illustrates fit sensitivity. The simple trend scored better in both transfers.
+NASA ES10 is an additional false-alert check using the audited session export,
+with repeated reference ages represented by median capacitance. Its recorded
+trajectories stay below the study threshold.
+
+```bash
+python -m caplife.neural_benchmark
+python -m caplife.neural_benchmark --es10-sessions /path/to/nasa_es10_sessions_with_reference_age.csv
 ```
 
 ## 2 — Input CSV contract (important)
@@ -197,17 +226,20 @@ scientific data service.
    are made at comparable conditions or corrected using validated models.
 4. Use grouped and external validation by capacitor, batch, technology and
    stress regime. Evaluate generalization under changing/future conditions.
-5. Handle censored lifetimes explicitly via survival modeling or another
-   appropriate treatment. Currently censored caps are excluded from training.
+5. Handle censored lifetimes explicitly. The public trend benchmark uses
+   interval and right censoring. The fixed-horizon experiment scores outcomes
+   only when the inspections resolve them.
 6. Quantify and calibrate uncertainty; detect missing inputs, distribution
    shifts, and unsupported conditions and **abstain** when necessary.
 7. Conduct scientific review before removing the demonstrator warning.
 
 ### Model limitations today
 
-- Synthetic-only and thus **no defensible reliability claim**.
+- The GRU demonstration uses synthetic data. Real-data neural experiments use
+  capacitance only and need independent validation on comparable cohorts.
 - Six-timestep GRU estimates RUL; it does not separately forecast future C/ESR.
-- No prediction interval or scientifically validated health score.
+- Experimental ranges have limited transfer coverage. A validated prediction
+  interval and health score require independent evidence.
 - No true support for arbitrary missing-column dataset formats.
 - Changing future stress is not modeled through user-supplied scenarios yet.
 - No database, authentication, production privacy controls, or server-side job queue.

@@ -1,4 +1,4 @@
-"""CapLife AI — v0.8 six-indicator descriptive audit + preserved synthetic GRU demo."""
+"""CapLife AI measurement assessments and forecast research."""
 from __future__ import annotations
 
 import hashlib
@@ -32,7 +32,7 @@ st.warning(
     "**RESEARCH PROTOTYPE — NOT VALIDATED FOR REAL CAPACITORS.** "
     "The synthetic RUL mode uses a GRU trained on invented histories. "
     "The experimental-measurement mode provides descriptive checks and observed changes only. "
-    "The public-data benchmark evaluates time to a capacitance-loss threshold in two studies."
+    "Public-data benchmarks compare forecasts against recorded capacitance loss."
 )
 
 
@@ -45,11 +45,99 @@ with st.sidebar:
         (
             "Experimental measurements (v0.8)",
             "Public-data forecast benchmark",
+            "Public-data neural experiment",
             "Synthetic RUL demonstration (v0.5)",
         ),
         key="caplife_workflow_v07",
     )
     st.divider()
+
+if workflow == "Public-data neural experiment":
+    benchmark = json.loads((ARTIFACTS / "neural_benchmark.json").read_text(encoding="utf-8"))
+    horizon = benchmark["horizon_h"]
+    threshold = benchmark["threshold_pct"]
+    st.header("Public-data neural experiment")
+    st.write(
+        f"Could a small neural network predict whether a capacitor would reach {threshold}% "
+        f"capacitance loss within {horizon} hours? Each model learns from one study and is "
+        f"tested on capacitors from the other."
+    )
+    st.info("The simple trend scored better than the neural network in both study transfers.")
+    study = st.selectbox("Held-out study", list(benchmark["results"]))
+    result = benchmark["results"][study]
+    predictions = pd.DataFrame(result["predictions"])
+    summary = pd.DataFrame(result["summary"])
+    resolved = summary.iloc[0]
+    st.caption(
+        f"Training study · {result['train_study']} ({resolved['training_devices']} devices) | "
+        f"{resolved['test_devices']} test devices · {resolved['resolved']} resolved forecasts · "
+        f"{resolved['unresolved']} unresolved"
+    )
+    st.dataframe(summary[["method", "brier_score", "true_alerts", "false_alerts", "missed_crossings"]]
+                 .rename(columns={"method": "Method", "brier_score": "Brier score",
+                                  "true_alerts": "Correct alerts", "false_alerts": "False alerts",
+                                  "missed_crossings": "Missed crossings"}).round(3), hide_index=True)
+    st.caption(
+        "Lower Brier scores mean better forecasts. Each capacitor has equal weight. "
+        "An alert is any forecast at or above 50%. Alert counts use only resolved outcomes."
+    )
+
+    device = st.selectbox("Capacitor", predictions["device"].unique())
+    device_predictions = predictions.loc[predictions["device"] == device].set_index("origin_h")
+    origin = st.select_slider("Issue the retrospective forecast at this study age (hours)",
+                              options=device_predictions.index.tolist(),
+                              value=device_predictions.index[len(device_predictions) // 2])
+    forecast = device_predictions.loc[origin]
+    measured = pd.DataFrame(result["traces"])
+    history = measured.loc[(measured["device"] == device) & (measured["age_h"] <= origin)]
+    st.line_chart(history.rename(columns={"age_h": "Study age (h)", "loss_pct": "Measured loss (%)"}),
+                  x="Study age (h)", y="Measured loss (%)", height=230)
+
+    score, trend, loss = st.columns(3)
+    score.metric("Neural crossing score", f"{forecast['neural']:.0%}")
+    trend.metric("Trend alert", "Yes" if forecast["trend"] else "No")
+    loss.metric("Measured capacitance loss", f"{forecast['loss_pct']:.1f}%")
+    if pd.isna(forecast["outcome"]):
+        outcome = "Unresolved from inspection times"
+    else:
+        outcome = "Crossed by the horizon" if forecast["outcome"] else "Stayed below through the horizon"
+    st.write(f"**Observed result** · {outcome}")
+    st.caption(
+        f"Scores from three training starts ranged from {forecast['neural_seed_low']:.0%} to "
+        f"{forecast['neural_seed_high']:.0%}. This spread shows sensitivity to initialization. "
+        "The estimated crossing probabilities still need calibration on independent data."
+    )
+    if not forecast["within_training_feature_ranges"]:
+        st.warning("At least one input is outside the range observed in the training study.")
+    st.download_button("Download neural benchmark results", predictions.to_csv(index=False),
+                       "caplife_neural_benchmark.csv", mime="text/csv")
+
+    es10 = benchmark.get("es10_stress_check")
+    if es10 is not None:
+        with st.expander("Additional NASA ES10 check"):
+            es10_scores = pd.DataFrame(es10["summary"])
+            st.write(
+                "Here the models train on both primary studies and are tested on NASA ES10. "
+                "The recorded ES10 histories stayed below the 20% mark. This check can reveal "
+                "false alerts. Estimating missed crossings requires a cohort with observed crossings."
+            )
+            st.dataframe(es10_scores[["method", "resolved", "unresolved", "false_alerts", "brier_score"]]
+                         .rename(columns={"method": "Method", "resolved": "Resolved",
+                                          "unresolved": "Unresolved", "false_alerts": "False alerts",
+                                          "brier_score": "Brier score"}).round(3), hide_index=True)
+            st.caption(f"{es10['outside_training_ranges']} ES10 forecasts had inputs outside the training ranges.")
+            st.markdown(f"[NASA ES10 source data]({es10['source']})")
+    with st.expander("Evidence and methods"):
+        st.write(
+            "The network and logistic model use capacitance loss and the two most recent loss rates. "
+            "Only readings available at the forecast age enter the model. If a crossing window "
+            "straddles the horizon or follow-up ends early, the outcome stays unresolved. "
+            "The model uses capacitance only because the public studies lack compatible measurements "
+            "of other indicators and operating conditions."
+        )
+        for name, url in benchmark["sources"].items():
+            st.markdown(f"- [{name}]({url})")
+    st.stop()
 
 if workflow == "Public-data forecast benchmark":
     benchmark = json.loads((ARTIFACTS / "public_benchmark.json").read_text(encoding="utf-8"))
@@ -196,6 +284,7 @@ if workflow == "Experimental measurements (v0.8)":
         assess_real_measurements,
         assess_reference_age_measurements,
         blank_template_csv,
+        observed_capacitance_threshold,
     )
     from caplife.readiness import (
         audit_measurement_readiness,
@@ -279,6 +368,20 @@ if workflow == "Experimental measurements (v0.8)":
         "**Measured health only.** A lifetime forecast needs validation on independent capacitors "
         "with comparable operating conditions and observed outcomes."
     )
+
+    def show_observed_threshold(capacitance_history: pd.DataFrame) -> None:
+        with st.expander("Check an observed capacitance-loss threshold"):
+            threshold = st.number_input("Capacitance-loss threshold (%)", min_value=0.1, max_value=99.9,
+                                        value=20.0, step=0.1)
+            status = observed_capacitance_threshold(capacitance_history, threshold)
+            st.dataframe(status.round(2), hide_index=True)
+            st.caption(
+                "The two ages bracket the first recorded threshold crossing. "
+                "This threshold describes capacitance loss and can differ from the device's service-life criterion."
+            )
+            st.download_button("Download measured threshold status", status.to_csv(index=False),
+                               "caplife_observed_threshold.csv", mime="text/csv")
+
     if reference_age:
         st.subheader("2 · Measured health summary")
         total_caps, total_rows = st.columns(2)
@@ -304,6 +407,7 @@ if workflow == "Experimental measurements (v0.8)":
         for chart, metric in zip(st.columns(2), ("Capacitance loss (%)", "Resistance change (%)")):
             with chart:
                 st.scatter_chart(cap_rows, x="Reference age (h)", y=metric, height=280)
+        show_observed_threshold(history)
         st.stop()
 
     readings = real_report["measurements"]
@@ -346,6 +450,9 @@ if workflow == "Experimental measurements (v0.8)":
         "Case expansion is expressed as an absolute µm difference. "
         "Inconsistent ESR test conditions suppress the ESR ratio."
     )
+    capacitance_history = readings[["Cap_ID", "Hours"]].rename(columns={"Hours": "Age_h"})
+    capacitance_history["Capacitance_loss_pct"] = 100 * (1 - readings["C_ratio"])
+    show_observed_threshold(capacitance_history)
 
     st.subheader("4 · Inspect a capacitor's measured history")
     cap_choice = st.selectbox("Capacitor ID", sorted(readings["Cap_ID"].unique()))

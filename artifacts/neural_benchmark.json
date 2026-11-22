@@ -1,0 +1,3825 @@
+{
+  "horizon_h": 48,
+  "threshold_pct": 20,
+  "sources": {
+    "NASA EOS-2": "https://data.nasa.gov/dataset/capacitor-electrical-stress-2",
+    "PoFINN": "https://github.com/Anurag-Dutta/PoFINN/blob/6fe0fa7dd3df31b2dd62bd148182cb85f19494c7/DATA/data_combined.csv"
+  },
+  "source_sha256": {
+    "EOS_DataSet.mat": "9db651a10f92d2046a477838c08fe1cdbaf27d7bc4062a856a373721400cb4a3",
+    "data_combined.csv": "c261056133cf4e6418ea917cdc131def1a422c65179818d62f82552b182ad316"
+  },
+  "results": {
+    "PoFINN": {
+      "train_study": "NASA EOS-2",
+      "summary": [
+        {
+          "method": "Training event frequency",
+          "training_devices": 6,
+          "test_devices": 8,
+          "resolved": 89,
+          "unresolved": 0,
+          "resolved_crossings": 16,
+          "brier_score": 0.18619968820861674,
+          "true_alerts": 0,
+          "false_alerts": 0,
+          "missed_crossings": 16
+        },
+        {
+          "method": "Extrapolated three-reading trend",
+          "training_devices": 6,
+          "test_devices": 8,
+          "resolved": 89,
+          "unresolved": 0,
+          "resolved_crossings": 16,
+          "brier_score": 0.18571428571428572,
+          "true_alerts": 12,
+          "false_alerts": 12,
+          "missed_crossings": 4
+        },
+        {
+          "method": "Regularized logistic regression",
+          "training_devices": 6,
+          "test_devices": 8,
+          "resolved": 89,
+          "unresolved": 0,
+          "resolved_crossings": 16,
+          "brier_score": 0.37150849576054334,
+          "true_alerts": 16,
+          "false_alerts": 43,
+          "missed_crossings": 0
+        },
+        {
+          "method": "Small neural network",
+          "training_devices": 6,
+          "test_devices": 8,
+          "resolved": 89,
+          "unresolved": 0,
+          "resolved_crossings": 16,
+          "brier_score": 0.4081040606307347,
+          "true_alerts": 16,
+          "false_alerts": 47,
+          "missed_crossings": 0
+        }
+      ],
+      "predictions": [
+        {
+          "device": "C1",
+          "origin_h": 6.0,
+          "loss_pct": 4.147982,
+          "older_rate_pct_per_h": 1.345291,
+          "recent_rate_pct_per_h": 0.36435,
+          "outcome": 0.0,
+          "trend": 1.0,
+          "last_below_h": 118.0,
+          "first_crossing_h": 142.0,
+          "frequency": 0.369048,
+          "linear": 1.0,
+          "neural": 0.970233,
+          "neural_seed_low": 0.970227,
+          "neural_seed_high": 0.970237,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C1",
+          "origin_h": 14.0,
+          "loss_pct": 5.493274,
+          "older_rate_pct_per_h": 0.36435,
+          "recent_rate_pct_per_h": 0.168161,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 118.0,
+          "first_crossing_h": 142.0,
+          "frequency": 0.369048,
+          "linear": 0.906698,
+          "neural": 0.93175,
+          "neural_seed_low": 0.931746,
+          "neural_seed_high": 0.931755,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C1",
+          "origin_h": 22.0,
+          "loss_pct": 7.174888,
+          "older_rate_pct_per_h": 0.168161,
+          "recent_rate_pct_per_h": 0.210202,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 118.0,
+          "first_crossing_h": 142.0,
+          "frequency": 0.369048,
+          "linear": 0.684441,
+          "neural": 0.792835,
+          "neural_seed_low": 0.792831,
+          "neural_seed_high": 0.792841,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C1",
+          "origin_h": 30.0,
+          "loss_pct": 9.865471,
+          "older_rate_pct_per_h": 0.210202,
+          "recent_rate_pct_per_h": 0.336323,
+          "outcome": 0.0,
+          "trend": 1.0,
+          "last_below_h": 118.0,
+          "first_crossing_h": 142.0,
+          "frequency": 0.369048,
+          "linear": 0.946866,
+          "neural": 0.950596,
+          "neural_seed_low": 0.950589,
+          "neural_seed_high": 0.950601,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C1",
+          "origin_h": 46.0,
+          "loss_pct": 11.547085,
+          "older_rate_pct_per_h": 0.336323,
+          "recent_rate_pct_per_h": 0.105101,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 118.0,
+          "first_crossing_h": 142.0,
+          "frequency": 0.369048,
+          "linear": 0.940913,
+          "neural": 0.948331,
+          "neural_seed_low": 0.948325,
+          "neural_seed_high": 0.948336,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C1",
+          "origin_h": 70.0,
+          "loss_pct": 14.125561,
+          "older_rate_pct_per_h": 0.105101,
+          "recent_rate_pct_per_h": 0.107436,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 118.0,
+          "first_crossing_h": 142.0,
+          "frequency": 0.369048,
+          "linear": 0.677463,
+          "neural": 0.809029,
+          "neural_seed_low": 0.809019,
+          "neural_seed_high": 0.809034,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C1",
+          "origin_h": 94.0,
+          "loss_pct": 16.143498,
+          "older_rate_pct_per_h": 0.107436,
+          "recent_rate_pct_per_h": 0.084081,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 118.0,
+          "first_crossing_h": 142.0,
+          "frequency": 0.369048,
+          "linear": 0.734857,
+          "neural": 0.855686,
+          "neural_seed_low": 0.855675,
+          "neural_seed_high": 0.855692,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C1",
+          "origin_h": 118.0,
+          "loss_pct": 19.955157,
+          "older_rate_pct_per_h": 0.084081,
+          "recent_rate_pct_per_h": 0.158819,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 118.0,
+          "first_crossing_h": 142.0,
+          "frequency": 0.369048,
+          "linear": 0.901102,
+          "neural": 0.939139,
+          "neural_seed_low": 0.93913,
+          "neural_seed_high": 0.939144,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C2",
+          "origin_h": 6.0,
+          "loss_pct": 3.535912,
+          "older_rate_pct_per_h": 1.104972,
+          "recent_rate_pct_per_h": 0.331492,
+          "outcome": 0.0,
+          "trend": 1.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.99999,
+          "neural": 0.970211,
+          "neural_seed_low": 0.970204,
+          "neural_seed_high": 0.970215,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C2",
+          "origin_h": 14.0,
+          "loss_pct": 4.640884,
+          "older_rate_pct_per_h": 0.331492,
+          "recent_rate_pct_per_h": 0.138122,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.812727,
+          "neural": 0.880659,
+          "neural_seed_low": 0.880653,
+          "neural_seed_high": 0.880665,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C2",
+          "origin_h": 22.0,
+          "loss_pct": 5.635359,
+          "older_rate_pct_per_h": 0.138122,
+          "recent_rate_pct_per_h": 0.124309,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.351693,
+          "neural": 0.349559,
+          "neural_seed_low": 0.349548,
+          "neural_seed_high": 0.34957,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 30.0,
+          "loss_pct": 7.624309,
+          "older_rate_pct_per_h": 0.124309,
+          "recent_rate_pct_per_h": 0.248619,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.666965,
+          "neural": 0.780166,
+          "neural_seed_low": 0.780163,
+          "neural_seed_high": 0.780172,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 46.0,
+          "loss_pct": 7.955801,
+          "older_rate_pct_per_h": 0.248619,
+          "recent_rate_pct_per_h": 0.020718,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.572541,
+          "neural": 0.669965,
+          "neural_seed_low": 0.669952,
+          "neural_seed_high": 0.669978,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 70.0,
+          "loss_pct": 10.165746,
+          "older_rate_pct_per_h": 0.020718,
+          "recent_rate_pct_per_h": 0.092081,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.230092,
+          "neural": 0.206711,
+          "neural_seed_low": 0.206704,
+          "neural_seed_high": 0.206717,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 94.0,
+          "loss_pct": 12.154696,
+          "older_rate_pct_per_h": 0.092081,
+          "recent_rate_pct_per_h": 0.082873,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.489855,
+          "neural": 0.594183,
+          "neural_seed_low": 0.594177,
+          "neural_seed_high": 0.594187,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 118.0,
+          "loss_pct": 14.143646,
+          "older_rate_pct_per_h": 0.082873,
+          "recent_rate_pct_per_h": 0.082873,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.572611,
+          "neural": 0.708455,
+          "neural_seed_low": 0.708444,
+          "neural_seed_high": 0.708463,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 142.0,
+          "loss_pct": 14.917127,
+          "older_rate_pct_per_h": 0.082873,
+          "recent_rate_pct_per_h": 0.032228,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.511223,
+          "neural": 0.637359,
+          "neural_seed_low": 0.637348,
+          "neural_seed_high": 0.637369,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 166.0,
+          "loss_pct": 16.685083,
+          "older_rate_pct_per_h": 0.032228,
+          "recent_rate_pct_per_h": 0.073665,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.550595,
+          "neural": 0.697421,
+          "neural_seed_low": 0.697403,
+          "neural_seed_high": 0.697437,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 190.0,
+          "loss_pct": 18.01105,
+          "older_rate_pct_per_h": 0.073665,
+          "recent_rate_pct_per_h": 0.055249,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.692246,
+          "neural": 0.831363,
+          "neural_seed_low": 0.831348,
+          "neural_seed_high": 0.831372,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 214.0,
+          "loss_pct": 19.447514,
+          "older_rate_pct_per_h": 0.055249,
+          "recent_rate_pct_per_h": 0.059853,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.722376,
+          "neural": 0.855499,
+          "neural_seed_low": 0.855484,
+          "neural_seed_high": 0.855509,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 6.0,
+          "loss_pct": 3.732162,
+          "older_rate_pct_per_h": 1.097695,
+          "recent_rate_pct_per_h": 0.384193,
+          "outcome": 0.0,
+          "trend": 1.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.999994,
+          "neural": 0.970217,
+          "neural_seed_low": 0.970211,
+          "neural_seed_high": 0.970222,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C3",
+          "origin_h": 14.0,
+          "loss_pct": 5.159166,
+          "older_rate_pct_per_h": 0.384193,
+          "recent_rate_pct_per_h": 0.178375,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.924763,
+          "neural": 0.939341,
+          "neural_seed_low": 0.939336,
+          "neural_seed_high": 0.939346,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C3",
+          "origin_h": 22.0,
+          "loss_pct": 5.378705,
+          "older_rate_pct_per_h": 0.178375,
+          "recent_rate_pct_per_h": 0.027442,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.266574,
+          "neural": 0.227225,
+          "neural_seed_low": 0.227215,
+          "neural_seed_high": 0.227235,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 30.0,
+          "loss_pct": 6.36663,
+          "older_rate_pct_per_h": 0.027442,
+          "recent_rate_pct_per_h": 0.123491,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.153455,
+          "neural": 0.112044,
+          "neural_seed_low": 0.11204,
+          "neural_seed_high": 0.112046,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 46.0,
+          "loss_pct": 7.903403,
+          "older_rate_pct_per_h": 0.123491,
+          "recent_rate_pct_per_h": 0.096048,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.374852,
+          "neural": 0.397297,
+          "neural_seed_low": 0.397291,
+          "neural_seed_high": 0.397303,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 70.0,
+          "loss_pct": 9.220637,
+          "older_rate_pct_per_h": 0.096048,
+          "recent_rate_pct_per_h": 0.054885,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.294973,
+          "neural": 0.286894,
+          "neural_seed_low": 0.286894,
+          "neural_seed_high": 0.286895,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 94.0,
+          "loss_pct": 10.098793,
+          "older_rate_pct_per_h": 0.054885,
+          "recent_rate_pct_per_h": 0.03659,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.21515,
+          "neural": 0.185876,
+          "neural_seed_low": 0.185872,
+          "neural_seed_high": 0.18588,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 118.0,
+          "loss_pct": 12.294182,
+          "older_rate_pct_per_h": 0.03659,
+          "recent_rate_pct_per_h": 0.091475,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.362213,
+          "neural": 0.40877,
+          "neural_seed_low": 0.40876,
+          "neural_seed_high": 0.40878,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 142.0,
+          "loss_pct": 12.84303,
+          "older_rate_pct_per_h": 0.091475,
+          "recent_rate_pct_per_h": 0.022869,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.403492,
+          "neural": 0.470818,
+          "neural_seed_low": 0.470813,
+          "neural_seed_high": 0.470824,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 166.0,
+          "loss_pct": 13.501647,
+          "older_rate_pct_per_h": 0.022869,
+          "recent_rate_pct_per_h": 0.027442,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.272222,
+          "neural": 0.27781,
+          "neural_seed_low": 0.277798,
+          "neural_seed_high": 0.277821,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 190.0,
+          "loss_pct": 14.489572,
+          "older_rate_pct_per_h": 0.027442,
+          "recent_rate_pct_per_h": 0.041164,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.354008,
+          "neural": 0.408388,
+          "neural_seed_low": 0.408373,
+          "neural_seed_high": 0.408403,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 214.0,
+          "loss_pct": 16.245884,
+          "older_rate_pct_per_h": 0.041164,
+          "recent_rate_pct_per_h": 0.07318,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.550694,
+          "neural": 0.695056,
+          "neural_seed_low": 0.695039,
+          "neural_seed_high": 0.69507,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 238.0,
+          "loss_pct": 17.12404,
+          "older_rate_pct_per_h": 0.07318,
+          "recent_rate_pct_per_h": 0.03659,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.612154,
+          "neural": 0.761445,
+          "neural_seed_low": 0.76143,
+          "neural_seed_high": 0.761456,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 262.0,
+          "loss_pct": 18.155873,
+          "older_rate_pct_per_h": 0.03659,
+          "recent_rate_pct_per_h": 0.042993,
+          "outcome": 0.0,
+          "trend": 1.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.579971,
+          "neural": 0.735098,
+          "neural_seed_low": 0.735078,
+          "neural_seed_high": 0.735113,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 286.0,
+          "loss_pct": 18.441273,
+          "older_rate_pct_per_h": 0.042993,
+          "recent_rate_pct_per_h": 0.011892,
+          "outcome": 1.0,
+          "trend": 0.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.550144,
+          "neural": 0.703455,
+          "neural_seed_low": 0.703436,
+          "neural_seed_high": 0.703472,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C3",
+          "origin_h": 310.0,
+          "loss_pct": 18.990121,
+          "older_rate_pct_per_h": 0.011892,
+          "recent_rate_pct_per_h": 0.022869,
+          "outcome": 1.0,
+          "trend": 0.0,
+          "last_below_h": 310.0,
+          "first_crossing_h": 334.0,
+          "frequency": 0.369048,
+          "linear": 0.515269,
+          "neural": 0.666998,
+          "neural_seed_low": 0.666974,
+          "neural_seed_high": 0.667019,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C4",
+          "origin_h": 6.0,
+          "loss_pct": 2.934537,
+          "older_rate_pct_per_h": 0.959368,
+          "recent_rate_pct_per_h": 0.25395,
+          "outcome": 0.0,
+          "trend": 1.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.999893,
+          "neural": 0.970077,
+          "neural_seed_low": 0.970071,
+          "neural_seed_high": 0.970081,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C4",
+          "origin_h": 14.0,
+          "loss_pct": 3.724605,
+          "older_rate_pct_per_h": 0.25395,
+          "recent_rate_pct_per_h": 0.098758,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.516511,
+          "neural": 0.573938,
+          "neural_seed_low": 0.573913,
+          "neural_seed_high": 0.573963,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C4",
+          "origin_h": 22.0,
+          "loss_pct": 4.853273,
+          "older_rate_pct_per_h": 0.098758,
+          "recent_rate_pct_per_h": 0.141084,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.251662,
+          "neural": 0.211405,
+          "neural_seed_low": 0.211399,
+          "neural_seed_high": 0.211409,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C4",
+          "origin_h": 30.0,
+          "loss_pct": 5.869074,
+          "older_rate_pct_per_h": 0.141084,
+          "recent_rate_pct_per_h": 0.126975,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.376412,
+          "neural": 0.38745,
+          "neural_seed_low": 0.387438,
+          "neural_seed_high": 0.387461,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C4",
+          "origin_h": 46.0,
+          "loss_pct": 7.110609,
+          "older_rate_pct_per_h": 0.126975,
+          "recent_rate_pct_per_h": 0.077596,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.310352,
+          "neural": 0.297208,
+          "neural_seed_low": 0.297202,
+          "neural_seed_high": 0.297214,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C4",
+          "origin_h": 70.0,
+          "loss_pct": 9.029345,
+          "older_rate_pct_per_h": 0.077596,
+          "recent_rate_pct_per_h": 0.079947,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.285947,
+          "neural": 0.274528,
+          "neural_seed_low": 0.274527,
+          "neural_seed_high": 0.274528,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C4",
+          "origin_h": 94.0,
+          "loss_pct": 10.27088,
+          "older_rate_pct_per_h": 0.079947,
+          "recent_rate_pct_per_h": 0.051731,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.299766,
+          "neural": 0.299764,
+          "neural_seed_low": 0.299762,
+          "neural_seed_high": 0.299766,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C4",
+          "origin_h": 118.0,
+          "loss_pct": 13.205418,
+          "older_rate_pct_per_h": 0.051731,
+          "recent_rate_pct_per_h": 0.122272,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.514857,
+          "neural": 0.636397,
+          "neural_seed_low": 0.636384,
+          "neural_seed_high": 0.636406,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C4",
+          "origin_h": 142.0,
+          "loss_pct": 13.544018,
+          "older_rate_pct_per_h": 0.122272,
+          "recent_rate_pct_per_h": 0.014108,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.509684,
+          "neural": 0.625487,
+          "neural_seed_low": 0.625482,
+          "neural_seed_high": 0.625492,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C4",
+          "origin_h": 166.0,
+          "loss_pct": 15.349887,
+          "older_rate_pct_per_h": 0.014108,
+          "recent_rate_pct_per_h": 0.075245,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.429966,
+          "neural": 0.531729,
+          "neural_seed_low": 0.53171,
+          "neural_seed_high": 0.531746,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C4",
+          "origin_h": 190.0,
+          "loss_pct": 16.478555,
+          "older_rate_pct_per_h": 0.075245,
+          "recent_rate_pct_per_h": 0.047028,
+          "outcome": 1.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.604419,
+          "neural": 0.751532,
+          "neural_seed_low": 0.751517,
+          "neural_seed_high": 0.751542,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C4",
+          "origin_h": 214.0,
+          "loss_pct": 18.171558,
+          "older_rate_pct_per_h": 0.047028,
+          "recent_rate_pct_per_h": 0.070542,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.661762,
+          "neural": 0.809581,
+          "neural_seed_low": 0.809564,
+          "neural_seed_high": 0.809592,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 6.0,
+          "loss_pct": 3.410366,
+          "older_rate_pct_per_h": 1.144267,
+          "recent_rate_pct_per_h": 0.280458,
+          "outcome": 0.0,
+          "trend": 1.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.99999,
+          "neural": 0.97021,
+          "neural_seed_low": 0.970204,
+          "neural_seed_high": 0.970215,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C5",
+          "origin_h": 14.0,
+          "loss_pct": 4.420013,
+          "older_rate_pct_per_h": 0.280458,
+          "recent_rate_pct_per_h": 0.126206,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.678004,
+          "neural": 0.772495,
+          "neural_seed_low": 0.77248,
+          "neural_seed_high": 0.772506,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C5",
+          "origin_h": 22.0,
+          "loss_pct": 4.980929,
+          "older_rate_pct_per_h": 0.126206,
+          "recent_rate_pct_per_h": 0.070114,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.208024,
+          "neural": 0.159829,
+          "neural_seed_low": 0.159824,
+          "neural_seed_high": 0.159832,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 30.0,
+          "loss_pct": 6.327126,
+          "older_rate_pct_per_h": 0.070114,
+          "recent_rate_pct_per_h": 0.168275,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.296256,
+          "neural": 0.278011,
+          "neural_seed_low": 0.278008,
+          "neural_seed_high": 0.278012,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 46.0,
+          "loss_pct": 7.336774,
+          "older_rate_pct_per_h": 0.168275,
+          "recent_rate_pct_per_h": 0.063103,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.400879,
+          "neural": 0.429902,
+          "neural_seed_low": 0.42989,
+          "neural_seed_high": 0.429914,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 70.0,
+          "loss_pct": 9.468252,
+          "older_rate_pct_per_h": 0.063103,
+          "recent_rate_pct_per_h": 0.088812,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.287143,
+          "neural": 0.279164,
+          "neural_seed_low": 0.279161,
+          "neural_seed_high": 0.279166,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 94.0,
+          "loss_pct": 10.365717,
+          "older_rate_pct_per_h": 0.088812,
+          "recent_rate_pct_per_h": 0.037394,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.300344,
+          "neural": 0.300365,
+          "neural_seed_low": 0.300363,
+          "neural_seed_high": 0.300367,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 118.0,
+          "loss_pct": 13.843392,
+          "older_rate_pct_per_h": 0.037394,
+          "recent_rate_pct_per_h": 0.144903,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.555848,
+          "neural": 0.691134,
+          "neural_seed_low": 0.691119,
+          "neural_seed_high": 0.691145,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 142.0,
+          "loss_pct": 14.404308,
+          "older_rate_pct_per_h": 0.144903,
+          "recent_rate_pct_per_h": 0.023371,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.636405,
+          "neural": 0.771624,
+          "neural_seed_low": 0.771617,
+          "neural_seed_high": 0.771628,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 166.0,
+          "loss_pct": 16.31142,
+          "older_rate_pct_per_h": 0.023371,
+          "recent_rate_pct_per_h": 0.079463,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.517176,
+          "neural": 0.656242,
+          "neural_seed_low": 0.656222,
+          "neural_seed_high": 0.656258,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 190.0,
+          "loss_pct": 17.881983,
+          "older_rate_pct_per_h": 0.079463,
+          "recent_rate_pct_per_h": 0.06544,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.717441,
+          "neural": 0.84846,
+          "neural_seed_low": 0.848446,
+          "neural_seed_high": 0.848468,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 214.0,
+          "loss_pct": 19.452547,
+          "older_rate_pct_per_h": 0.06544,
+          "recent_rate_pct_per_h": 0.06544,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.753723,
+          "neural": 0.874065,
+          "neural_seed_low": 0.874052,
+          "neural_seed_high": 0.874074,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C6",
+          "origin_h": 6.0,
+          "loss_pct": 3.900709,
+          "older_rate_pct_per_h": 0.886525,
+          "recent_rate_pct_per_h": 0.531915,
+          "outcome": 0.0,
+          "trend": 1.0,
+          "last_below_h": 94.0,
+          "first_crossing_h": 118.0,
+          "frequency": 0.369048,
+          "linear": 0.99998,
+          "neural": 0.970194,
+          "neural_seed_low": 0.970187,
+          "neural_seed_high": 0.970198,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C6",
+          "origin_h": 14.0,
+          "loss_pct": 5.319149,
+          "older_rate_pct_per_h": 0.531915,
+          "recent_rate_pct_per_h": 0.177305,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 94.0,
+          "first_crossing_h": 118.0,
+          "frequency": 0.369048,
+          "linear": 0.98528,
+          "neural": 0.963162,
+          "neural_seed_low": 0.963156,
+          "neural_seed_high": 0.963166,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C6",
+          "origin_h": 22.0,
+          "loss_pct": 6.855792,
+          "older_rate_pct_per_h": 0.177305,
+          "recent_rate_pct_per_h": 0.19208,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 94.0,
+          "first_crossing_h": 118.0,
+          "frequency": 0.369048,
+          "linear": 0.658807,
+          "neural": 0.766955,
+          "neural_seed_low": 0.766949,
+          "neural_seed_high": 0.76696,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C6",
+          "origin_h": 30.0,
+          "loss_pct": 9.101655,
+          "older_rate_pct_per_h": 0.19208,
+          "recent_rate_pct_per_h": 0.280733,
+          "outcome": 0.0,
+          "trend": 1.0,
+          "last_below_h": 94.0,
+          "first_crossing_h": 118.0,
+          "frequency": 0.369048,
+          "linear": 0.885889,
+          "neural": 0.926478,
+          "neural_seed_low": 0.926471,
+          "neural_seed_high": 0.926484,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C6",
+          "origin_h": 46.0,
+          "loss_pct": 11.111111,
+          "older_rate_pct_per_h": 0.280733,
+          "recent_rate_pct_per_h": 0.125591,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 94.0,
+          "first_crossing_h": 118.0,
+          "frequency": 0.369048,
+          "linear": 0.90142,
+          "neural": 0.933339,
+          "neural_seed_low": 0.933333,
+          "neural_seed_high": 0.933344,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C6",
+          "origin_h": 70.0,
+          "loss_pct": 14.066194,
+          "older_rate_pct_per_h": 0.125591,
+          "recent_rate_pct_per_h": 0.123128,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 94.0,
+          "first_crossing_h": 118.0,
+          "frequency": 0.369048,
+          "linear": 0.748366,
+          "neural": 0.860093,
+          "neural_seed_low": 0.860084,
+          "neural_seed_high": 0.860099,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C6",
+          "origin_h": 94.0,
+          "loss_pct": 15.957447,
+          "older_rate_pct_per_h": 0.123128,
+          "recent_rate_pct_per_h": 0.078802,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 94.0,
+          "first_crossing_h": 118.0,
+          "frequency": 0.369048,
+          "linear": 0.752545,
+          "neural": 0.866112,
+          "neural_seed_low": 0.866101,
+          "neural_seed_high": 0.866117,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C7",
+          "origin_h": 6.0,
+          "loss_pct": 4.211663,
+          "older_rate_pct_per_h": 1.025918,
+          "recent_rate_pct_per_h": 0.539957,
+          "outcome": 0.0,
+          "trend": 1.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.999996,
+          "neural": 0.970224,
+          "neural_seed_low": 0.970218,
+          "neural_seed_high": 0.970228,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C7",
+          "origin_h": 14.0,
+          "loss_pct": 5.507559,
+          "older_rate_pct_per_h": 0.539957,
+          "recent_rate_pct_per_h": 0.161987,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.985366,
+          "neural": 0.963201,
+          "neural_seed_low": 0.963195,
+          "neural_seed_high": 0.963206,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C7",
+          "origin_h": 22.0,
+          "loss_pct": 6.047516,
+          "older_rate_pct_per_h": 0.161987,
+          "recent_rate_pct_per_h": 0.067495,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.327406,
+          "neural": 0.314102,
+          "neural_seed_low": 0.314091,
+          "neural_seed_high": 0.314114,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C7",
+          "origin_h": 30.0,
+          "loss_pct": 7.451404,
+          "older_rate_pct_per_h": 0.067495,
+          "recent_rate_pct_per_h": 0.175486,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.357037,
+          "neural": 0.372761,
+          "neural_seed_low": 0.372759,
+          "neural_seed_high": 0.372763,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C7",
+          "origin_h": 46.0,
+          "loss_pct": 8.7473,
+          "older_rate_pct_per_h": 0.175486,
+          "recent_rate_pct_per_h": 0.080994,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.534233,
+          "neural": 0.630269,
+          "neural_seed_low": 0.630261,
+          "neural_seed_high": 0.630276,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C7",
+          "origin_h": 70.0,
+          "loss_pct": 10.475162,
+          "older_rate_pct_per_h": 0.080994,
+          "recent_rate_pct_per_h": 0.071994,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.348732,
+          "neural": 0.374454,
+          "neural_seed_low": 0.374451,
+          "neural_seed_high": 0.374456,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C7",
+          "origin_h": 94.0,
+          "loss_pct": 13.066955,
+          "older_rate_pct_per_h": 0.071994,
+          "recent_rate_pct_per_h": 0.107991,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.534977,
+          "neural": 0.659836,
+          "neural_seed_low": 0.659826,
+          "neural_seed_high": 0.659844,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C7",
+          "origin_h": 118.0,
+          "loss_pct": 14.146868,
+          "older_rate_pct_per_h": 0.107991,
+          "recent_rate_pct_per_h": 0.044996,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.56577,
+          "neural": 0.698931,
+          "neural_seed_low": 0.698922,
+          "neural_seed_high": 0.698937,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C7",
+          "origin_h": 142.0,
+          "loss_pct": 14.686825,
+          "older_rate_pct_per_h": 0.044996,
+          "recent_rate_pct_per_h": 0.022498,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.374314,
+          "neural": 0.43979,
+          "neural_seed_low": 0.439777,
+          "neural_seed_high": 0.439804,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C7",
+          "origin_h": 166.0,
+          "loss_pct": 16.198704,
+          "older_rate_pct_per_h": 0.022498,
+          "recent_rate_pct_per_h": 0.062995,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.474599,
+          "neural": 0.599627,
+          "neural_seed_low": 0.599608,
+          "neural_seed_high": 0.599645,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C7",
+          "origin_h": 190.0,
+          "loss_pct": 16.954644,
+          "older_rate_pct_per_h": 0.062995,
+          "recent_rate_pct_per_h": 0.031497,
+          "outcome": 1.0,
+          "trend": 0.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.565158,
+          "neural": 0.712833,
+          "neural_seed_low": 0.712817,
+          "neural_seed_high": 0.712847,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C7",
+          "origin_h": 214.0,
+          "loss_pct": 18.25054,
+          "older_rate_pct_per_h": 0.031497,
+          "recent_rate_pct_per_h": 0.053996,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 214.0,
+          "first_crossing_h": 238.0,
+          "frequency": 0.369048,
+          "linear": 0.593069,
+          "neural": 0.749076,
+          "neural_seed_low": 0.749057,
+          "neural_seed_high": 0.749092,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C8",
+          "origin_h": 6.0,
+          "loss_pct": 3.628118,
+          "older_rate_pct_per_h": 1.077098,
+          "recent_rate_pct_per_h": 0.368481,
+          "outcome": 0.0,
+          "trend": 1.0,
+          "last_below_h": 166.0,
+          "first_crossing_h": 190.0,
+          "frequency": 0.369048,
+          "linear": 0.999991,
+          "neural": 0.970211,
+          "neural_seed_low": 0.970205,
+          "neural_seed_high": 0.970215,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C8",
+          "origin_h": 14.0,
+          "loss_pct": 5.21542,
+          "older_rate_pct_per_h": 0.368481,
+          "recent_rate_pct_per_h": 0.198413,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 166.0,
+          "first_crossing_h": 190.0,
+          "frequency": 0.369048,
+          "linear": 0.924771,
+          "neural": 0.939484,
+          "neural_seed_low": 0.93948,
+          "neural_seed_high": 0.93949,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C8",
+          "origin_h": 22.0,
+          "loss_pct": 5.895692,
+          "older_rate_pct_per_h": 0.198413,
+          "recent_rate_pct_per_h": 0.085034,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 166.0,
+          "first_crossing_h": 190.0,
+          "frequency": 0.369048,
+          "linear": 0.450844,
+          "neural": 0.494777,
+          "neural_seed_low": 0.49476,
+          "neural_seed_high": 0.494794,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C8",
+          "origin_h": 30.0,
+          "loss_pct": 7.823129,
+          "older_rate_pct_per_h": 0.085034,
+          "recent_rate_pct_per_h": 0.24093,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 166.0,
+          "first_crossing_h": 190.0,
+          "frequency": 0.369048,
+          "linear": 0.557537,
+          "neural": 0.66309,
+          "neural_seed_low": 0.663088,
+          "neural_seed_high": 0.663094,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C8",
+          "origin_h": 46.0,
+          "loss_pct": 9.297052,
+          "older_rate_pct_per_h": 0.24093,
+          "recent_rate_pct_per_h": 0.09212,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 166.0,
+          "first_crossing_h": 190.0,
+          "frequency": 0.369048,
+          "linear": 0.748172,
+          "neural": 0.847159,
+          "neural_seed_low": 0.847156,
+          "neural_seed_high": 0.847164,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C8",
+          "origin_h": 70.0,
+          "loss_pct": 11.791383,
+          "older_rate_pct_per_h": 0.09212,
+          "recent_rate_pct_per_h": 0.10393,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 166.0,
+          "first_crossing_h": 190.0,
+          "frequency": 0.369048,
+          "linear": 0.513409,
+          "neural": 0.624342,
+          "neural_seed_low": 0.624336,
+          "neural_seed_high": 0.624346,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C8",
+          "origin_h": 94.0,
+          "loss_pct": 12.698413,
+          "older_rate_pct_per_h": 0.10393,
+          "recent_rate_pct_per_h": 0.037793,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 166.0,
+          "first_crossing_h": 190.0,
+          "frequency": 0.369048,
+          "linear": 0.460341,
+          "neural": 0.554104,
+          "neural_seed_low": 0.554099,
+          "neural_seed_high": 0.554109,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C8",
+          "origin_h": 118.0,
+          "loss_pct": 17.006803,
+          "older_rate_pct_per_h": 0.037793,
+          "recent_rate_pct_per_h": 0.179516,
+          "outcome": 0.0,
+          "trend": 1.0,
+          "last_below_h": 166.0,
+          "first_crossing_h": 190.0,
+          "frequency": 0.369048,
+          "linear": 0.770199,
+          "neural": 0.880345,
+          "neural_seed_low": 0.880332,
+          "neural_seed_high": 0.880352,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C8",
+          "origin_h": 142.0,
+          "loss_pct": 17.573696,
+          "older_rate_pct_per_h": 0.179516,
+          "recent_rate_pct_per_h": 0.023621,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 166.0,
+          "first_crossing_h": 190.0,
+          "frequency": 0.369048,
+          "linear": 0.838798,
+          "neural": 0.912412,
+          "neural_seed_low": 0.912403,
+          "neural_seed_high": 0.912417,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C8",
+          "origin_h": 166.0,
+          "loss_pct": 19.727891,
+          "older_rate_pct_per_h": 0.023621,
+          "recent_rate_pct_per_h": 0.089758,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 166.0,
+          "first_crossing_h": 190.0,
+          "frequency": 0.369048,
+          "linear": 0.712437,
+          "neural": 0.850677,
+          "neural_seed_low": 0.85066,
+          "neural_seed_high": 0.850688,
+          "within_training_feature_ranges": false
+        }
+      ],
+      "traces": [
+        {
+          "age_h": 0,
+          "device": "C1",
+          "loss_pct": 0.0
+        },
+        {
+          "age_h": 2,
+          "device": "C1",
+          "loss_pct": 2.690583
+        },
+        {
+          "age_h": 6,
+          "device": "C1",
+          "loss_pct": 4.147982
+        },
+        {
+          "age_h": 14,
+          "device": "C1",
+          "loss_pct": 5.493274
+        },
+        {
+          "age_h": 22,
+          "device": "C1",
+          "loss_pct": 7.174888
+        },
+        {
+          "age_h": 30,
+          "device": "C1",
+          "loss_pct": 9.865471
+        },
+        {
+          "age_h": 46,
+          "device": "C1",
+          "loss_pct": 11.547085
+        },
+        {
+          "age_h": 70,
+          "device": "C1",
+          "loss_pct": 14.125561
+        },
+        {
+          "age_h": 94,
+          "device": "C1",
+          "loss_pct": 16.143498
+        },
+        {
+          "age_h": 118,
+          "device": "C1",
+          "loss_pct": 19.955157
+        },
+        {
+          "age_h": 142,
+          "device": "C1",
+          "loss_pct": 21.860987
+        },
+        {
+          "age_h": 166,
+          "device": "C1",
+          "loss_pct": 24.103139
+        },
+        {
+          "age_h": 190,
+          "device": "C1",
+          "loss_pct": 24.887892
+        },
+        {
+          "age_h": 214,
+          "device": "C1",
+          "loss_pct": 26.008969
+        },
+        {
+          "age_h": 238,
+          "device": "C1",
+          "loss_pct": 28.251121
+        },
+        {
+          "age_h": 262,
+          "device": "C1",
+          "loss_pct": 29.035874
+        },
+        {
+          "age_h": 286,
+          "device": "C1",
+          "loss_pct": 30.044843
+        },
+        {
+          "age_h": 310,
+          "device": "C1",
+          "loss_pct": 30.156951
+        },
+        {
+          "age_h": 334,
+          "device": "C1",
+          "loss_pct": 30.941704
+        },
+        {
+          "age_h": 358,
+          "device": "C1",
+          "loss_pct": 31.32287
+        },
+        {
+          "age_h": 382,
+          "device": "C1",
+          "loss_pct": 32.331839
+        },
+        {
+          "age_h": 406,
+          "device": "C1",
+          "loss_pct": 32.847534
+        },
+        {
+          "age_h": 430,
+          "device": "C1",
+          "loss_pct": 34.080717
+        },
+        {
+          "age_h": 478,
+          "device": "C1",
+          "loss_pct": 37.892377
+        },
+        {
+          "age_h": 560,
+          "device": "C1",
+          "loss_pct": 41.479821
+        },
+        {
+          "age_h": 0,
+          "device": "C2",
+          "loss_pct": 0.0
+        },
+        {
+          "age_h": 2,
+          "device": "C2",
+          "loss_pct": 2.209945
+        },
+        {
+          "age_h": 6,
+          "device": "C2",
+          "loss_pct": 3.535912
+        },
+        {
+          "age_h": 14,
+          "device": "C2",
+          "loss_pct": 4.640884
+        },
+        {
+          "age_h": 22,
+          "device": "C2",
+          "loss_pct": 5.635359
+        },
+        {
+          "age_h": 30,
+          "device": "C2",
+          "loss_pct": 7.624309
+        },
+        {
+          "age_h": 46,
+          "device": "C2",
+          "loss_pct": 7.955801
+        },
+        {
+          "age_h": 70,
+          "device": "C2",
+          "loss_pct": 10.165746
+        },
+        {
+          "age_h": 94,
+          "device": "C2",
+          "loss_pct": 12.154696
+        },
+        {
+          "age_h": 118,
+          "device": "C2",
+          "loss_pct": 14.143646
+        },
+        {
+          "age_h": 142,
+          "device": "C2",
+          "loss_pct": 14.917127
+        },
+        {
+          "age_h": 166,
+          "device": "C2",
+          "loss_pct": 16.685083
+        },
+        {
+          "age_h": 190,
+          "device": "C2",
+          "loss_pct": 18.01105
+        },
+        {
+          "age_h": 214,
+          "device": "C2",
+          "loss_pct": 19.447514
+        },
+        {
+          "age_h": 238,
+          "device": "C2",
+          "loss_pct": 21.303867
+        },
+        {
+          "age_h": 262,
+          "device": "C2",
+          "loss_pct": 21.657459
+        },
+        {
+          "age_h": 286,
+          "device": "C2",
+          "loss_pct": 21.98895
+        },
+        {
+          "age_h": 310,
+          "device": "C2",
+          "loss_pct": 22.762431
+        },
+        {
+          "age_h": 334,
+          "device": "C2",
+          "loss_pct": 24.530387
+        },
+        {
+          "age_h": 358,
+          "device": "C2",
+          "loss_pct": 25.082873
+        },
+        {
+          "age_h": 382,
+          "device": "C2",
+          "loss_pct": 26.187845
+        },
+        {
+          "age_h": 406,
+          "device": "C2",
+          "loss_pct": 27.071823
+        },
+        {
+          "age_h": 430,
+          "device": "C2",
+          "loss_pct": 29.834254
+        },
+        {
+          "age_h": 478,
+          "device": "C2",
+          "loss_pct": 36.132597
+        },
+        {
+          "age_h": 560,
+          "device": "C2",
+          "loss_pct": 42.430939
+        },
+        {
+          "age_h": 0,
+          "device": "C3",
+          "loss_pct": 0.0
+        },
+        {
+          "age_h": 2,
+          "device": "C3",
+          "loss_pct": 2.19539
+        },
+        {
+          "age_h": 6,
+          "device": "C3",
+          "loss_pct": 3.732162
+        },
+        {
+          "age_h": 14,
+          "device": "C3",
+          "loss_pct": 5.159166
+        },
+        {
+          "age_h": 22,
+          "device": "C3",
+          "loss_pct": 5.378705
+        },
+        {
+          "age_h": 30,
+          "device": "C3",
+          "loss_pct": 6.36663
+        },
+        {
+          "age_h": 46,
+          "device": "C3",
+          "loss_pct": 7.903403
+        },
+        {
+          "age_h": 70,
+          "device": "C3",
+          "loss_pct": 9.220637
+        },
+        {
+          "age_h": 94,
+          "device": "C3",
+          "loss_pct": 10.098793
+        },
+        {
+          "age_h": 118,
+          "device": "C3",
+          "loss_pct": 12.294182
+        },
+        {
+          "age_h": 142,
+          "device": "C3",
+          "loss_pct": 12.84303
+        },
+        {
+          "age_h": 166,
+          "device": "C3",
+          "loss_pct": 13.501647
+        },
+        {
+          "age_h": 190,
+          "device": "C3",
+          "loss_pct": 14.489572
+        },
+        {
+          "age_h": 214,
+          "device": "C3",
+          "loss_pct": 16.245884
+        },
+        {
+          "age_h": 238,
+          "device": "C3",
+          "loss_pct": 17.12404
+        },
+        {
+          "age_h": 262,
+          "device": "C3",
+          "loss_pct": 18.155873
+        },
+        {
+          "age_h": 286,
+          "device": "C3",
+          "loss_pct": 18.441273
+        },
+        {
+          "age_h": 310,
+          "device": "C3",
+          "loss_pct": 18.990121
+        },
+        {
+          "age_h": 334,
+          "device": "C3",
+          "loss_pct": 20.417124
+        },
+        {
+          "age_h": 358,
+          "device": "C3",
+          "loss_pct": 21.18551
+        },
+        {
+          "age_h": 382,
+          "device": "C3",
+          "loss_pct": 21.29528
+        },
+        {
+          "age_h": 406,
+          "device": "C3",
+          "loss_pct": 21.844127
+        },
+        {
+          "age_h": 430,
+          "device": "C3",
+          "loss_pct": 22.722283
+        },
+        {
+          "age_h": 478,
+          "device": "C3",
+          "loss_pct": 23.929748
+        },
+        {
+          "age_h": 560,
+          "device": "C3",
+          "loss_pct": 26.454446
+        },
+        {
+          "age_h": 0,
+          "device": "C4",
+          "loss_pct": 0.0
+        },
+        {
+          "age_h": 2,
+          "device": "C4",
+          "loss_pct": 1.918736
+        },
+        {
+          "age_h": 6,
+          "device": "C4",
+          "loss_pct": 2.934537
+        },
+        {
+          "age_h": 14,
+          "device": "C4",
+          "loss_pct": 3.724605
+        },
+        {
+          "age_h": 22,
+          "device": "C4",
+          "loss_pct": 4.853273
+        },
+        {
+          "age_h": 30,
+          "device": "C4",
+          "loss_pct": 5.869074
+        },
+        {
+          "age_h": 46,
+          "device": "C4",
+          "loss_pct": 7.110609
+        },
+        {
+          "age_h": 70,
+          "device": "C4",
+          "loss_pct": 9.029345
+        },
+        {
+          "age_h": 94,
+          "device": "C4",
+          "loss_pct": 10.27088
+        },
+        {
+          "age_h": 118,
+          "device": "C4",
+          "loss_pct": 13.205418
+        },
+        {
+          "age_h": 142,
+          "device": "C4",
+          "loss_pct": 13.544018
+        },
+        {
+          "age_h": 166,
+          "device": "C4",
+          "loss_pct": 15.349887
+        },
+        {
+          "age_h": 190,
+          "device": "C4",
+          "loss_pct": 16.478555
+        },
+        {
+          "age_h": 214,
+          "device": "C4",
+          "loss_pct": 18.171558
+        },
+        {
+          "age_h": 238,
+          "device": "C4",
+          "loss_pct": 20.20316
+        },
+        {
+          "age_h": 262,
+          "device": "C4",
+          "loss_pct": 20.541761
+        },
+        {
+          "age_h": 286,
+          "device": "C4",
+          "loss_pct": 20.880361
+        },
+        {
+          "age_h": 310,
+          "device": "C4",
+          "loss_pct": 21.218962
+        },
+        {
+          "age_h": 334,
+          "device": "C4",
+          "loss_pct": 23.476298
+        },
+        {
+          "age_h": 358,
+          "device": "C4",
+          "loss_pct": 24.683973
+        },
+        {
+          "age_h": 382,
+          "device": "C4",
+          "loss_pct": 25.959368
+        },
+        {
+          "age_h": 406,
+          "device": "C4",
+          "loss_pct": 26.975169
+        },
+        {
+          "age_h": 430,
+          "device": "C4",
+          "loss_pct": 27.990971
+        },
+        {
+          "age_h": 478,
+          "device": "C4",
+          "loss_pct": 32.844244
+        },
+        {
+          "age_h": 560,
+          "device": "C4",
+          "loss_pct": 37.923251
+        },
+        {
+          "age_h": 0,
+          "device": "C5",
+          "loss_pct": 0.0
+        },
+        {
+          "age_h": 2,
+          "device": "C5",
+          "loss_pct": 2.288535
+        },
+        {
+          "age_h": 6,
+          "device": "C5",
+          "loss_pct": 3.410366
+        },
+        {
+          "age_h": 14,
+          "device": "C5",
+          "loss_pct": 4.420013
+        },
+        {
+          "age_h": 22,
+          "device": "C5",
+          "loss_pct": 4.980929
+        },
+        {
+          "age_h": 30,
+          "device": "C5",
+          "loss_pct": 6.327126
+        },
+        {
+          "age_h": 46,
+          "device": "C5",
+          "loss_pct": 7.336774
+        },
+        {
+          "age_h": 70,
+          "device": "C5",
+          "loss_pct": 9.468252
+        },
+        {
+          "age_h": 94,
+          "device": "C5",
+          "loss_pct": 10.365717
+        },
+        {
+          "age_h": 118,
+          "device": "C5",
+          "loss_pct": 13.843392
+        },
+        {
+          "age_h": 142,
+          "device": "C5",
+          "loss_pct": 14.404308
+        },
+        {
+          "age_h": 166,
+          "device": "C5",
+          "loss_pct": 16.31142
+        },
+        {
+          "age_h": 190,
+          "device": "C5",
+          "loss_pct": 17.881983
+        },
+        {
+          "age_h": 214,
+          "device": "C5",
+          "loss_pct": 19.452547
+        },
+        {
+          "age_h": 238,
+          "device": "C5",
+          "loss_pct": 21.584025
+        },
+        {
+          "age_h": 262,
+          "device": "C5",
+          "loss_pct": 21.808391
+        },
+        {
+          "age_h": 286,
+          "device": "C5",
+          "loss_pct": 22.257124
+        },
+        {
+          "age_h": 310,
+          "device": "C5",
+          "loss_pct": 23.491138
+        },
+        {
+          "age_h": 334,
+          "device": "C5",
+          "loss_pct": 25.173884
+        },
+        {
+          "age_h": 358,
+          "device": "C5",
+          "loss_pct": 26.071348
+        },
+        {
+          "age_h": 382,
+          "device": "C5",
+          "loss_pct": 26.183532
+        },
+        {
+          "age_h": 406,
+          "device": "C5",
+          "loss_pct": 26.968813
+        },
+        {
+          "age_h": 430,
+          "device": "C5",
+          "loss_pct": 28.202827
+        },
+        {
+          "age_h": 478,
+          "device": "C5",
+          "loss_pct": 29.885573
+        },
+        {
+          "age_h": 560,
+          "device": "C5",
+          "loss_pct": 33.138883
+        },
+        {
+          "age_h": 0,
+          "device": "C6",
+          "loss_pct": 0.0
+        },
+        {
+          "age_h": 2,
+          "device": "C6",
+          "loss_pct": 1.77305
+        },
+        {
+          "age_h": 6,
+          "device": "C6",
+          "loss_pct": 3.900709
+        },
+        {
+          "age_h": 14,
+          "device": "C6",
+          "loss_pct": 5.319149
+        },
+        {
+          "age_h": 22,
+          "device": "C6",
+          "loss_pct": 6.855792
+        },
+        {
+          "age_h": 30,
+          "device": "C6",
+          "loss_pct": 9.101655
+        },
+        {
+          "age_h": 46,
+          "device": "C6",
+          "loss_pct": 11.111111
+        },
+        {
+          "age_h": 70,
+          "device": "C6",
+          "loss_pct": 14.066194
+        },
+        {
+          "age_h": 94,
+          "device": "C6",
+          "loss_pct": 15.957447
+        },
+        {
+          "age_h": 118,
+          "device": "C6",
+          "loss_pct": 21.394799
+        },
+        {
+          "age_h": 142,
+          "device": "C6",
+          "loss_pct": 22.222222
+        },
+        {
+          "age_h": 166,
+          "device": "C6",
+          "loss_pct": 24.940898
+        },
+        {
+          "age_h": 190,
+          "device": "C6",
+          "loss_pct": 25.886525
+        },
+        {
+          "age_h": 214,
+          "device": "C6",
+          "loss_pct": 28.841608
+        },
+        {
+          "age_h": 238,
+          "device": "C6",
+          "loss_pct": 31.205674
+        },
+        {
+          "age_h": 262,
+          "device": "C6",
+          "loss_pct": 31.79669
+        },
+        {
+          "age_h": 286,
+          "device": "C6",
+          "loss_pct": 32.387707
+        },
+        {
+          "age_h": 310,
+          "device": "C6",
+          "loss_pct": 32.978723
+        },
+        {
+          "age_h": 334,
+          "device": "C6",
+          "loss_pct": 34.27896
+        },
+        {
+          "age_h": 358,
+          "device": "C6",
+          "loss_pct": 35.106383
+        },
+        {
+          "age_h": 382,
+          "device": "C6",
+          "loss_pct": 35.815603
+        },
+        {
+          "age_h": 406,
+          "device": "C6",
+          "loss_pct": 36.879433
+        },
+        {
+          "age_h": 430,
+          "device": "C6",
+          "loss_pct": 38.888889
+        },
+        {
+          "age_h": 478,
+          "device": "C6",
+          "loss_pct": 42.316785
+        },
+        {
+          "age_h": 560,
+          "device": "C6",
+          "loss_pct": 46.572104
+        },
+        {
+          "age_h": 0,
+          "device": "C7",
+          "loss_pct": 0.0
+        },
+        {
+          "age_h": 2,
+          "device": "C7",
+          "loss_pct": 2.051836
+        },
+        {
+          "age_h": 6,
+          "device": "C7",
+          "loss_pct": 4.211663
+        },
+        {
+          "age_h": 14,
+          "device": "C7",
+          "loss_pct": 5.507559
+        },
+        {
+          "age_h": 22,
+          "device": "C7",
+          "loss_pct": 6.047516
+        },
+        {
+          "age_h": 30,
+          "device": "C7",
+          "loss_pct": 7.451404
+        },
+        {
+          "age_h": 46,
+          "device": "C7",
+          "loss_pct": 8.7473
+        },
+        {
+          "age_h": 70,
+          "device": "C7",
+          "loss_pct": 10.475162
+        },
+        {
+          "age_h": 94,
+          "device": "C7",
+          "loss_pct": 13.066955
+        },
+        {
+          "age_h": 118,
+          "device": "C7",
+          "loss_pct": 14.146868
+        },
+        {
+          "age_h": 142,
+          "device": "C7",
+          "loss_pct": 14.686825
+        },
+        {
+          "age_h": 166,
+          "device": "C7",
+          "loss_pct": 16.198704
+        },
+        {
+          "age_h": 190,
+          "device": "C7",
+          "loss_pct": 16.954644
+        },
+        {
+          "age_h": 214,
+          "device": "C7",
+          "loss_pct": 18.25054
+        },
+        {
+          "age_h": 238,
+          "device": "C7",
+          "loss_pct": 20.62635
+        },
+        {
+          "age_h": 262,
+          "device": "C7",
+          "loss_pct": 22.257019
+        },
+        {
+          "age_h": 286,
+          "device": "C7",
+          "loss_pct": 22.678186
+        },
+        {
+          "age_h": 310,
+          "device": "C7",
+          "loss_pct": 23.434125
+        },
+        {
+          "age_h": 334,
+          "device": "C7",
+          "loss_pct": 24.946004
+        },
+        {
+          "age_h": 358,
+          "device": "C7",
+          "loss_pct": 25.701944
+        },
+        {
+          "age_h": 382,
+          "device": "C7",
+          "loss_pct": 25.809935
+        },
+        {
+          "age_h": 406,
+          "device": "C7",
+          "loss_pct": 26.025918
+        },
+        {
+          "age_h": 430,
+          "device": "C7",
+          "loss_pct": 27.321814
+        },
+        {
+          "age_h": 478,
+          "device": "C7",
+          "loss_pct": 29.589633
+        },
+        {
+          "age_h": 560,
+          "device": "C7",
+          "loss_pct": 32.613391
+        },
+        {
+          "age_h": 0,
+          "device": "C8",
+          "loss_pct": 0.0
+        },
+        {
+          "age_h": 2,
+          "device": "C8",
+          "loss_pct": 2.154195
+        },
+        {
+          "age_h": 6,
+          "device": "C8",
+          "loss_pct": 3.628118
+        },
+        {
+          "age_h": 14,
+          "device": "C8",
+          "loss_pct": 5.21542
+        },
+        {
+          "age_h": 22,
+          "device": "C8",
+          "loss_pct": 5.895692
+        },
+        {
+          "age_h": 30,
+          "device": "C8",
+          "loss_pct": 7.823129
+        },
+        {
+          "age_h": 46,
+          "device": "C8",
+          "loss_pct": 9.297052
+        },
+        {
+          "age_h": 70,
+          "device": "C8",
+          "loss_pct": 11.791383
+        },
+        {
+          "age_h": 94,
+          "device": "C8",
+          "loss_pct": 12.698413
+        },
+        {
+          "age_h": 118,
+          "device": "C8",
+          "loss_pct": 17.006803
+        },
+        {
+          "age_h": 142,
+          "device": "C8",
+          "loss_pct": 17.573696
+        },
+        {
+          "age_h": 166,
+          "device": "C8",
+          "loss_pct": 19.727891
+        },
+        {
+          "age_h": 190,
+          "device": "C8",
+          "loss_pct": 20.634921
+        },
+        {
+          "age_h": 214,
+          "device": "C8",
+          "loss_pct": 22.44898
+        },
+        {
+          "age_h": 238,
+          "device": "C8",
+          "loss_pct": 24.319728
+        },
+        {
+          "age_h": 262,
+          "device": "C8",
+          "loss_pct": 25.396825
+        },
+        {
+          "age_h": 286,
+          "device": "C8",
+          "loss_pct": 26.417234
+        },
+        {
+          "age_h": 310,
+          "device": "C8",
+          "loss_pct": 27.097506
+        },
+        {
+          "age_h": 334,
+          "device": "C8",
+          "loss_pct": 27.55102
+        },
+        {
+          "age_h": 358,
+          "device": "C8",
+          "loss_pct": 28.911565
+        },
+        {
+          "age_h": 382,
+          "device": "C8",
+          "loss_pct": 29.478458
+        },
+        {
+          "age_h": 406,
+          "device": "C8",
+          "loss_pct": 30.612245
+        },
+        {
+          "age_h": 430,
+          "device": "C8",
+          "loss_pct": 32.312925
+        },
+        {
+          "age_h": 478,
+          "device": "C8",
+          "loss_pct": 33.560091
+        },
+        {
+          "age_h": 560,
+          "device": "C8",
+          "loss_pct": 37.301587
+        }
+      ]
+    },
+    "NASA EOS-2": {
+      "train_study": "PoFINN",
+      "summary": [
+        {
+          "method": "Training event frequency",
+          "training_devices": 8,
+          "test_devices": 6,
+          "resolved": 39,
+          "unresolved": 8,
+          "resolved_crossings": 15,
+          "brier_score": 0.2645799895479025,
+          "true_alerts": 0,
+          "false_alerts": 0,
+          "missed_crossings": 15
+        },
+        {
+          "method": "Extrapolated three-reading trend",
+          "training_devices": 8,
+          "test_devices": 6,
+          "resolved": 39,
+          "unresolved": 8,
+          "resolved_crossings": 15,
+          "brier_score": 0.15079365079365079,
+          "true_alerts": 9,
+          "false_alerts": 0,
+          "missed_crossings": 6
+        },
+        {
+          "method": "Regularized logistic regression",
+          "training_devices": 8,
+          "test_devices": 6,
+          "resolved": 39,
+          "unresolved": 8,
+          "resolved_crossings": 15,
+          "brier_score": 0.2395045114140888,
+          "true_alerts": 0,
+          "false_alerts": 0,
+          "missed_crossings": 15
+        },
+        {
+          "method": "Small neural network",
+          "training_devices": 8,
+          "test_devices": 6,
+          "resolved": 39,
+          "unresolved": 8,
+          "resolved_crossings": 15,
+          "brier_score": 0.23119791946595528,
+          "true_alerts": 3,
+          "false_alerts": 0,
+          "missed_crossings": 12
+        }
+      ],
+      "predictions": [
+        {
+          "device": "C1",
+          "origin_h": 47.0,
+          "loss_pct": 1.243,
+          "older_rate_pct_per_h": 0.01875,
+          "recent_rate_pct_per_h": 0.034478,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 194.0,
+          "first_crossing_h": null,
+          "frequency": 0.190923,
+          "linear": 0.005936,
+          "neural": 0.015409,
+          "neural_seed_low": 0.015406,
+          "neural_seed_high": 0.015412,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C1",
+          "origin_h": 71.0,
+          "loss_pct": 1.595,
+          "older_rate_pct_per_h": 0.034478,
+          "recent_rate_pct_per_h": 0.014667,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 194.0,
+          "first_crossing_h": null,
+          "frequency": 0.190923,
+          "linear": 0.006866,
+          "neural": 0.01572,
+          "neural_seed_low": 0.015717,
+          "neural_seed_high": 0.015723,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C1",
+          "origin_h": 94.0,
+          "loss_pct": 2.954,
+          "older_rate_pct_per_h": 0.014667,
+          "recent_rate_pct_per_h": 0.059087,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 194.0,
+          "first_crossing_h": null,
+          "frequency": 0.190923,
+          "linear": 0.009777,
+          "neural": 0.016797,
+          "neural_seed_low": 0.016794,
+          "neural_seed_high": 0.0168,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C1",
+          "origin_h": 116.0,
+          "loss_pct": 4.96,
+          "older_rate_pct_per_h": 0.059087,
+          "recent_rate_pct_per_h": 0.091182,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 194.0,
+          "first_crossing_h": null,
+          "frequency": 0.190923,
+          "linear": 0.017305,
+          "neural": 0.019817,
+          "neural_seed_low": 0.019814,
+          "neural_seed_high": 0.01982,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C1",
+          "origin_h": 139.0,
+          "loss_pct": 7.234,
+          "older_rate_pct_per_h": 0.091182,
+          "recent_rate_pct_per_h": 0.09887,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 194.0,
+          "first_crossing_h": null,
+          "frequency": 0.190923,
+          "linear": 0.034555,
+          "neural": 0.02729,
+          "neural_seed_low": 0.027287,
+          "neural_seed_high": 0.027293,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C1",
+          "origin_h": 149.0,
+          "loss_pct": 9.65,
+          "older_rate_pct_per_h": 0.09887,
+          "recent_rate_pct_per_h": 0.2416,
+          "outcome": null,
+          "trend": 0.0,
+          "last_below_h": 194.0,
+          "first_crossing_h": null,
+          "frequency": 0.190923,
+          "linear": 0.056513,
+          "neural": 0.04169,
+          "neural_seed_low": 0.041689,
+          "neural_seed_high": 0.041692,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C1",
+          "origin_h": 161.0,
+          "loss_pct": 11.96,
+          "older_rate_pct_per_h": 0.2416,
+          "recent_rate_pct_per_h": 0.1925,
+          "outcome": null,
+          "trend": 1.0,
+          "last_below_h": 194.0,
+          "first_crossing_h": null,
+          "frequency": 0.190923,
+          "linear": 0.118812,
+          "neural": 0.096035,
+          "neural_seed_low": 0.096033,
+          "neural_seed_high": 0.096038,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C1",
+          "origin_h": 171.0,
+          "loss_pct": 15.854,
+          "older_rate_pct_per_h": 0.1925,
+          "recent_rate_pct_per_h": 0.3894,
+          "outcome": null,
+          "trend": 1.0,
+          "last_below_h": 194.0,
+          "first_crossing_h": null,
+          "frequency": 0.190923,
+          "linear": 0.248219,
+          "neural": 0.296421,
+          "neural_seed_low": 0.2964,
+          "neural_seed_high": 0.29645,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 47.0,
+          "loss_pct": 1.687,
+          "older_rate_pct_per_h": 0.032667,
+          "recent_rate_pct_per_h": 0.039261,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.006767,
+          "neural": 0.015727,
+          "neural_seed_low": 0.015724,
+          "neural_seed_high": 0.01573,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C2",
+          "origin_h": 71.0,
+          "loss_pct": 2.34,
+          "older_rate_pct_per_h": 0.039261,
+          "recent_rate_pct_per_h": 0.027208,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.008498,
+          "neural": 0.01632,
+          "neural_seed_low": 0.016317,
+          "neural_seed_high": 0.016323,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C2",
+          "origin_h": 94.0,
+          "loss_pct": 3.86,
+          "older_rate_pct_per_h": 0.027208,
+          "recent_rate_pct_per_h": 0.066087,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.012838,
+          "neural": 0.01794,
+          "neural_seed_low": 0.017938,
+          "neural_seed_high": 0.017944,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 116.0,
+          "loss_pct": 6.23,
+          "older_rate_pct_per_h": 0.066087,
+          "recent_rate_pct_per_h": 0.107727,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.024988,
+          "neural": 0.023028,
+          "neural_seed_low": 0.023025,
+          "neural_seed_high": 0.023031,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 139.0,
+          "loss_pct": 9.435,
+          "older_rate_pct_per_h": 0.107727,
+          "recent_rate_pct_per_h": 0.139348,
+          "outcome": null,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.062896,
+          "neural": 0.043144,
+          "neural_seed_low": 0.043142,
+          "neural_seed_high": 0.043147,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 149.0,
+          "loss_pct": 11.89,
+          "older_rate_pct_per_h": 0.139348,
+          "recent_rate_pct_per_h": 0.2455,
+          "outcome": 1.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.108054,
+          "neural": 0.083391,
+          "neural_seed_low": 0.083388,
+          "neural_seed_high": 0.083394,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 161.0,
+          "loss_pct": 14.96,
+          "older_rate_pct_per_h": 0.2455,
+          "recent_rate_pct_per_h": 0.255833,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.238755,
+          "neural": 0.262327,
+          "neural_seed_low": 0.262316,
+          "neural_seed_high": 0.262343,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C2",
+          "origin_h": 171.0,
+          "loss_pct": 19.642,
+          "older_rate_pct_per_h": 0.255833,
+          "recent_rate_pct_per_h": 0.4682,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.488503,
+          "neural": 0.648998,
+          "neural_seed_low": 0.648977,
+          "neural_seed_high": 0.649013,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 47.0,
+          "loss_pct": 1.584,
+          "older_rate_pct_per_h": 0.02675,
+          "recent_rate_pct_per_h": 0.040957,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.006534,
+          "neural": 0.015639,
+          "neural_seed_low": 0.015637,
+          "neural_seed_high": 0.015643,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C3",
+          "origin_h": 71.0,
+          "loss_pct": 2.203,
+          "older_rate_pct_per_h": 0.040957,
+          "recent_rate_pct_per_h": 0.025792,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.008156,
+          "neural": 0.0162,
+          "neural_seed_low": 0.016198,
+          "neural_seed_high": 0.016204,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C3",
+          "origin_h": 94.0,
+          "loss_pct": 3.576,
+          "older_rate_pct_per_h": 0.025792,
+          "recent_rate_pct_per_h": 0.059696,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.011873,
+          "neural": 0.017569,
+          "neural_seed_low": 0.017566,
+          "neural_seed_high": 0.017572,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 116.0,
+          "loss_pct": 6.45,
+          "older_rate_pct_per_h": 0.059696,
+          "recent_rate_pct_per_h": 0.130636,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.025725,
+          "neural": 0.023476,
+          "neural_seed_low": 0.023474,
+          "neural_seed_high": 0.02348,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 139.0,
+          "loss_pct": 9.32,
+          "older_rate_pct_per_h": 0.130636,
+          "recent_rate_pct_per_h": 0.124783,
+          "outcome": null,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.062138,
+          "neural": 0.042793,
+          "neural_seed_low": 0.042791,
+          "neural_seed_high": 0.042796,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 149.0,
+          "loss_pct": 11.54,
+          "older_rate_pct_per_h": 0.124783,
+          "recent_rate_pct_per_h": 0.222,
+          "outcome": 1.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.101658,
+          "neural": 0.075414,
+          "neural_seed_low": 0.075412,
+          "neural_seed_high": 0.075416,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 161.0,
+          "loss_pct": 14.694,
+          "older_rate_pct_per_h": 0.222,
+          "recent_rate_pct_per_h": 0.262833,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.221896,
+          "neural": 0.234804,
+          "neural_seed_low": 0.234793,
+          "neural_seed_high": 0.234819,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C3",
+          "origin_h": 171.0,
+          "loss_pct": 19.054,
+          "older_rate_pct_per_h": 0.262833,
+          "recent_rate_pct_per_h": 0.436,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.455923,
+          "neural": 0.610601,
+          "neural_seed_low": 0.610579,
+          "neural_seed_high": 0.610618,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C4",
+          "origin_h": 47.0,
+          "loss_pct": 1.862,
+          "older_rate_pct_per_h": 0.034583,
+          "recent_rate_pct_per_h": 0.04487,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 161.0,
+          "first_crossing_h": 171.0,
+          "frequency": 0.190923,
+          "linear": 0.007081,
+          "neural": 0.015851,
+          "neural_seed_low": 0.015848,
+          "neural_seed_high": 0.015854,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C4",
+          "origin_h": 71.0,
+          "loss_pct": 2.48,
+          "older_rate_pct_per_h": 0.04487,
+          "recent_rate_pct_per_h": 0.02575,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 161.0,
+          "first_crossing_h": 171.0,
+          "frequency": 0.190923,
+          "linear": 0.008901,
+          "neural": 0.016468,
+          "neural_seed_low": 0.016465,
+          "neural_seed_high": 0.016471,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C4",
+          "origin_h": 94.0,
+          "loss_pct": 3.89,
+          "older_rate_pct_per_h": 0.02575,
+          "recent_rate_pct_per_h": 0.061304,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 161.0,
+          "first_crossing_h": 171.0,
+          "frequency": 0.190923,
+          "linear": 0.013072,
+          "neural": 0.018004,
+          "neural_seed_low": 0.018001,
+          "neural_seed_high": 0.018007,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C4",
+          "origin_h": 116.0,
+          "loss_pct": 6.236,
+          "older_rate_pct_per_h": 0.061304,
+          "recent_rate_pct_per_h": 0.106636,
+          "outcome": null,
+          "trend": 0.0,
+          "last_below_h": 161.0,
+          "first_crossing_h": 171.0,
+          "frequency": 0.190923,
+          "linear": 0.025094,
+          "neural": 0.023035,
+          "neural_seed_low": 0.023032,
+          "neural_seed_high": 0.023038,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C4",
+          "origin_h": 139.0,
+          "loss_pct": 9.03,
+          "older_rate_pct_per_h": 0.106636,
+          "recent_rate_pct_per_h": 0.121478,
+          "outcome": 1.0,
+          "trend": 0.0,
+          "last_below_h": 161.0,
+          "first_crossing_h": 171.0,
+          "frequency": 0.190923,
+          "linear": 0.057404,
+          "neural": 0.03948,
+          "neural_seed_low": 0.039478,
+          "neural_seed_high": 0.039483,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C4",
+          "origin_h": 149.0,
+          "loss_pct": 11.365,
+          "older_rate_pct_per_h": 0.121478,
+          "recent_rate_pct_per_h": 0.2335,
+          "outcome": 1.0,
+          "trend": 0.0,
+          "last_below_h": 161.0,
+          "first_crossing_h": 171.0,
+          "frequency": 0.190923,
+          "linear": 0.094908,
+          "neural": 0.070172,
+          "neural_seed_low": 0.07017,
+          "neural_seed_high": 0.070173,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C4",
+          "origin_h": 161.0,
+          "loss_pct": 14.75,
+          "older_rate_pct_per_h": 0.2335,
+          "recent_rate_pct_per_h": 0.282083,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 161.0,
+          "first_crossing_h": 171.0,
+          "frequency": 0.190923,
+          "linear": 0.218838,
+          "neural": 0.235736,
+          "neural_seed_low": 0.235724,
+          "neural_seed_high": 0.235753,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 47.0,
+          "loss_pct": 1.564333,
+          "older_rate_pct_per_h": 0.02534,
+          "recent_rate_pct_per_h": 0.041572,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.006487,
+          "neural": 0.015622,
+          "neural_seed_low": 0.015619,
+          "neural_seed_high": 0.015625,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C5",
+          "origin_h": 71.0,
+          "loss_pct": 2.097,
+          "older_rate_pct_per_h": 0.041572,
+          "recent_rate_pct_per_h": 0.022194,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.007937,
+          "neural": 0.016118,
+          "neural_seed_low": 0.016115,
+          "neural_seed_high": 0.016121,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C5",
+          "origin_h": 94.0,
+          "loss_pct": 3.528333,
+          "older_rate_pct_per_h": 0.022194,
+          "recent_rate_pct_per_h": 0.062232,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.011648,
+          "neural": 0.017487,
+          "neural_seed_low": 0.017484,
+          "neural_seed_high": 0.01749,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 116.0,
+          "loss_pct": 5.997667,
+          "older_rate_pct_per_h": 0.062232,
+          "recent_rate_pct_per_h": 0.112242,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.023068,
+          "neural": 0.022246,
+          "neural_seed_low": 0.022243,
+          "neural_seed_high": 0.022249,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 139.0,
+          "loss_pct": 8.5915,
+          "older_rate_pct_per_h": 0.112242,
+          "recent_rate_pct_per_h": 0.112775,
+          "outcome": null,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.051002,
+          "neural": 0.035873,
+          "neural_seed_low": 0.03587,
+          "neural_seed_high": 0.035876,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 149.0,
+          "loss_pct": 10.865833,
+          "older_rate_pct_per_h": 0.112775,
+          "recent_rate_pct_per_h": 0.227433,
+          "outcome": 1.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.08296,
+          "neural": 0.059975,
+          "neural_seed_low": 0.059973,
+          "neural_seed_high": 0.059976,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 161.0,
+          "loss_pct": 13.645667,
+          "older_rate_pct_per_h": 0.227433,
+          "recent_rate_pct_per_h": 0.231653,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.177392,
+          "neural": 0.167918,
+          "neural_seed_low": 0.167912,
+          "neural_seed_high": 0.167928,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C5",
+          "origin_h": 171.0,
+          "loss_pct": 18.23,
+          "older_rate_pct_per_h": 0.231653,
+          "recent_rate_pct_per_h": 0.458433,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.382957,
+          "neural": 0.522472,
+          "neural_seed_low": 0.522444,
+          "neural_seed_high": 0.522501,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C6",
+          "origin_h": 47.0,
+          "loss_pct": 1.55,
+          "older_rate_pct_per_h": 0.018417,
+          "recent_rate_pct_per_h": 0.048174,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.006386,
+          "neural": 0.015589,
+          "neural_seed_low": 0.015586,
+          "neural_seed_high": 0.015592,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C6",
+          "origin_h": 71.0,
+          "loss_pct": 1.99,
+          "older_rate_pct_per_h": 0.048174,
+          "recent_rate_pct_per_h": 0.018333,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.00772,
+          "neural": 0.016045,
+          "neural_seed_low": 0.016042,
+          "neural_seed_high": 0.016048,
+          "within_training_feature_ranges": false
+        },
+        {
+          "device": "C6",
+          "origin_h": 94.0,
+          "loss_pct": 3.25,
+          "older_rate_pct_per_h": 0.018333,
+          "recent_rate_pct_per_h": 0.054783,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.010814,
+          "neural": 0.01716,
+          "neural_seed_low": 0.017157,
+          "neural_seed_high": 0.017163,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C6",
+          "origin_h": 116.0,
+          "loss_pct": 5.99,
+          "older_rate_pct_per_h": 0.054783,
+          "recent_rate_pct_per_h": 0.124545,
+          "outcome": 0.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.022539,
+          "neural": 0.022072,
+          "neural_seed_low": 0.02207,
+          "neural_seed_high": 0.022075,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C6",
+          "origin_h": 139.0,
+          "loss_pct": 7.54,
+          "older_rate_pct_per_h": 0.124545,
+          "recent_rate_pct_per_h": 0.067391,
+          "outcome": null,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.039955,
+          "neural": 0.029733,
+          "neural_seed_low": 0.02973,
+          "neural_seed_high": 0.029736,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C6",
+          "origin_h": 149.0,
+          "loss_pct": 9.76,
+          "older_rate_pct_per_h": 0.067391,
+          "recent_rate_pct_per_h": 0.222,
+          "outcome": 1.0,
+          "trend": 0.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.06056,
+          "neural": 0.043051,
+          "neural_seed_low": 0.04305,
+          "neural_seed_high": 0.043054,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C6",
+          "origin_h": 161.0,
+          "loss_pct": 12.68,
+          "older_rate_pct_per_h": 0.222,
+          "recent_rate_pct_per_h": 0.243333,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.134361,
+          "neural": 0.115887,
+          "neural_seed_low": 0.115882,
+          "neural_seed_high": 0.115892,
+          "within_training_feature_ranges": true
+        },
+        {
+          "device": "C6",
+          "origin_h": 171.0,
+          "loss_pct": 17.23,
+          "older_rate_pct_per_h": 0.243333,
+          "recent_rate_pct_per_h": 0.455,
+          "outcome": 1.0,
+          "trend": 1.0,
+          "last_below_h": 171.0,
+          "first_crossing_h": 194.0,
+          "frequency": 0.190923,
+          "linear": 0.311861,
+          "neural": 0.422203,
+          "neural_seed_low": 0.422174,
+          "neural_seed_high": 0.422238,
+          "within_training_feature_ranges": true
+        }
+      ],
+      "traces": [
+        {
+          "age_h": 0,
+          "device": "C1",
+          "loss_pct": 0.0
+        },
+        {
+          "age_h": 24,
+          "device": "C1",
+          "loss_pct": 0.45
+        },
+        {
+          "age_h": 47,
+          "device": "C1",
+          "loss_pct": 1.243
+        },
+        {
+          "age_h": 71,
+          "device": "C1",
+          "loss_pct": 1.595
+        },
+        {
+          "age_h": 94,
+          "device": "C1",
+          "loss_pct": 2.954
+        },
+        {
+          "age_h": 116,
+          "device": "C1",
+          "loss_pct": 4.96
+        },
+        {
+          "age_h": 139,
+          "device": "C1",
+          "loss_pct": 7.234
+        },
+        {
+          "age_h": 149,
+          "device": "C1",
+          "loss_pct": 9.65
+        },
+        {
+          "age_h": 161,
+          "device": "C1",
+          "loss_pct": 11.96
+        },
+        {
+          "age_h": 171,
+          "device": "C1",
+          "loss_pct": 15.854
+        },
+        {
+          "age_h": 194,
+          "device": "C1",
+          "loss_pct": 17.45
+        },
+        {
+          "age_h": 0,
+          "device": "C2",
+          "loss_pct": 0.0
+        },
+        {
+          "age_h": 24,
+          "device": "C2",
+          "loss_pct": 0.784
+        },
+        {
+          "age_h": 47,
+          "device": "C2",
+          "loss_pct": 1.687
+        },
+        {
+          "age_h": 71,
+          "device": "C2",
+          "loss_pct": 2.34
+        },
+        {
+          "age_h": 94,
+          "device": "C2",
+          "loss_pct": 3.86
+        },
+        {
+          "age_h": 116,
+          "device": "C2",
+          "loss_pct": 6.23
+        },
+        {
+          "age_h": 139,
+          "device": "C2",
+          "loss_pct": 9.435
+        },
+        {
+          "age_h": 149,
+          "device": "C2",
+          "loss_pct": 11.89
+        },
+        {
+          "age_h": 161,
+          "device": "C2",
+          "loss_pct": 14.96
+        },
+        {
+          "age_h": 171,
+          "device": "C2",
+          "loss_pct": 19.642
+        },
+        {
+          "age_h": 194,
+          "device": "C2",
+          "loss_pct": 21.68
+        },
+        {
+          "age_h": 0,
+          "device": "C3",
+          "loss_pct": 0.0
+        },
+        {
+          "age_h": 24,
+          "device": "C3",
+          "loss_pct": 0.642
+        },
+        {
+          "age_h": 47,
+          "device": "C3",
+          "loss_pct": 1.584
+        },
+        {
+          "age_h": 71,
+          "device": "C3",
+          "loss_pct": 2.203
+        },
+        {
+          "age_h": 94,
+          "device": "C3",
+          "loss_pct": 3.576
+        },
+        {
+          "age_h": 116,
+          "device": "C3",
+          "loss_pct": 6.45
+        },
+        {
+          "age_h": 139,
+          "device": "C3",
+          "loss_pct": 9.32
+        },
+        {
+          "age_h": 149,
+          "device": "C3",
+          "loss_pct": 11.54
+        },
+        {
+          "age_h": 161,
+          "device": "C3",
+          "loss_pct": 14.694
+        },
+        {
+          "age_h": 171,
+          "device": "C3",
+          "loss_pct": 19.054
+        },
+        {
+          "age_h": 194,
+          "device": "C3",
+          "loss_pct": 21.045
+        },
+        {
+          "age_h": 0,
+          "device": "C4",
+          "loss_pct": 0.0
+        },
+        {
+          "age_h": 24,
+          "device": "C4",
+          "loss_pct": 0.83
+        },
+        {
+          "age_h": 47,
+          "device": "C4",
+          "loss_pct": 1.862
+        },
+        {
+          "age_h": 71,
+          "device": "C4",
+          "loss_pct": 2.48
+        },
+        {
+          "age_h": 94,
+          "device": "C4",
+          "loss_pct": 3.89
+        },
+        {
+          "age_h": 116,
+          "device": "C4",
+          "loss_pct": 6.236
+        },
+        {
+          "age_h": 139,
+          "device": "C4",
+          "loss_pct": 9.03
+        },
+        {
+          "age_h": 149,
+          "device": "C4",
+          "loss_pct": 11.365
+        },
+        {
+          "age_h": 161,
+          "device": "C4",
+          "loss_pct": 14.75
+        },
+        {
+          "age_h": 171,
+          "device": "C4",
+          "loss_pct": 20.04
+        },
+        {
+          "age_h": 194,
+          "device": "C4",
+          "loss_pct": 22.675
+        },
+        {
+          "age_h": 0,
+          "device": "C5",
+          "loss_pct": 0.0
+        },
+        {
+          "age_h": 24,
+          "device": "C5",
+          "loss_pct": 0.608167
+        },
+        {
+          "age_h": 47,
+          "device": "C5",
+          "loss_pct": 1.564333
+        },
+        {
+          "age_h": 71,
+          "device": "C5",
+          "loss_pct": 2.097
+        },
+        {
+          "age_h": 94,
+          "device": "C5",
+          "loss_pct": 3.528333
+        },
+        {
+          "age_h": 116,
+          "device": "C5",
+          "loss_pct": 5.997667
+        },
+        {
+          "age_h": 139,
+          "device": "C5",
+          "loss_pct": 8.5915
+        },
+        {
+          "age_h": 149,
+          "device": "C5",
+          "loss_pct": 10.865833
+        },
+        {
+          "age_h": 161,
+          "device": "C5",
+          "loss_pct": 13.645667
+        },
+        {
+          "age_h": 171,
+          "device": "C5",
+          "loss_pct": 18.23
+        },
+        {
+          "age_h": 194,
+          "device": "C5",
+          "loss_pct": 20.796667
+        },
+        {
+          "age_h": 0,
+          "device": "C6",
+          "loss_pct": 0.0
+        },
+        {
+          "age_h": 24,
+          "device": "C6",
+          "loss_pct": 0.442
+        },
+        {
+          "age_h": 47,
+          "device": "C6",
+          "loss_pct": 1.55
+        },
+        {
+          "age_h": 71,
+          "device": "C6",
+          "loss_pct": 1.99
+        },
+        {
+          "age_h": 94,
+          "device": "C6",
+          "loss_pct": 3.25
+        },
+        {
+          "age_h": 116,
+          "device": "C6",
+          "loss_pct": 5.99
+        },
+        {
+          "age_h": 139,
+          "device": "C6",
+          "loss_pct": 7.54
+        },
+        {
+          "age_h": 149,
+          "device": "C6",
+          "loss_pct": 9.76
+        },
+        {
+          "age_h": 161,
+          "device": "C6",
+          "loss_pct": 12.68
+        },
+        {
+          "age_h": 171,
+          "device": "C6",
+          "loss_pct": 17.23
+        },
+        {
+          "age_h": 194,
+          "device": "C6",
+          "loss_pct": 22.04
+        }
+      ]
+    }
+  },
+  "es10_stress_check": {
+    "source": "https://data.phmsociety.org/nasa/",
+    "session_export_sha256": "856ed3d8807376b5a5c014e3c0e40bd3be545398713419c4436693e2b191697d",
+    "summary": [
+      {
+        "method": "Training event frequency",
+        "training_devices": 14,
+        "test_devices": 8,
+        "resolved": 552,
+        "unresolved": 0,
+        "resolved_crossings": 0,
+        "brier_score": 0.07142892573696141,
+        "true_alerts": 0,
+        "false_alerts": 0,
+        "missed_crossings": 0
+      },
+      {
+        "method": "Extrapolated three-reading trend",
+        "training_devices": 14,
+        "test_devices": 8,
+        "resolved": 552,
+        "unresolved": 0,
+        "resolved_crossings": 0,
+        "brier_score": 0.02355072463768116,
+        "true_alerts": 0,
+        "false_alerts": 13,
+        "missed_crossings": 0
+      },
+      {
+        "method": "Regularized logistic regression",
+        "training_devices": 14,
+        "test_devices": 8,
+        "resolved": 552,
+        "unresolved": 0,
+        "resolved_crossings": 0,
+        "brier_score": 0.027202716435149887,
+        "true_alerts": 0,
+        "false_alerts": 10,
+        "missed_crossings": 0
+      },
+      {
+        "method": "Small neural network",
+        "training_devices": 14,
+        "test_devices": 8,
+        "resolved": 552,
+        "unresolved": 0,
+        "resolved_crossings": 0,
+        "brier_score": 0.021396838965061695,
+        "true_alerts": 0,
+        "false_alerts": 11,
+        "missed_crossings": 0
+      }
+    ],
+    "outside_training_ranges": 542
+  }
+}
