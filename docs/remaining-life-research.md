@@ -85,6 +85,46 @@ pressure linked to adjudicated outcomes.
   campaign. Measure missed events, false alerts and lead time by device.
   Check prediction-band coverage and width against the declared endpoint.
 
+## Train and evaluate from measured histories
+
+Put all measurements in a CSV using the CapLife measurement column names.
+Include the device ID, age in hours, capacitance, ESR, electrical leakage
+current, case expansion, cumulative H₂, and absolute internal pressure.
+Capacitor IDs must identify a single physical device across the entire
+dataset. Record comparable sensor conditions, including ESR frequency and
+temperature where available.
+
+```csv
+Cap_ID,Hours,Capacitance_uF,ESR_ohm,Leakage_uA,Case_Expansion_um,H2_Generated_mL_STP,Pressure_Abs_kPa
+```
+
+Use a separate outcome CSV with this header.
+
+```csv
+Cap_ID,Experiment_ID,Endpoint,Last_alive_h,Failure_by_h
+```
+
+Use one row per capacitor and one endpoint definition across the dataset.
+For an exact event, put its age in both time columns. For an event observed
+between inspections, record the last functional age and the age by which
+the event was observed. Leave `Failure_by_h` blank when follow-up ended
+while the device was still functional.
+
+```bash
+python -m caplife.six_indicator_validation --measurements measurements.csv \
+  --outcomes outcomes.csv --calibration-experiment CALIBRATION \
+  --test-experiment FINAL_HOLDOUT --output six_indicator_evaluation.json
+```
+
+The remaining experiments train the models. Each device contributes one
+forecast, at its third complete reading starting from a complete zero-hour
+baseline. The report includes excluded devices and compares the neural model
+with intercept-only and log-linear baselines. It scores prediction bands on
+the final experiment, including conservative calibration against the
+documented outcome bounds. If the calibration sample cannot support a
+finite band, its calibrated result is null. Generalizing coverage to any
+new operating conditions still requires suitable independent evidence.
+
 ## Reproduce
 
 Use the public EOS-2 archive, the original PoFINN CSV, and the NASA ES10,
