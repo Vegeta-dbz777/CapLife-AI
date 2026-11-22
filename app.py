@@ -32,7 +32,7 @@ st.warning(
     "**RESEARCH PROTOTYPE — NOT VALIDATED FOR REAL CAPACITORS.** "
     "The synthetic RUL mode uses a GRU trained on invented histories. "
     "The experimental-measurement mode provides descriptive checks and observed changes only. "
-    "Neither mode provides validated maintenance or lifetime advice."
+    "The public-data benchmark evaluates time to a capacitance-loss threshold in two studies."
 )
 
 
@@ -42,10 +42,93 @@ with st.sidebar:
     st.subheader("Workflow")
     workflow = st.radio(
         "Choose an assessment mode",
-        ("Experimental measurements (v0.8)", "Synthetic RUL demonstration (v0.5)"),
+        (
+            "Experimental measurements (v0.8)",
+            "Public-data forecast benchmark",
+            "Synthetic RUL demonstration (v0.5)",
+        ),
         key="caplife_workflow_v07",
     )
     st.divider()
+
+if workflow == "Public-data forecast benchmark":
+    benchmark = json.loads((ARTIFACTS / "public_benchmark.json").read_text(encoding="utf-8"))
+    origin = benchmark["reference_age_h"]
+    threshold = benchmark["capacitance_loss_threshold_pct"]
+    mass = benchmark["nominal_band_mass"]
+    st.header("Public-data forecast benchmark")
+    st.write(
+        f"At {origin} aging hours, each method forecasts the time until capacitance loss "
+        f"first reaches {threshold}%. Each study takes a turn as the held-out test set."
+    )
+    st.info(
+        "These results describe the two public studies. Physical failure dates and reliable "
+        "prediction ranges for new devices still require validation."
+    )
+
+    summary = pd.DataFrame(benchmark["summary"])
+    predictions = pd.DataFrame(benchmark["predictions"])
+    test_study = st.selectbox("Held-out study", summary["test_study"].unique())
+    results = summary.loc[summary["test_study"] == test_study].copy()
+    observed = results["observed_crossings"].iloc[0]
+    censored = results["right_censored"].iloc[0]
+    st.caption(
+        f"Training study · {results['train_study'].iloc[0]}  |  "
+        f"{observed} crossings observed  |  {censored} tests ended below the threshold"
+    )
+    st.dataframe(results[[
+        "model", "mean_gap_h", "point_hits", "band_overlaps", "band_contains", "median_band_width_h",
+    ]].rename(columns={
+        "model": "Method",
+        "mean_gap_h": "Mean miss (h)",
+        "point_hits": "Point forecasts inside window",
+        "band_overlaps": "Bands overlapping window",
+        "band_contains": "Bands covering entire window",
+        "median_band_width_h": "Median band width (h)",
+    }).round(1), hide_index=True)
+    st.caption(
+        f"Mean miss is the distance to the nearest edge of the observed crossing window, with zero "
+        f"for forecasts inside it. Range counts use the {observed} observed crossings. "
+        f"The fitted models' {mass:.0%} bands are model estimates whose transfer was tested here."
+    )
+
+    method = st.selectbox("Method for device results", results["model"])
+    detail = predictions.loc[
+        (predictions["test_study"] == test_study) & (predictions["model"] == method)
+    ]
+    st.dataframe(detail[[
+        "device", "loss_at_origin_pct", "rul_lower_h", "rul_upper_h", "forecast_h",
+        "band_lower_h", "band_upper_h",
+    ]].rename(columns={
+        "device": "Capacitor",
+        "loss_at_origin_pct": f"Loss at {origin} h (%)",
+        "rul_lower_h": "Last below threshold (h)",
+        "rul_upper_h": "First at or above threshold (h)",
+        "forecast_h": "Forecast (h)",
+        "band_lower_h": "Band start (h)",
+        "band_upper_h": "Band end (h)",
+    }).round(1), hide_index=True)
+    st.caption(
+        f"Device times are measured from {origin} aging hours. A blank first crossing means the device "
+        "stayed below the threshold through its last observation. The recent trend produces point forecasts only."
+    )
+    st.download_button("Download all device forecasts", predictions.to_csv(index=False),
+                       "caplife_public_benchmark.csv", mime="text/csv")
+    with st.expander("Methods and sources"):
+        st.write(
+            "Age only uses the training study's crossing windows. Recent trend extrapolates the last "
+            "three measured capacitance losses in each device. The calibrated trend scales those "
+            "estimates using the training study. Both fitted models use the last observation for "
+            "devices that finish below the threshold."
+        )
+        st.write(
+            "NASA EOS-2 uses electrical stress. PoFINN uses storage conditions. The studies lack "
+            "comparable device-level records of temperature, voltage, and ripple, so this benchmark "
+            "cannot estimate their individual effects."
+        )
+        for study, url in benchmark["sources"].items():
+            st.markdown(f"- [{study}]({url})")
+    st.stop()
 
 if workflow == "Experimental measurements (v0.8)":
     from io import BytesIO

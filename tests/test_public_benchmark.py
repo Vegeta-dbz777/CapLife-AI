@@ -1,0 +1,38 @@
+import json
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+from caplife.public_benchmark import evaluate, landmark_outcomes
+
+
+def test_first_crossing_and_right_censoring():
+    loss = pd.DataFrame(
+        {"Crossing": [0, 4, 8, 20, 16, 22], "Censored": [0, 4, 8, 12, 16, 18]},
+        index=[0, 47, 94, 118, 142, 166],
+    )
+    actual = landmark_outcomes(loss).set_index("device")
+    assert actual.loc["Crossing", ["rul_lower_h", "rul_upper_h"]].tolist() == [0, 24]
+    assert actual.loc["Censored", "rul_lower_h"] == 72
+    assert np.isinf(actual.loc["Censored", "rul_upper_h"])
+    assert actual.loc["Crossing", "trend_h"] == actual.loc["Censored", "trend_h"]
+
+
+def test_held_out_outcomes_do_not_change_forecasts():
+    data = json.loads(Path("artifacts/public_benchmark.json").read_text(encoding="utf-8"))
+    rows = pd.DataFrame(data["predictions"])
+    trend_rows = rows.loc[rows["model"] == "Recent trend"].rename(columns={"forecast_h": "trend_h"})
+    trend_rows["rul_upper_h"] = trend_rows["rul_upper_h"].fillna(np.inf)
+    train = trend_rows.loc[trend_rows["test_study"] == "NASA EOS-2"]
+    test = trend_rows.loc[trend_rows["test_study"] == "PoFINN"]
+    changed = test.assign(rul_lower_h=test["rul_lower_h"] + 50, rul_upper_h=test["rul_upper_h"] + 50)
+
+    summary, original = evaluate(train, test, "NASA EOS-2", "PoFINN")
+    changed_summary, recomputed = evaluate(train, changed, "NASA EOS-2", "PoFINN")
+
+    forecast_columns = ["forecast_h", "band_lower_h", "band_upper_h"]
+    pd.testing.assert_frame_equal(pd.DataFrame(original)[forecast_columns],
+                                  pd.DataFrame(recomputed)[forecast_columns])
+    assert summary != changed_summary
+    assert all(row["observed_crossings"] == 8 for row in summary)

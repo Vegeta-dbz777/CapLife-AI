@@ -41,6 +41,49 @@ The bundled `artifacts/gru_demo_state.pt` and `artifacts/metadata.json` contain
 trained model weights and preprocessing statistics. You **do not need to train**
 the example model to open the website.
 
+### Public-data forecast benchmark
+
+Choose **Public-data forecast benchmark** in the sidebar to inspect the results
+and download the device-level forecasts. The inputs are the six devices in
+[NASA EOS-2](https://data.nasa.gov/dataset/capacitor-electrical-stress-2) and the
+eight devices in the
+[original PoFINN measurement table](https://github.com/Anurag-Dutta/PoFINN/blob/6fe0fa7dd3df31b2dd62bd148182cb85f19494c7/DATA/data_combined.csv)
+(MIT, copyright 2025 The Authors).
+
+The endpoint is the first recorded reading at or above 20% capacitance loss
+relative to the initial reading. A crossing is bracketed by the previous and
+current inspections. One EOS-2 device finishes below the threshold and is
+right-censored at its final inspection. The benchmark uses a shared forecast
+origin of 94 aging hours. Each fit uses one source and is tested on every
+device in the other source, with test inputs limited to measurements through
+94 hours. The benchmark uses original inspections and retains each study's
+recorded aging clock.
+
+- **Age only** fits a log-normal distribution to the training study's remaining
+  times at 94 hours. Its median is the same for every test device.
+- **Recent trend** fits a straight line to the last three available losses and
+  uses its slope to extrapolate from the latest observation to the threshold.
+- **Recent trend with study calibration** fits a single multiplicative correction
+  and a log-normal spread around the trend forecast. Both log-normal models use
+  the likelihood of the observed windows and right-censored follow-up, with a
+  log-scale bound of 0.15 to 3 to limit extreme fits in these small groups.
+
+Point error is the distance to the observed window. For the nominal 80% bands,
+overlap means the true crossing *could* be inside the band and full containment
+means the entire observed crossing window fits. The band width matters as well
+as the count. These are experimental threshold forecasts. The two protocols
+support neither validated physical-failure forecasts nor validated uncertainty on
+new devices. Temperature, voltage and ripple effects require comparable
+operating-condition records across groups.
+
+With the project's Python dependencies installed, regenerate the results from
+the public source URLs or pass downloaded files via `--eos2` and `--pofinn`.
+The output records the SHA-256 of the source measurements for reproducibility.
+
+```bash
+python -m caplife.public_benchmark
+```
+
 ## 2 — Input CSV contract (important)
 
 See `sample_data/upload_template.csv`. Every row is one timestamp/measurement.
