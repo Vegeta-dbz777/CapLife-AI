@@ -191,7 +191,7 @@ def _sparkline(hours: pd.Series, values: pd.Series, label: str, status: str = "g
 
     st.html strips inline <svg>, so the drawing is passed as an <img> data URI with its colour baked in.
     """
-    x, y = hours.to_numpy(dtype=float), values.to_numpy(dtype=float)
+    x, y = hours.to_numpy(dtype=float), _smooth(values.reset_index(drop=True)).to_numpy(dtype=float)
     if len(x) < 2 or not np.isfinite(y).all():
         return ""
     width, height, pad = 240.0, 40.0, 4.0
@@ -243,6 +243,12 @@ def _health_cards(readings: pd.DataFrame, assessment: pd.DataFrame) -> None:
     st.html('<div class="caplife-health-grid">' + "".join(cards) + "</div>")
 
 
+def _smooth(values: pd.Series) -> pd.Series:
+    """Centred running average of neighbouring readings: 3 for short histories, 5 for longer ones."""
+    window = 3 if len(values) < 15 else 5
+    return values.rolling(window, center=True, min_periods=1).mean()
+
+
 def _chart_domain(values: pd.Series, limit: float, digits: int) -> tuple[float, float, str | None]:
     """Y-axis range that shows the data's own trend, and where the limit sits.
 
@@ -263,14 +269,20 @@ def _signal_charts(readings: pd.DataFrame) -> None:
     baseline = readings.iloc[0]
     columns = st.columns(3)
     for index, signal in enumerate(SIGNALS):
-        data = readings[["Hours", signal]].rename(columns={signal: "value"})
+        data = readings[["Hours", signal]].rename(columns={signal: "value"}).reset_index(drop=True)
+        data["trend"] = _smooth(data["value"])
         limit = _limit_value(signal, baseline)
         bottom, top, off_chart = _chart_domain(data["value"], limit, DIGITS[signal])
-        y = alt.Y("value:Q", title=UNITS[signal], scale=alt.Scale(domain=[bottom, top], zero=False, nice=False))
-        line = alt.Chart(data).mark_line(point=alt.OverlayMarkDef(size=28, filled=True), color=TEAL).encode(
-            x=alt.X("Hours:Q", title="Hours"), y=y,
+        scale = alt.Scale(domain=[bottom, top], zero=False, nice=False)
+        points = alt.Chart(data).mark_circle(size=34, color=TEAL, opacity=.55).encode(
+            x=alt.X("Hours:Q", title="Hours"), y=alt.Y("value:Q", title=UNITS[signal], scale=scale),
             tooltip=[alt.Tooltip("Hours:Q", format=",.0f"), alt.Tooltip("value:Q", title=INDICATOR_LABELS[signal],
                                                                        format=f",.{DIGITS[signal]}f")])
+        trend = alt.Chart(data).mark_line(color=TEAL, strokeWidth=2.4).encode(
+            x="Hours:Q", y=alt.Y("trend:Q", scale=scale),
+            tooltip=[alt.Tooltip("Hours:Q", format=",.0f"),
+                     alt.Tooltip("trend:Q", title="Running average", format=f",.{DIGITS[signal]}f")])
+        line = points + trend
         if off_chart is None:
             marker = alt.Chart(pd.DataFrame({"limit": [limit]})).mark_rule(color=ORANGE, strokeDash=[5, 4]).encode(
                 y=alt.Y("limit:Q", scale=alt.Scale(domain=[bottom, top], nice=False)),
@@ -407,6 +419,8 @@ def render() -> None:
     _health_cards(readings, assessment)
 
     st.markdown("##### Six-parameter history")
+    st.caption("Dots are the individual readings; the line is a running average of neighbouring readings, "
+               "which shows the trend through measurement noise.")
     _signal_charts(readings)
     if assessment["RUL_median_h"].notna().any() if "RUL_median_h" in assessment else False:
         st.markdown("##### Remaining-life prediction over time")

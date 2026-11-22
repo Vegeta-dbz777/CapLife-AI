@@ -34,6 +34,7 @@ ATMOSPHERE_KPA = 101.325
 FARADAY_ML_PER_AS = 0.116  # mL of H2 at 0 °C and 1 atm per ampere-second
 MEASUREMENT_TEMP_K = 298.15
 H2_EFFICIENCY = 0.003  # median fraction of leakage charge that generates H2
+EXPANSION_NOISE_UM = 0.25  # standard deviation of a precise laser displacement measurement
 NOISE = {"Capacitance_uF": 0.003, "ESR_ohm": 0.015, "Leakage_uA": 0.03, "H2_Generated_mL_STP": 0.02}
 
 
@@ -124,14 +125,15 @@ def simulate_device(rng: np.random.Generator, cap_id: str, fine_step_h: float = 
         if name in NOISE:
             values *= 1 + rng.normal(0, NOISE[name], len(values))
         elif name == "Case_Expansion_um":
-            values += rng.normal(0, 0.8, len(values))
+            values += rng.normal(0, EXPANSION_NOISE_UM, len(values))
         else:
             values += rng.normal(0, 0.4, len(values))
         frame[name] = values
     frame.loc[0, "H2_Generated_mL_STP"] = 0.0
     frame.loc[0, "Case_Expansion_um"] = 0.0
     frame["H2_Generated_mL_STP"] = frame["H2_Generated_mL_STP"].clip(lower=0).cummax()
-    frame["Case_Expansion_um"] = frame["Case_Expansion_um"].clip(lower=0)
+    # Expansion is a change from the first reading, so a precise sensor can report small negative
+    # values early on; they are kept rather than clipped to zero.
     rounding = {"Capacitance_uF": 2, "ESR_ohm": 5, "Leakage_uA": 3, "Case_Expansion_um": 2,
                 "H2_Generated_mL_STP": 4, "Pressure_Abs_kPa": 2}
     frame = frame.round(rounding)
