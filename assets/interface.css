@@ -176,16 +176,28 @@
     min-width: 0;
 }
 
-.st-key-caplife_sample_card [data-testid="stBaseButton-primary"] {
-    border-color: light-dark(#08796b, #73e8d4);
-    background: light-dark(#08796b, #4fddc5);
-    color: light-dark(white, #092825);
-    font-weight: 680;
+/* Primary buttons: a deep teal with white text on both themes. The dark theme's
+   accent (#4fddc5) is too bright behind white text (1.7:1); #0b6b5e gives 6.4:1. */
+[data-testid="stBaseButton-primary"] {
+    border: 1px solid light-dark(#08796b, #2f9e8f);
+    background: light-dark(#08796b, #0b6b5e);
+    color: #ffffff;
+    font-weight: 650;
 }
 
-.st-key-caplife_sample_card [data-testid="stBaseButton-primary"]:hover {
-    background: light-dark(#07665b, #82ecdb);
-    color: light-dark(white, #092825);
+[data-testid="stBaseButton-primary"]:hover {
+    border-color: light-dark(#065c52, #4fddc5);
+    background: light-dark(#065c52, #0f7a6c);
+    color: #ffffff;
+}
+
+[data-testid="stBaseButton-primary"]:focus-visible {
+    outline: 2px solid light-dark(#08796b, #4fddc5);
+    outline-offset: 2px;
+}
+
+[data-testid="stBaseButton-primary"] p {
+    color: inherit;
 }
 
 [data-testid="stTabs"] [role="tablist"] {
