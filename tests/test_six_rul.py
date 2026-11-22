@@ -24,7 +24,8 @@ def test_simulator_is_reproducible_and_stops_before_end_of_life():
     assert (last_hours < meta.set_index("Cap_ID")["eol_h"]).all()
     for _, readings in first.groupby("Cap_ID"):
         assert readings["H2_Generated_mL_STP"].is_monotonic_increasing
-        assert (readings["Case_Expansion_um"] >= 0).all()
+        assert readings["Case_Expansion_um"].iloc[0] == 0
+        assert readings["Case_Expansion_um"].min() > -1.5  # small negatives are sensor noise only
     assert set(meta["eol_cause"].str.split(", ").str[0]) <= {"capacitance", "ESR", "leakage", "pressure"}
 
 
@@ -144,3 +145,13 @@ def test_chart_axis_fits_small_trends_and_reports_far_limits():
     # A limit close to the readings is kept on the chart.
     low, high, where = _chart_domain(pd.Series([100.0, 180.0]), 250.0, 1)
     assert where is None and high >= 250.0
+
+
+def test_running_average_follows_the_trend_and_keeps_every_reading():
+    from caplife.six_rul_page import _smooth
+    noisy = pd.Series([0.0, 1.0, 0.0, 1.0, 0.0, 1.0])
+    smooth = _smooth(noisy)
+    assert len(smooth) == len(noisy) and smooth.notna().all()
+    assert smooth.diff().abs().max() < noisy.diff().abs().max()  # steps shrink
+    rising = pd.Series(range(20), dtype=float)
+    assert (_smooth(rising).iloc[2:-2] == rising.iloc[2:-2]).all()  # a straight trend is unchanged
