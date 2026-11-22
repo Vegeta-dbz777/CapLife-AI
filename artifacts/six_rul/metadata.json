@@ -1,0 +1,110 @@
+{
+  "model": "SixRULNet GRU, hidden 64, quantile outputs (10th, 50th, 90th percentile of log RUL)",
+  "training_data": "Simulated capacitors from caplife.six_sim; not real measurements",
+  "signals": [
+    "Capacitance_uF",
+    "ESR_ohm",
+    "Leakage_uA",
+    "Case_Expansion_um",
+    "H2_Generated_mL_STP",
+    "Pressure_Abs_kPa"
+  ],
+  "step_features": [
+    "log_age",
+    "log_gap",
+    "Capacitance_uF_used",
+    "ESR_ohm_used",
+    "Leakage_uA_used",
+    "Case_Expansion_um_used",
+    "H2_Generated_mL_STP_used",
+    "Pressure_Abs_kPa_used",
+    "padding"
+  ],
+  "window": 8,
+  "min_readings": 3,
+  "rul_offset_h": 24.0,
+  "eol_limits": {
+    "capacitance_loss_pct": 20.0,
+    "esr_ratio": 2.0,
+    "leakage_ratio": 5.0,
+    "pressure_abs_kpa": 250.0
+  },
+  "nominal_limits": {
+    "Case_Expansion_um": 52.0,
+    "H2_Generated_mL_STP": 6.0
+  },
+  "interval_mass": 0.8,
+  "conformal_adjustment_log": 0.000749,
+  "fleets": {
+    "train": {
+      "capacitors": 1600,
+      "seed": 101,
+      "predictions": 39440
+    },
+    "validation": {
+      "capacitors": 300,
+      "seed": 202,
+      "predictions": 7256
+    },
+    "calibration": {
+      "capacitors": 400,
+      "seed": 303,
+      "predictions": 9811
+    },
+    "test": {
+      "capacitors": 400,
+      "seed": 404,
+      "predictions": 9373
+    }
+  },
+  "training_seed": 7,
+  "best_epoch": 57,
+  "validation_pinball": 0.04451,
+  "limit_used_training_range": {
+    "min": [
+      -0.0659,
+      -0.0762,
+      -0.0383,
+      0.0,
+      0.0,
+      -0.2718
+    ],
+    "max": [
+      1.04,
+      1.1102,
+      1.1602,
+      1.1827,
+      1.5719,
+      0.9627
+    ]
+  },
+  "test_metrics": {
+    "neural_calibrated": {
+      "predictions": 9373,
+      "median_absolute_error_h": 453.5,
+      "mean_absolute_error_h": 1128.6,
+      "median_relative_error": 0.0918,
+      "interval_coverage": 0.7894,
+      "median_interval_width_h": 1872.7
+    },
+    "neural_uncalibrated": {
+      "predictions": 9373,
+      "median_absolute_error_h": 453.5,
+      "mean_absolute_error_h": 1128.6,
+      "median_relative_error": 0.0918,
+      "interval_coverage": 0.7879,
+      "median_interval_width_h": 1862.4
+    },
+    "trend_baseline": {
+      "predictions_with_estimate": 9372,
+      "median_absolute_error_h": 1718.4,
+      "neural_median_absolute_error_h_same_points": 453.7
+    }
+  },
+  "end_of_life_causes_in_test_fleet": {
+    "capacitance": 166,
+    "ESR": 148,
+    "pressure": 56,
+    "leakage": 30
+  }
+}

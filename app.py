@@ -27,13 +27,15 @@ PUBLIC_APP_URL = "https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/"
 PROJECT_URL = "https://github.com/Vegeta-dbz777/CapLife-AI"
 MEASUREMENT_WORKFLOW = "Experimental measurements (v0.8)"
 RUL_WORKFLOW = "Train an RUL model on uploaded outcomes"
+SIX_RUL_WORKFLOW = "Six-parameter RUL prediction (demonstration model)"
 REFERENCE_FORMAT = "Reference-age CSV (ES14 format)"
 WORKFLOWS = {
     MEASUREMENT_WORKFLOW: "Analyze measurements",
+    SIX_RUL_WORKFLOW: "RUL prediction",
     RUL_WORKFLOW: "Train RUL model",
     "Public-data forecast benchmark": "Forecast benchmarks",
     "Public-data neural experiment": "Neural research",
-    "Synthetic RUL demonstration (v0.5)": "Synthetic demo",
+    "Synthetic RUL demonstration (v0.5)": "Earlier GRU demo",
 }
 
 st.set_page_config(
@@ -71,6 +73,15 @@ if workflow == MEASUREMENT_WORKFLOW:
         '<p>Explore measured degradation, inspect thresholds, and export a report.</p></div>'
         '</section>'
     )
+
+if workflow == SIX_RUL_WORKFLOW:
+    st.html(
+        '<p class="caplife-scope"><span>Research prototype</span>'
+        'Demonstration model trained on simulated capacitors.</p>'
+    )
+    from caplife.six_rul_page import render as render_six_rul_page
+    render_six_rul_page()
+    st.stop()
 
 if workflow == RUL_WORKFLOW:
     st.html(
