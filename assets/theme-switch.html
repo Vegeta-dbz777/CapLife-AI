@@ -38,6 +38,8 @@
             finish();
             option.click();
             requestAnimationFrame(() => {
+                const openMenu = app.querySelector('[data-testid="stMainMenuButton"][aria-expanded="true"]');
+                if (openMenu) openMenu.click();
                 sync();
                 control.focus({ preventScroll: true });
             });
