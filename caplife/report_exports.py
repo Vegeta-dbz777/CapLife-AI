@@ -124,7 +124,7 @@ def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario
 
     memory = BytesIO()
     wb = xlsxwriter.Workbook(memory, {"in_memory": True, "strings_to_formulas": False, "strings_to_urls": False, "nan_inf_to_errors": False})
-    navy, blue, pale = "#15243D", "#226D93", "#EDF4F8"
+    navy, blue = "#15243D", "#226D93"
     title = wb.add_format({"bold": True, "font_size": 20, "font_color": "white", "bg_color": navy, "valign": "vcenter"})
     banner = wb.add_format({"font_color": "white", "bg_color": navy, "font_size": 10})
     header = wb.add_format({"bold": True, "font_color": "white", "bg_color": blue, "text_wrap": True, "valign": "vcenter", "bottom": 1, "bottom_color": "#D9E7ED"})

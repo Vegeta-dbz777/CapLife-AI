@@ -35,6 +35,12 @@ The app is tested with Python 3.11 and Streamlit 1.67. It uses `width="stretch"`
 which needs a recent Streamlit; `requirements.txt` allows any Streamlit 1.x, and Cloud installs
 the newest one. Changing `requirements.txt` makes Cloud reinstall every dependency.
 
+## Sign-in and saved datasets
+
+Optional. Add `[auth]` and `[storage]` sections to the app's **Settings → Secrets** on
+Streamlit Cloud; the full steps are in [docs/accounts-and-storage.md](docs/accounts-and-storage.md).
+Without them the app stays a public demo that stores nothing.
+
 ## Check the app before merging
 
 ```sh
@@ -42,6 +48,7 @@ pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-`tests/test_app_pages.py` opens every workspace headlessly and runs its main actions.
+`tests/test_app_pages.py` opens every workspace headlessly and runs its main actions. GitHub runs
+the whole suite automatically on each pull request; merge only when the **Tests** check is green.
 
-**Important:** This is a *public-facing demonstration*, not a real-world validated predictor. Users should not upload proprietary or private experimental datasets to an unreviewed public deployment. The app processes uploads on the host server.
+**Important:** This is a *public-facing demonstration*, not a real-world validated predictor. Users should not upload proprietary or private experimental datasets to an unreviewed public deployment. The app processes uploads on the host server and stores them only when a signed-in user saves them.

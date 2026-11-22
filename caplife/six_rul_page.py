@@ -9,13 +9,14 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from caplife.accounts import save_controls, saved_picker, saving_available
 from caplife.measurement_review import read_experimental_csv
 from caplife.real_data import RealDataValidationError, validate_real_measurements
 from caplife.six_rul import INDICATOR_LABELS, MIN_READINGS, NOMINAL_LIMITS, SixRULModel, example_fleet
 from caplife.six_sim import ATMOSPHERE_KPA, EOL_LIMITS, SIGNALS
 
 ARTIFACT_DIR = Path(__file__).resolve().parents[1] / "artifacts" / "six_rul"
-UPLOAD, EXAMPLE = "Upload my data", "Use simulated example capacitors"
+UPLOAD, EXAMPLE, SAVED = "Upload my data", "Use simulated example capacitors", "My saved datasets"
 UNITS = {"Capacitance_uF": "µF", "ESR_ohm": "Ω", "Leakage_uA": "µA", "Case_Expansion_um": "µm",
          "H2_Generated_mL_STP": "mL", "Pressure_Abs_kPa": "kPa"}
 DIGITS = {"Capacitance_uF": 1, "ESR_ohm": 4, "Leakage_uA": 2, "Case_Expansion_um": 1,
@@ -69,7 +70,8 @@ def _short(value: float) -> str:
 
 
 def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
-    source = st.radio("Data", (UPLOAD, EXAMPLE), horizontal=True, key="caplife_six_source")
+    sources = (UPLOAD, EXAMPLE, SAVED) if saving_available() else (UPLOAD, EXAMPLE)
+    source = st.radio("Data", sources, horizontal=True, key="caplife_six_source")
     template = pd.DataFrame(columns=["Cap_ID", "Hours", *SIGNALS]).to_csv(index=False)
     if source == EXAMPLE:
         measurements, truth = _example()
@@ -79,6 +81,12 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
         st.download_button("Download example CSV", measurements.to_csv(index=False),
                            "caplife_six_parameter_example.csv", mime="text/csv")
         return measurements, truth, "Simulated example"
+    if source == SAVED:
+        picked = saved_picker("six_parameter", "caplife_six")
+        if picked is None:
+            return None
+        files, name = picked
+        return _parse(files["measurements"], name, save=False)
     upload = st.file_uploader("Measurement CSV", type=["csv"], key="caplife_six_upload")
     left, right = st.columns([1, 2])
     left.download_button("Download CSV template", template, "caplife_six_parameter_template.csv", mime="text/csv")
@@ -89,14 +97,18 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
             "(absolute). The first reading of each capacitor is its baseline. Remaining life needs at least "
             f"{MIN_READINGS} complete readings."
         )
-    st.caption("Uploads are processed on the app server. Share data you have permission to use.")
+    st.caption("Uploads are processed on the app server and are not stored unless you sign in and save them.")
     if upload is None:
         return None
     if upload.size > 8 * 1024 * 1024:
         st.error("The CSV exceeds the 8 MB limit.")
         return None
+    return _parse(upload.getvalue(), upload.name, save=True)
+
+
+def _parse(payload: bytes, label: str, save: bool) -> tuple[pd.DataFrame, dict | None, str] | None:
     try:
-        raw = read_experimental_csv(upload.getvalue())
+        raw = read_experimental_csv(payload)
         missing = [INDICATOR_LABELS[s] for s in SIGNALS if s not in raw.columns]
         if missing:
             raise RealDataValidationError("Missing indicator column(s): " + ", ".join(missing))
@@ -104,6 +116,8 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
     except INPUT_ERRORS as error:
         st.error(f"The CSV could not be used: {error}")
         return None
+    if save:
+        save_controls("six_parameter", {"measurements": payload}, label.removesuffix(".csv"), "caplife_six")
     complete = readings.dropna(subset=list(SIGNALS))
     if len(complete) < len(readings):
         st.warning(f"{len(readings) - len(complete)} reading(s) with a missing indicator were left out. "
@@ -121,7 +135,7 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
         complete = complete.loc[~complete["Cap_ID"].isin(unusable)]
         if complete.empty:
             return None
-    return complete.loc[:, ["Cap_ID", "Hours", *SIGNALS]], None, upload.name
+    return complete.loc[:, ["Cap_ID", "Hours", *SIGNALS]], None, label
 
 
 @st.cache_data(show_spinner="Assessing capacitors…", max_entries=4)

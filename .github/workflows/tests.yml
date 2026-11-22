@@ -1,0 +1,45 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: caplife
+          POSTGRES_PASSWORD: caplife
+          POSTGRES_DB: caplife_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Storage tests also run against this throwaway PostgreSQL service.
+      CAPLIFE_TEST_POSTGRES_URL: postgresql+psycopg2://caplife:caplife@localhost:5432/caplife_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Install CPU-only PyTorch
+        # The default PyPI wheel bundles CUDA libraries (several GB) that the tests never use.
+        run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Install app and test dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run tests
+        run: python -m pytest -q
