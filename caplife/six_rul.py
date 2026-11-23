@@ -66,10 +66,11 @@ INDICATOR_LABELS = {
     "Pressure_Abs_kPa": "Internal pressure",
 }
 HIDDEN = 64
-# Capacitors, seed and whether their limits vary. "test" keeps the default limits so its accuracy is
-# comparable with earlier models; "test_custom" scores random user limits.
-SPLITS = {"train": (2400, 101, True), "validation": (400, 202, True), "calibration": (500, 303, True),
-          "test": (400, 404, False), "test_custom": (400, 505, True)}
+# Capacitors, seed, whether their limits vary, and the share with extra inspections right before end
+# of life (user limits often put a capacitor close to one). "test" keeps the default limits and
+# inspection plan so its accuracy is comparable with earlier models; "test_custom" scores user limits.
+SPLITS = {"train": (2400, 101, True, 0.5), "validation": (400, 202, True, 0.5),
+          "calibration": (500, 303, True, 0.5), "test": (400, 404, False, 0.0), "test_custom": (400, 505, True, 0.5)}
 
 
 def subset_key(signals) -> str:
@@ -267,7 +268,7 @@ def _future_fractions(frame: pd.DataFrame, when: np.ndarray, hours: np.ndarray, 
     return current_limit_used(both, limits).to_numpy(dtype=float)[1:].reshape(*when.shape, N)
 
 
-def _fleet_data(n: int, seed: int, prefix: str, vary_limits: bool) -> dict:
+def _fleet_data(n: int, seed: int, prefix: str, vary_limits: bool, near_end_share: float = 0.0) -> dict:
     """Simulated capacitors with network inputs, log RUL targets and future-fraction targets."""
     parts = {"x": [], "y": [], "path": [], "devices": []}
 
@@ -281,7 +282,8 @@ def _fleet_data(n: int, seed: int, prefix: str, vary_limits: bool) -> dict:
         parts["path"].append(_future_fractions(frame, when, hours, truth, limits))
         parts["devices"] += [meta["Cap_ID"]] * len(ages)
 
-    measurements, meta = simulate_fleet(n, seed, prefix=prefix, vary_limits=vary_limits, on_truth=collect)
+    measurements, meta = simulate_fleet(n, seed, prefix=prefix, vary_limits=vary_limits, on_truth=collect,
+                                        near_end_share=near_end_share)
     return {"measurements": measurements, "meta": meta, "x": np.concatenate(parts["x"]),
             "y": np.concatenate(parts["y"]).astype(np.float32),
             "path": np.concatenate(parts["path"]).astype(np.float32), "devices": np.asarray(parts["devices"])}
@@ -401,8 +403,8 @@ def _path_metrics(path: np.ndarray, truth: np.ndarray, measured: np.ndarray) -> 
 def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -> dict:
     torch.manual_seed(seed)
     torch.set_num_threads(min(4, torch.get_num_threads()))
-    data = {name: _fleet_data(n, fleet_seed, name[:3].upper() + ("C" if name == "test_custom" else ""), vary)
-            for name, (n, fleet_seed, vary) in SPLITS.items()}
+    data = {name: _fleet_data(n, fleet_seed, name[:3].upper() + ("C" if name == "test_custom" else ""), vary, near)
+            for name, (n, fleet_seed, vary, near) in SPLITS.items()}
     train_data, val = data["train"], data["validation"]
     rng = np.random.default_rng(seed)
 
@@ -454,6 +456,18 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
             p[..., 2] += path_adjust
             path_metrics[f"{name}, {label}"] = _path_metrics(p, test["path"], _subset_mask(subset))
 
+    # Accuracy by how close the nearest parameter already is to its limit (random-limit test capacitors).
+    custom = data["test_custom"]
+    q = _predict(net, custom["x"])
+    adjustment = adjustments[full := subset_key(SIGNALS)]
+    nearest = custom["x"][:, -1, USED].max(axis=1)
+    by_closeness = {}
+    for low_edge, high_edge in ((0.0, 0.8), (0.8, 0.95), (0.95, 1.0)):
+        rows = (nearest >= low_edge) & (nearest < high_edge)
+        by_closeness[f"{low_edge:.2f}-{high_edge:.2f}"] = _metrics(
+            np.exp(custom["y"][rows]) - RUL_OFFSET_H, _to_hours(q[rows, 0] - adjustment), _to_hours(q[rows, 1]),
+            _to_hours(q[rows, 2] + adjustment))
+
     baselines = {}
     test = data["test"]
     rul = np.exp(test["y"]) - RUL_OFFSET_H
@@ -464,7 +478,6 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
             "predictions_with_estimate": int(available.sum()),
             "median_absolute_error_h": round(float(np.median(np.abs(trend[available] - rul[available]))), 1),
         }
-    full = subset_key(SIGNALS)
     x_train = train_data["x"]
     train_used = x_train[:, :, USED][x_train[:, :, -1] == 0]
     metadata = {
@@ -481,8 +494,8 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
         "conformal_adjustment_log_by_subset": adjustments,
         "trajectory_conformal_adjustment": np.round(path_adjust, 6).tolist(),
         "fleets": {name: {"capacitors": n, "seed": fleet_seed, "limits": "random" if vary else "default",
-                          "predictions": int(len(data[name]["y"]))}
-                   for name, (n, fleet_seed, vary) in SPLITS.items()},
+                          "near_end_share": near, "predictions": int(len(data[name]["y"]))}
+                   for name, (n, fleet_seed, vary, near) in SPLITS.items()},
         "training_seed": seed, "best_epoch": best_epoch, "validation_pinball": round(best, 5),
         "trajectory_best_epoch": path_epoch, "trajectory_validation_pinball": round(path_best, 5),
         "limit_used_training_range": {
@@ -495,6 +508,7 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
         "test_metrics_by_subset_custom_limits": custom_by_subset,
         "trend_baseline_by_subset": baselines,
         "trajectory_test_metrics": path_metrics,
+        "test_metrics_custom_limits_by_closeness_to_limit": by_closeness,
         "end_of_life_causes_in_test_fleet": test["meta"]["eol_cause"].str.split(", ").str[0]
         .value_counts().to_dict(),
     }

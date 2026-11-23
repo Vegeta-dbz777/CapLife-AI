@@ -395,45 +395,57 @@ def _signal_charts(readings: pd.DataFrame, limits: dict | None = None) -> None:
 
 def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Series,
                      limits: dict | None = None) -> None:
-    """Each measured parameter's forecast path from the latest reading to the predicted end of life."""
+    """Each measured parameter from the first reading to the predicted end of life: the measured
+    readings (solid) followed by the forecast path from the latest reading (dashed, with its range)."""
     baseline = readings.iloc[0]
-    start, end = float(last["Hours"]), float(last["Hours"] + last["RUL_median_h"])
-    eol_range = pd.DataFrame({"from": [start + float(last["RUL_low_h"])], "to": [start + float(last["RUL_high_h"])]})
-    hours_scale = alt.Scale(domain=[start, start + float(last["RUL_high_h"])], nice=False)
+    first, latest = float(readings["Hours"].min()), float(last["Hours"])
+    end = latest + float(last["RUL_median_h"])
+    eol_range = pd.DataFrame({"from": [latest + float(last["RUL_low_h"])], "to": [latest + float(last["RUL_high_h"])]})
+    hours_scale = alt.Scale(domain=[first, latest + float(last["RUL_high_h"])], nice=False)
     x = alt.X("Hours:Q", title="Hours", scale=hours_scale)
     columns = st.columns(3)
     for index, signal in enumerate(_measured(readings)):
         data = forecast.loc[forecast["signal"].eq(signal)].reset_index(drop=True)
+        measured = readings[["Hours", signal]].rename(columns={signal: "value"}).reset_index(drop=True)
         limit = _limit_value(signal, baseline, limits)
-        bottom, top, off_chart = _chart_domain(pd.concat([data["low"], data["high"]]), limit, DIGITS[signal])
+        values = pd.concat([measured["value"], data["low"], data["high"]])
+        bottom, top, off_chart = _chart_domain(values, limit, DIGITS[signal])
         scale = alt.Scale(domain=[bottom, top], zero=False, nice=False)
         number = f",.{DIGITS[signal]}f"
         window = alt.Chart(eol_range).mark_rect(color=GREY, opacity=.16).encode(
             x=alt.X("from:Q", scale=hours_scale), x2="to:Q")
+        now = alt.Chart(pd.DataFrame({"Hours": [latest]})).mark_rule(color=GREY, strokeDash=[2, 3]).encode(
+            x=alt.X("Hours:Q", scale=hours_scale),
+            tooltip=[alt.Tooltip("Hours:Q", title="Latest reading (h)", format=",.0f")])
+        history = alt.Chart(measured).mark_line(color=TEAL, strokeWidth=1.8, point=alt.OverlayMarkDef(
+            color=TEAL, size=26, filled=True)).encode(
+            x=x, y=alt.Y("value:Q", title=UNITS[signal], scale=scale),
+            tooltip=[alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
+                     alt.Tooltip("value:Q", title=f"Measured {INDICATOR_LABELS[signal]}", format=number)])
         band = alt.Chart(data).mark_area(color=TEAL, opacity=.22).encode(
-            x=x, y=alt.Y("low:Q", title=UNITS[signal], scale=scale), y2="high:Q")
-        line = alt.Chart(data).mark_line(color=TEAL, strokeWidth=2, strokeDash=[6, 3], point=alt.OverlayMarkDef(
-            color=TEAL, size=22, filled=True)).encode(
+            x=x, y=alt.Y("low:Q", scale=scale), y2="high:Q")
+        path = alt.Chart(data).mark_line(color=TEAL, strokeWidth=2, strokeDash=[6, 3]).encode(
             x=x, y=alt.Y("median:Q", scale=scale),
             tooltip=[alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
                      alt.Tooltip("median:Q", title=f"Predicted {INDICATOR_LABELS[signal]}", format=number),
                      alt.Tooltip("low:Q", title="80% range from", format=number),
                      alt.Tooltip("high:Q", title="80% range to", format=number)])
         eol = alt.Chart(pd.DataFrame({"Hours": [end]})).mark_rule(color=GREY, strokeWidth=1.5).encode(
-            x=alt.X("Hours:Q", scale=hours_scale), tooltip=[alt.Tooltip("Hours:Q", title="Predicted end of life (h)",
-                                                                    format=",.0f")])
-        layers = [window, band, line, eol]
+            x=alt.X("Hours:Q", scale=hours_scale),
+            tooltip=[alt.Tooltip("Hours:Q", title="Predicted end of life (h)", format=",.0f")])
+        layers = [window, now, band, history, path, eol]
         if off_chart is None:
             layers.append(alt.Chart(pd.DataFrame({"limit": [limit]})).mark_rule(color=ORANGE, strokeDash=[5, 4])
                           .encode(y=alt.Y("limit:Q", scale=scale),
                                   tooltip=[alt.Tooltip("limit:Q", title="Your limit", format=number)]))
         else:
             label = f"Limit {limit:{number}} {UNITS[signal]} {'↑' if off_chart == 'above' else '↓'}"
-            layers.append(alt.Chart(pd.DataFrame({"Hours": [start], "value": [top if off_chart == "above" else bottom],
+            layers.append(alt.Chart(pd.DataFrame({"Hours": [first], "value": [top if off_chart == "above" else bottom],
                                                   "label": [label]}))
                           .mark_text(align="left", dx=4, baseline="top" if off_chart == "above" else "bottom",
                                      dy=4 if off_chart == "above" else -4, color=ORANGE, fontSize=11)
-                          .encode(x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale), text="label:N"))
+                          .encode(x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale),
+                                  text="label:N"))
         with columns[index % 3]:
             st.caption(f"**{INDICATOR_LABELS[signal]}** · limit: {_limit_text(signal, limits)}")
             st.altair_chart(alt.layer(*layers).properties(height=170), width="stretch")
@@ -637,11 +649,11 @@ def render() -> None:
         forecast = _forecast_cached(readings, float(last["RUL_median_h"]), json.dumps(limits, sort_keys=True),
                                     code_version())
         st.markdown("##### Predicted parameter trends to end of life")
-        st.caption(f"Forecast by the trend network from the {len(readings)} readings up to {last['Hours']:,.0f} h. "
-                   f"Dashed line: the median path of each parameter; teal band: its 80% range; grey line: the "
-                   f"predicted end of life at {last['Hours'] + last['RUL_median_h']:,.0f} h, with its 80% range "
-                   f"shaded grey; orange dashed line: your limit. {_first_to_limit(forecast)} is expected to reach "
-                   "its limit first.")
+        st.caption(f"Solid line: the {len(readings)} measured readings up to {last['Hours']:,.0f} h (dotted grey "
+                   "line). Dashed line: the trend network's median forecast from there; teal band: its 80% range. "
+                   f"Grey line: the predicted end of life at {last['Hours'] + last['RUL_median_h']:,.0f} h, with its "
+                   f"80% range shaded grey. Orange dashed line: your limit. {_first_to_limit(forecast)} is expected "
+                   "to reach its limit first.")
         _forecast_charts(readings, forecast, last, limits)
     if assessment["RUL_median_h"].notna().any() if "RUL_median_h" in assessment else False:
         st.markdown("##### Remaining-life prediction over time")
