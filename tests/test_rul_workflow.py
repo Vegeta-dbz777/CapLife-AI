@@ -27,7 +27,9 @@ def passing(example):
 def test_passing_model_forecasts_only_capacitors_without_outcomes(example, passing):
     measurements, outcomes = example
     assert passing["passed"] and passing["reasons"] == []
-    assert passing["roles"] == {"training": 16, "calibration": 8, "test": 8}
+    assert passing["roles"] == {"training": 16, "calibration": 7, "test": 8}
+    # SYN_EXP_C_2 has no documented follow-up after its (outcome-blind) evaluation reading.
+    assert list(passing["audit"]["devices_excluded"]) == ["SYN_EXP_C_2"]
     forecast = set(passing["forecasts"]["Capacitor"]) | set(passing["forecasts_withheld"])
     assert forecast == set(measurements["Cap_ID"]) - set(outcomes["Cap_ID"])
     table = passing["forecasts"]
@@ -50,14 +52,18 @@ def test_test_outcomes_cannot_change_the_model_or_forecasts(example, passing):
     assert any("80% range contained" in reason for reason in changed["reasons"])
 
 
-def test_later_readings_do_not_change_a_forecast(example, passing):
+def test_forecasts_use_the_latest_reading_and_each_point_only_earlier_readings(example, passing):
     measurements, outcomes = example
+    forecast = passing["forecasts"].set_index("Capacitor").loc["SYN_RUNNING_2"]
+    latest = measurements.loc[measurements["Cap_ID"].eq("SYN_RUNNING_2"), "Hours"].max()
+    assert forecast["Forecast made at (h)"] == latest
     edited = measurements.copy()
     later = edited["Cap_ID"].eq("SYN_RUNNING_2") & edited["Hours"].gt(100)
     edited.loc[later, "Capacitance_uF"] *= 0.9
     changed = run_rul_workflow(edited, outcomes, SPLIT_BY_EXPERIMENT, "SYN_EXP_C", "SYN_EXP_B")
-    row = lambda result: result["forecasts"].set_index("Capacitor").loc["SYN_RUNNING_2", PREDICTED]
-    pd.testing.assert_series_equal(row(passing), row(changed))
+    history = lambda result: result["forecast_history"].query("Capacitor == 'SYN_RUNNING_2' and Hours <= 100")
+    pd.testing.assert_frame_equal(history(passing), history(changed))  # earlier points are unaffected
+    assert not changed["forecasts"].set_index("Capacitor").loc["SYN_RUNNING_2"].equals(forecast)
 
 
 def test_device_split_is_fixed_by_id_not_by_row_order_or_outcome():
@@ -72,8 +78,10 @@ def test_device_split_is_fixed_by_id_not_by_row_order_or_outcome():
 
 def test_inputs_are_checked_before_training(example):
     measurements, outcomes = example
-    with pytest.raises(RealDataValidationError, match="Missing: Internal pressure"):
-        run_rul_workflow(measurements.drop(columns="Pressure_Abs_kPa"), outcomes, SPLIT_BY_DEVICE)
+    two_each = measurements[["Cap_ID", "Hours", "Capacitance_uF"]].copy()
+    two_each.loc[two_each.groupby("Cap_ID").cumcount() >= 2, "Capacitance_uF"] = float("nan")
+    with pytest.raises(RealDataValidationError, match="No parameter has at least 3 readings"):
+        run_rul_workflow(two_each, outcomes, SPLIT_BY_DEVICE)
     stray = pd.concat([outcomes, outcomes.iloc[[0]].assign(Cap_ID="NOT_MEASURED")], ignore_index=True)
     with pytest.raises(RealDataValidationError, match="no measurements: NOT_MEASURED"):
         run_rul_workflow(measurements, stray, SPLIT_BY_DEVICE)
@@ -92,3 +100,12 @@ def test_outcome_template_round_trips_blank_failure_ages():
     assert read_outcomes(outcome_template_csv().encode()).columns.tolist() == list(OUTCOME_COLUMNS)
     frame = read_outcomes(b"Cap_ID,Experiment_ID,Endpoint,Last_alive_h,Failure_by_h\nNA,e1,open,90,\n")
     assert frame.loc[0, "Cap_ID"] == "NA" and frame.loc[0, "Failure_by_h"] == ""
+
+
+def test_fewer_parameters_train_on_the_ones_every_capacitor_has(example):
+    measurements, outcomes = example
+    three = measurements[["Cap_ID", "Hours", "Capacitance_uF", "ESR_ohm", "Leakage_uA"]]
+    result = run_rul_workflow(three, outcomes, SPLIT_BY_EXPERIMENT, "SYN_EXP_C", "SYN_EXP_B")
+    assert result["parameters"] == ("Capacitance_uF", "ESR_ohm", "Leakage_uA")
+    assert result["training_landmarks"] > result["roles"]["training"]  # every reading from the third on
+    assert len(result["test_table"]) == result["roles"]["test"]  # one evaluation reading per test capacitor

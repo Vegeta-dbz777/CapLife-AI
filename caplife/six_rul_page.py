@@ -12,7 +12,8 @@ import pandas as pd
 import streamlit as st
 
 from caplife.accounts import save_controls, saved_picker, saving_available
-from caplife.measurement_review import read_experimental_csv
+from caplife.file_reader import read_measurement_file
+from caplife.upload_ui import UPLOAD_TYPES, file_settings, show_notes
 from caplife.real_data import RealDataValidationError, validate_real_measurements
 from caplife.six_rul import (
     COMMON_SUBSET, INDICATOR_LABELS, LIMIT_KEYS, MIN_READINGS, SixRULModel, current_limit_used,
@@ -23,6 +24,7 @@ from caplife.versioning import code_version
 
 ARTIFACT_DIR = Path(__file__).resolve().parents[1] / "artifacts" / "six_rul"
 UPLOAD, EXAMPLE, SAVED = "Upload my data", "Use simulated example capacitors", "My saved datasets"
+HANDOFF = "From Analyze measurements"  # the file just analyzed, passed on by its button
 UNITS = {"Capacitance_uF": "µF", "ESR_ohm": "Ω", "Leakage_uA": "µA", "Case_Expansion_um": "µm",
          "H2_Generated_mL_STP": "mL", "Pressure_Abs_kPa": "kPa"}
 DIGITS = {"Capacitance_uF": 1, "ESR_ohm": 4, "Leakage_uA": 2, "Case_Expansion_um": 1,
@@ -117,7 +119,16 @@ def _short(value: float) -> str:
 
 def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
     sources = (UPLOAD, EXAMPLE, SAVED) if saving_available() else (UPLOAD, EXAMPLE)
+    handoff = st.session_state.get("caplife_six_handoff")
+    if handoff:
+        sources = (HANDOFF, *sources)
+    elif st.session_state.get("caplife_six_source") == HANDOFF:
+        st.session_state["caplife_six_source"] = UPLOAD
     source = st.radio("Data", sources, horizontal=True, key="caplife_six_source")
+    if source == HANDOFF:
+        payload, name = handoff
+        st.caption(f"The readings from Analyze measurements ({name}), already converted to hours.")
+        return _parse(payload, name, save=False)
     template = pd.DataFrame(columns=["Cap_ID", "Hours", *SIGNALS]).to_csv(index=False)
     if source == EXAMPLE:
         measurements, truth = _example()
@@ -135,8 +146,9 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
         if picked is None:
             return None
         files, name = picked
-        return _parse(files["measurements"], name, save=False)
-    upload = st.file_uploader("Measurement CSV", type=["csv"], key="caplife_six_upload")
+        return _parse(files["measurements"], name, save=False, settings=file_settings("caplife_six_saved_file"))
+    upload = st.file_uploader("Measurement file (CSV or Excel)", type=UPLOAD_TYPES, key="caplife_six_upload")
+    settings = file_settings("caplife_six_file")
     left, right = st.columns([1, 2])
     left.download_button("Download CSV template", template, "caplife_six_parameter_template.csv", mime="text/csv")
     with right.expander("Columns and units"):
@@ -152,18 +164,20 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
     if upload.size > 8 * 1024 * 1024:
         st.error("The CSV exceeds the 8 MB limit.")
         return None
-    return _parse(upload.getvalue(), upload.name, save=True)
+    return _parse(upload.getvalue(), upload.name, save=True, settings=settings)
 
 
-def _parse(payload: bytes, label: str, save: bool) -> tuple[pd.DataFrame, dict | None, str] | None:
+def _parse(payload: bytes, label: str, save: bool,
+           settings: tuple[str, str] = ("hours", "auto")) -> tuple[pd.DataFrame, dict | None, str] | None:
     try:
-        raw = read_experimental_csv(payload)
+        raw, notes = read_measurement_file(payload, label, *settings)
         readings = validate_real_measurements(raw)
     except INPUT_ERRORS as error:
-        st.error(f"The CSV could not be used: {error}")
+        st.error(f"The file could not be used: {error}")
         return None
+    show_notes(notes)
     if save:
-        save_controls("six_parameter", {"measurements": payload}, label.removesuffix(".csv"), "caplife_six")
+        save_controls("six_parameter", {"measurements": payload}, label.rsplit(".", 1)[0], "caplife_six")
     present = [signal for signal in SIGNALS if signal in readings and readings[signal].notna().any()]
     if not present:
         st.error("The file has none of the six parameters.")
@@ -381,11 +395,18 @@ def _chart_domain(values: pd.Series, limit: float, digits: int) -> tuple[float, 
     return min(low, limit) - pad, max(high, limit) + pad, None
 
 
-def _signal_charts(readings: pd.DataFrame, limits: dict | None = None) -> None:
-    baseline = readings.iloc[0]
+def signal_charts(readings: pd.DataFrame, limits: dict | None = None, reference: bool = False) -> None:
+    """Each parameter's readings joined in time order, two charts per row, with its end-of-life limit.
+
+    Parameters with fewer than two readings are skipped, and blank readings are left out of the
+    line. ``reference`` labels the limit as the default reference limit (Analyze measurements).
+    """
+    readings = readings.sort_values("Hours")
+    baseline = readings.bfill().iloc[0]  # each parameter's first available reading
+    signals = [signal for signal in SIGNALS if signal in readings and readings[signal].notna().sum() >= 2]
     columns = st.columns(2)
-    for index, signal in enumerate(_measured(readings)):
-        data = readings[["Hours", signal]].rename(columns={signal: "value"}).reset_index(drop=True)
+    for index, signal in enumerate(signals):
+        data = readings[["Hours", signal]].dropna().rename(columns={signal: "value"}).reset_index(drop=True)
         limit = _limit_value(signal, baseline, limits)
         bottom, top, off_chart = _chart_domain(data["value"], limit, DIGITS[signal])
         scale = alt.Scale(domain=[bottom, top], zero=False, nice=False)
@@ -409,8 +430,12 @@ def _signal_charts(readings: pd.DataFrame, limits: dict | None = None) -> None:
                                            dy=4 if off_chart == "above" else -4, color=ORANGE, fontSize=11).encode(
                 x="Hours:Q", y=alt.Y("value:Q", scale=alt.Scale(domain=[bottom, top], nice=False)), text="label:N")
         with columns[index % 2]:
-            st.caption(f"**{INDICATOR_LABELS[signal]}** · limit: {_limit_text(signal, limits)}")
+            kind = "default reference limit" if reference else "limit"
+            st.caption(f"**{INDICATOR_LABELS[signal]}** · {kind}: {_limit_text(signal, limits)}")
             st.altair_chart((line + marker).properties(height=260), width="stretch")
+
+
+_signal_charts = signal_charts
 
 
 def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Series,

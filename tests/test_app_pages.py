@@ -73,6 +73,8 @@ def test_train_rul_model_example_passes_and_forecasts():
     next(b for b in app.button if b.label == "Train and test the model").click().run()
     assert not app.exception
     assert any("Passed." in s.value for s in app.success)
+    assert any("Remaining-life prediction over time" in m.value for m in app.markdown)
+    assert any("Parameters used (6 of 6" in c.value for c in app.caption)
 
 
 def test_earlier_gru_demo_analyzes_a_capacitor():
@@ -124,3 +126,16 @@ def test_rul_prediction_takes_user_limits_and_forecasts_parameter_trends():
     assert not app.exception
     assert metric(app, "Overall health") != before or before == "100%"
     assert any("Custom limits:" in c.value for c in app.caption)
+
+
+def test_analyze_measurements_summary_hands_the_file_to_rul_prediction():
+    app = open_workspace("Analyze measurements")
+    next(b for b in app.button if b.label == "Load public example").click().run()
+    assert not app.exception
+    summary = next(df for df in app.dataframe if "Closest to its default limit" in df.value.columns)
+    assert len(summary.value) == 8 and set(summary.value["Parameters"]) == {"2 of 6"}
+    app.button(key="caplife_analyze_to_rul").click().run()
+    assert not app.exception
+    assert app.radio(key="caplife_six_source").value == "From Analyze measurements"
+    assert metric(app, "Capacitors") == "8"
+    assert any("Using 2 of 6 parameters" in i.value for i in app.info)

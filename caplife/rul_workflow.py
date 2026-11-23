@@ -1,4 +1,4 @@
-"""Train, test and apply a six-indicator neural remaining-life model on a user's data.
+"""Train, test and apply a neural remaining-life model on a user's own capacitors.
 
 The workflow answers one question before it forecasts anything: does a neural
 network trained on some of the user's capacitors predict the documented
@@ -8,6 +8,15 @@ group fits the models, the calibration group sets the width of the 80% range,
 and the test group scores them. Forecasts for capacitors without an outcome
 row are released only when the neural model passes every test check, and they
 use exactly the model and range that were tested.
+
+Every reading from a capacitor's third onward is a "landmark": the changes in
+each parameter since the first reading, their recent rates and the time since
+the first reading, with the remaining time to the endpoint as the target. All
+landmarks train the models, weighted so every capacitor counts equally.
+Calibration and testing use one landmark per capacitor, chosen from its ID and
+not its outcome, so their checks stay independent. Forecasts are made at each
+capacitor's latest reading. The parameters used are those every capacitor with
+an outcome has measured at least three times, from one to all six.
 """
 from __future__ import annotations
 
@@ -21,9 +30,10 @@ import pandas as pd
 from caplife.real_data import MEASUREMENTS, RealDataValidationError, validate_real_measurements
 from caplife.remaining_time_validation import BOUNDS
 from caplife.six_indicator_validation import (
-    FEATURES, INTERVAL_MASS, OUTCOME_COLUMNS, SIGNALS, calibrated_band, fit_candidates,
-    joined_landmarks, landmark_features, model_inputs,
+    INTERVAL_MASS, OUTCOME_COLUMNS, SIGNALS, calibrate_log_radius, calibrated_band, model_inputs,
 )
+from caplife.remaining_time_validation import QUANTILES, duration_scores
+from caplife.survival import fit_duration
 
 SPLIT_BY_EXPERIMENT = "experiment"
 SPLIT_BY_DEVICE = "device"
@@ -49,7 +59,148 @@ TRAINING_RANGE_MARGIN = 0.10
 FEATURE_LABELS = {
     **{f"{signal}_change": f"{MEASUREMENTS[signal][0].lower()} change" for signal in SIGNALS},
     **{f"{signal}_rate_per_h": f"{MEASUREMENTS[signal][0].lower()} rate" for signal in SIGNALS},
+    "age_since_first_h": "time since the first reading",
 }
+MIN_READINGS = 3  # a landmark needs the first reading and two more
+
+
+def features_for(signals: tuple[str, ...]) -> tuple[str, ...]:
+    return (*(f"{signal}_change" for signal in signals), *(f"{signal}_rate_per_h" for signal in signals),
+            "age_since_first_h")
+
+
+def signals_for(readings: pd.DataFrame, devices) -> tuple[str, ...]:
+    """Parameters that every one of these capacitors has measured at least three times."""
+    devices = list(devices)
+    chosen = []
+    for signal in SIGNALS:
+        if signal not in readings:
+            continue
+        counts = readings.loc[readings["Cap_ID"].isin(devices)].groupby("Cap_ID")[signal].count()
+        if len(devices) and counts.reindex(devices, fill_value=0).ge(MIN_READINGS).all():
+            chosen.append(signal)
+    return tuple(chosen)
+
+
+def landmarks(history: pd.DataFrame, signals: tuple[str, ...]) -> list[tuple[float, np.ndarray]] | str:
+    """Features at every reading from the third onward, each from readings up to it; or why there are none.
+
+    Changes are measured from the first reading with every parameter (capacitance as % loss, ESR as % rise,
+    the others in their own units); rates are the slope over the last three readings.
+    """
+    complete = history.dropna(subset=list(signals)).sort_values("Hours")
+    if len(complete) < MIN_READINGS:
+        return f"Needs at least {MIN_READINGS} readings with every parameter used"
+    hours = complete["Hours"].to_numpy(dtype=float)
+    # Changed ESR test conditions make later ESR readings incomparable: stop the landmarks there.
+    if "ESR_ohm" in signals:
+        for column in ("ESR_Test_Hz", "ESR_Test_Temp_C"):
+            if column in complete and complete[column].notna().any():
+                values = complete[column].to_numpy()
+                first = values[~pd.isna(values)][0]
+                changed = np.flatnonzero(~pd.isna(values) & (values != first))
+                if changed.size:
+                    hours = hours[:changed[0]]
+        if len(hours) < MIN_READINGS:
+            return "Recorded ESR test conditions change before the third reading"
+    measured = complete.loc[:, list(signals)].to_numpy(dtype=float)[:len(hours)]
+    change = measured - measured[0]
+    for index, signal in enumerate(signals):
+        if signal == "Capacitance_uF":
+            change[:, index] *= -100 / measured[0, index]
+        elif signal == "ESR_ohm":
+            change[:, index] *= 100 / measured[0, index]
+    found = []
+    for k in range(MIN_READINGS - 1, len(hours)):
+        recent = slice(k - 2, k + 1)
+        rate = np.polyfit(hours[recent] - hours[k], change[recent], 1)[0]
+        found.append((float(hours[k]), np.concatenate([change[k], np.atleast_1d(rate), [hours[k] - hours[0]]])))
+    return found
+
+
+def _pick(device: str, count: int) -> int:
+    """One landmark per capacitor for calibration and testing, fixed by its ID, not its outcome."""
+    return int(hashlib.sha256(f"landmark:{device}".encode("utf-8")).hexdigest(), 16) % count
+
+
+def _labels(outcomes: pd.DataFrame) -> pd.DataFrame:
+    labels = outcomes.loc[:, list(OUTCOME_COLUMNS)].copy()
+    for column in ("Cap_ID", "Experiment_ID", "Endpoint"):
+        labels[column] = labels[column].astype("string").str.strip()
+        if labels[column].isna().any() or labels[column].eq("").any():
+            raise ValueError(f"{column} must be recorded for every outcome.")
+    if labels["Cap_ID"].duplicated().any():
+        raise ValueError("Include exactly one outcome row per capacitor.")
+    if labels["Endpoint"].nunique() != 1:
+        raise ValueError("All experiments must use the same documented endpoint.")
+    for column in ("Last_alive_h", "Failure_by_h"):
+        text = labels[column].astype("string").str.strip().replace("", pd.NA)
+        try:
+            labels[column] = pd.to_numeric(text, errors="raise").astype(float)
+        except (ValueError, TypeError) as error:
+            raise ValueError(f"{column} must be a number of hours (blank Failure_by_h means still working).") from error
+    lo, hi = labels["Last_alive_h"], labels["Failure_by_h"].fillna(np.inf)
+    if not np.isfinite(lo).all() or (lo < 0).any() or (hi < lo).any():
+        raise ValueError("Invalid outcome ages: Last_alive_h must be at most Failure_by_h. A blank Failure_by_h "
+                         "means the capacitor was still working.")
+    return labels
+
+
+def all_landmarks(readings: pd.DataFrame, labels: pd.DataFrame, signals: tuple[str, ...]) -> tuple[pd.DataFrame, dict]:
+    """Every usable landmark of every capacitor with an outcome, with its remaining-time bounds."""
+    features = features_for(signals)
+    by_device = {device: group for device, group in readings.groupby("Cap_ID", sort=False)}
+    rows, dropped = [], {}
+    for label in labels.itertuples(index=False):
+        found = landmarks(by_device[label.Cap_ID], signals)
+        if isinstance(found, str):
+            dropped[label.Cap_ID] = found
+            continue
+        # The evaluation landmark is chosen from the readings and the ID alone, never from the outcome, and
+        # never the last reading (often the check that found the capacitor failed).
+        candidates = found[:-1] or found
+        evaluation_age = candidates[_pick(label.Cap_ID, len(candidates))][0]
+        usable = [(age, values) for age, values in found if age < label.Last_alive_h]
+        if evaluation_age >= label.Last_alive_h:
+            dropped[label.Cap_ID] = "Insufficient documented follow-up after its evaluation reading"
+            continue
+        upper = math.inf if pd.isna(label.Failure_by_h) else float(label.Failure_by_h)
+        for age, values in usable:
+            rows.append({
+                "device": label.Cap_ID, "experiment": label.Experiment_ID, "age_h": age,
+                BOUNDS[0]: float(label.Last_alive_h) - age, BOUNDS[1]: upper - age,
+                "evaluation": age == evaluation_age, "weight": 1 / len(usable),
+                **dict(zip(features, values, strict=True)),
+            })
+    frame = pd.DataFrame(rows, columns=["device", "experiment", "age_h", *BOUNDS, "evaluation", "weight", *features])
+    return frame, {
+        "endpoint": str(labels["Endpoint"].iloc[0]),
+        "devices_submitted": len(labels),
+        "devices_excluded": dropped,
+        "experiments": sorted(str(value) for value in labels["Experiment_ID"].unique()),
+        "parameters": list(signals),
+    }
+
+
+def fit_candidates(train: pd.DataFrame, calibration: pd.DataFrame, test: pd.DataFrame,
+                   features: tuple[str, ...]) -> dict:
+    """Fit each candidate on every training landmark, calibrate it, then score the test capacitors."""
+    fitted = {}
+    for name, used, hidden in (("intercept_only", (), False), ("log_linear", features, False),
+                               ("neural", features, True)):
+        x_train, x_cal, x_test = (model_inputs(part, used) for part in (train, calibration, test))
+        model = fit_duration(x_train, train[BOUNDS[0]], train[BOUNDS[1]], train["weight"].to_numpy(dtype=float), hidden)
+        radius = calibrate_log_radius(calibration, model.location(x_cal))
+        coverage = None if radius is None else duration_scores(test, calibrated_band(model, radius, x_test))
+        fitted[name] = {
+            "model": model, "features": used, "radius": radius,
+            "scores": {
+                "test_model_interval": duration_scores(test, model.quantiles(x_test, QUANTILES)),
+                "test_calibrated_interval": coverage,
+                "calibration_log_radius": radius,
+            },
+        }
+    return fitted
 
 MEASUREMENT_TEMPLATE_COLUMNS = ("Cap_ID", "Hours", *SIGNALS, "ESR_Test_Hz", "ESR_Test_Temp_C")
 
@@ -62,15 +213,30 @@ def outcome_template_csv() -> str:
     return pd.DataFrame(columns=OUTCOME_COLUMNS).to_csv(index=False)
 
 
-def read_outcomes(payload: bytes) -> pd.DataFrame:
-    """Read outcome rows as literal text so IDs and blank failure ages are preserved."""
-    try:
-        frame = pd.read_csv(BytesIO(payload), keep_default_na=False, encoding="utf-8-sig",
-                            dtype={"Cap_ID": str, "Experiment_ID": str, "Endpoint": str})
-    except (pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeError) as error:
-        raise RealDataValidationError(f"The outcome CSV could not be read. {error}") from error
-    if not isinstance(frame.index, pd.RangeIndex):
-        raise RealDataValidationError("Outcome rows must match the header column count.")
+def read_outcomes(payload: bytes, time_unit: str = "hours") -> pd.DataFrame:
+    """Read outcome rows (CSV or Excel) as literal text so IDs and blank failure ages are preserved.
+
+    Decimal commas in the two ages become decimal points, and ages in days, weeks or months are
+    converted to hours. ``frame.attrs["notes"]`` lists every adjustment.
+    """
+    from caplife.file_reader import _DECIMAL_COMMA, TIME_UNITS, read_table
+    frame, notes = read_table(payload)
+    frame.columns = [str(column).strip() for column in frame.columns]
+    for column in ("Last_alive_h", "Failure_by_h"):
+        if column not in frame:
+            continue
+        text = frame[column].astype(str).str.strip()
+        comma = text.str.match(_DECIMAL_COMMA)
+        if comma.any():
+            notes.append(f"Read decimal commas in {column} as decimal points.")
+        text = text.where(~comma, text.str.replace(",", ".", regex=False))
+        if time_unit != "hours":
+            numbers = pd.to_numeric(text, errors="coerce") * TIME_UNITS[time_unit]
+            text = text.where(numbers.isna(), numbers.map(lambda value: f"{value:.10g}"))
+        frame[column] = text
+    if time_unit != "hours":
+        notes.append(f"Converted outcome ages from {time_unit} to hours.")
+    frame.attrs["notes"] = notes
     return frame
 
 
@@ -164,43 +330,54 @@ def _test_table(test: pd.DataFrame, neural: dict) -> pd.DataFrame:
     })
 
 
-def _forecasts(raw: pd.DataFrame, neural: dict, train: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+def _forecasts(raw: pd.DataFrame, neural: dict, train: pd.DataFrame,
+               signals: tuple[str, ...]) -> tuple[pd.DataFrame, dict, pd.DataFrame]:
+    """Forecasts at each capacitor's latest reading, why any were withheld, and the forecast at every reading."""
     readings = validate_real_measurements(raw)
-    lows, highs = train.loc[:, list(FEATURES)].min(), train.loc[:, list(FEATURES)].max()
-    rows, withheld = [], {}
+    features = neural["features"]
+    lows, highs = train.loc[:, list(features)].min(), train.loc[:, list(features)].max()
+    span = (highs - lows).replace(0, 1)
+    rows, withheld, history_rows = [], {}, []
     for device, history in readings.groupby("Cap_ID", sort=True):
-        landmark = landmark_features(history)
-        if isinstance(landmark, str):
-            withheld[device] = landmark
+        lacking = [MEASUREMENTS[signal][0].lower() for signal in signals
+                   if signal not in history or history[signal].count() < MIN_READINGS]
+        if lacking:
+            withheld[device] = f"Fewer than {MIN_READINGS} readings of " + ", ".join(lacking)
             continue
-        age, values = landmark
-        span = (highs - lows).replace(0, 1)
+        found = landmarks(history, signals)
+        if isinstance(found, str):
+            withheld[device] = found
+            continue
+        for age, values in found:
+            low, mid, high = calibrated_band(neural["model"], neural["radius"], values[None, :])[0]
+            history_rows.append({"Capacitor": device, "Hours": age, "RUL_low_h": low, "RUL_median_h": mid,
+                                 "RUL_high_h": high})
+        age, values = found[-1]
         beyond = (np.maximum(values - highs, 0) + np.maximum(lows - values, 0)) / span
         if (beyond > TRAINING_RANGE_MARGIN).any():
             worst = beyond.idxmax()
-            withheld[device] = (f"Early readings fall outside what the training capacitors showed "
+            withheld[device] = (f"The latest readings fall outside what the training capacitors showed "
                                 f"({FEATURE_LABELS[worst]} is {beyond[worst]:.0%} of the training range beyond it)")
             continue
-        low, mid, high = age + calibrated_band(neural["model"], neural["radius"], values[None, :])[0]
-        latest = float(history["Hours"].max())
-        outlived = latest > high
+        low, mid, high = calibrated_band(neural["model"], neural["radius"], values[None, :])[0]
         rows.append({
             "Capacitor": device,
             "Forecast made at (h)": age,
-            "Latest reading (h)": latest,
-            "Predicted failure age (h)": mid,
-            "80% range from (h)": low,
-            "80% range to (h)": high,
-            "Remaining from latest, median (h)": max(mid - latest, 0.0) if latest < mid else np.nan,
-            "Remaining from latest, 80% range from (h)": np.nan if outlived else max(low - latest, 0.0),
-            "Remaining from latest, 80% range to (h)": np.nan if outlived else high - latest,
-            "Status": ("Outlived the predicted range" if outlived
-                       else "Past the median prediction" if latest >= mid else "Forecast"),
+            "Latest reading (h)": float(history["Hours"].max()),
+            "Predicted failure age (h)": age + mid,
+            "80% range from (h)": age + low,
+            "80% range to (h)": age + high,
+            "Remaining from latest, median (h)": mid,
+            "Remaining from latest, 80% range from (h)": low,
+            "Remaining from latest, 80% range to (h)": high,
+            "Status": "Forecast",
         })
     columns = ["Capacitor", "Forecast made at (h)", "Latest reading (h)", "Predicted failure age (h)",
                "80% range from (h)", "80% range to (h)", "Remaining from latest, median (h)",
                "Remaining from latest, 80% range from (h)", "Remaining from latest, 80% range to (h)", "Status"]
-    return pd.DataFrame(rows, columns=columns), withheld
+    history_columns = ["Capacitor", "Hours", "RUL_low_h", "RUL_median_h", "RUL_high_h"]
+    return (pd.DataFrame(rows, columns=columns), withheld,
+            pd.DataFrame(history_rows, columns=history_columns))
 
 
 def _model_table(fitted: dict) -> pd.DataFrame:
@@ -236,45 +413,51 @@ def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method:
                      calibration_experiment: str | None = None,
                      test_experiment: str | None = None) -> dict:
     """Validate a neural remaining-life model on held-out capacitors and forecast only if it passes."""
-    missing = [signal for signal in SIGNALS if signal not in measurements.columns]
-    if missing:
-        names = ", ".join(MEASUREMENTS[signal][0] for signal in missing)
-        raise RealDataValidationError(f"The measurement CSV needs all six indicators. Missing: {names}.")
     missing = [column for column in OUTCOME_COLUMNS if column not in outcomes.columns]
     if missing or outcomes.empty:
-        raise RealDataValidationError("The outcome CSV needs one row per capacitor with columns "
+        raise RealDataValidationError("The outcome file needs one row per capacitor with columns "
                                       + ", ".join(OUTCOME_COLUMNS) + ".")
-    outcomes = outcomes.loc[:, list(OUTCOME_COLUMNS)]
-    raw_ids = validate_real_measurements(measurements)["Cap_ID"]
-    measured_ids = set(raw_ids)
-    labelled_ids = outcomes["Cap_ID"].astype("string").str.strip()
-    unknown = sorted(set(labelled_ids.dropna()) - measured_ids)
+    readings = validate_real_measurements(measurements)
+    labels = _labels(outcomes)
+    measured_ids = set(readings["Cap_ID"])
+    unknown = sorted(set(labels["Cap_ID"]) - measured_ids)
     if unknown:
         shown = ", ".join(unknown[:5]) + (" …" if len(unknown) > 5 else "")
         raise RealDataValidationError(f"Outcome rows name capacitors with no measurements: {shown}")
+    signals = signals_for(readings, labels["Cap_ID"])
+    if not signals:
+        raise RealDataValidationError(
+            f"No parameter has at least {MIN_READINGS} readings for every capacitor with an outcome. Each of the six "
+            "can be used, but every capacitor with an outcome needs the same parameters.")
+    features = features_for(signals)
 
-    measurement_ids = measurements["Cap_ID"].astype("string").str.strip()
-    labelled = measurement_ids.isin(set(labelled_ids))
-    frame, audit = joined_landmarks(measurements.loc[labelled].reset_index(drop=True), outcomes)
+    frame, audit = all_landmarks(readings, labels, signals)
     if frame.empty:
         raise ValueError("No capacitor has the readings and follow-up needed to train a model.")
-    roles = device_roles(frame, method, calibration_experiment, test_experiment)
+    devices = frame.loc[frame["evaluation"], ["device", "experiment"]]
+    roles = device_roles(devices, method, calibration_experiment, test_experiment)
     frame = frame.assign(role=roles.reindex(frame["device"].to_numpy()).to_numpy())
     parts = {role: frame.loc[frame["role"].eq(role)] for role in ROLES}
     minimum = {"training": MIN_TRAINING_DEVICES, "calibration": MIN_CALIBRATION_DEVICES, "test": MIN_TEST_DEVICES}
     for role, part in parts.items():
-        if len(part) < minimum[role]:
-            raise ValueError(f"The {role} group has {len(part)} eligible capacitor(s); at least {minimum[role]} are needed.")
+        if part["device"].nunique() < minimum[role]:
+            raise ValueError(f"The {role} group has {part['device'].nunique()} eligible capacitor(s); "
+                             f"at least {minimum[role]} are needed.")
     if not np.isfinite(parts["training"][BOUNDS[1]]).any():
         raise ValueError("At least one training capacitor needs an observed failure.")
+    # Training learns from every landmark; calibration and testing use one per capacitor.
+    calibration = parts["calibration"].loc[parts["calibration"]["evaluation"]]
+    test = parts["test"].loc[parts["test"]["evaluation"]]
 
-    fitted = fit_candidates(parts["training"], parts["calibration"], parts["test"])
-    reasons = release_checks(fitted, parts["calibration"])
-    forecast_devices = sorted(measured_ids - set(labelled_ids))
-    forecasts, withheld = None, {}
+    fitted = fit_candidates(parts["training"], calibration, test, features)
+    reasons = release_checks(fitted, calibration)
+    labelled_ids = set(labels["Cap_ID"])
+    forecast_devices = sorted(measured_ids - labelled_ids)
+    forecasts, withheld, forecast_history = None, {}, None
     if not reasons and forecast_devices:
-        forecasts, withheld = _forecasts(measurements.loc[~labelled].reset_index(drop=True),
-                                         fitted["neural"], parts["training"])
+        unlabelled = readings.loc[~readings["Cap_ID"].isin(labelled_ids)].reset_index(drop=True)
+        forecasts, withheld, forecast_history = _forecasts(unlabelled, fitted["neural"], parts["training"], signals)
+    parts = {role: part.loc[part["evaluation"]] for role, part in parts.items()}
 
     report = {
         **audit,
@@ -292,6 +475,8 @@ def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method:
         "forecast_devices": forecast_devices,
         "forecasts": [] if forecasts is None else forecasts.to_dict(orient="records"),
         "forecasts_withheld": withheld,
+        "parameters": list(signals),
+        "training_landmarks": int(len(frame.loc[frame["role"].eq("training")])),
     }
     return {
         "report": _json_safe(report),
@@ -305,4 +490,7 @@ def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method:
         "forecast_devices": forecast_devices,
         "forecasts": forecasts,
         "forecasts_withheld": withheld,
+        "forecast_history": forecast_history,
+        "parameters": signals,
+        "training_landmarks": report["training_landmarks"],
     }

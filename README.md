@@ -97,11 +97,18 @@ public demo and stores nothing. Setup takes about 20 minutes:
 
 ### Train a remaining-life model on your own data
 
-Choose **Train RUL model** in the sidebar. Upload a six-indicator measurement
-history and an outcome file with one row per tested capacitor (`Cap_ID`,
+Choose **Train RUL model** in the sidebar. Upload a measurement history (any
+of the six indicators; the model uses the ones every capacitor with an outcome
+has measured at least three times) and an outcome file with one row per tested capacitor (`Cap_ID`,
 `Experiment_ID`, `Endpoint`, `Last_alive_h`, `Failure_by_h`; leave
 `Failure_by_h` blank for capacitors still working when testing stopped).
 Capacitors with readings but no outcome row are the ones to forecast.
+
+The model learns from every reading from a capacitor's third onward (changes
+since the first reading, recent rates and elapsed time), with each capacitor
+counting equally; calibration and testing use one reading per capacitor, chosen
+from its ID and readings, never its outcome. Forecasts are made at each
+capacitor's latest reading, with a chart of how the forecast developed.
 
 The page splits capacitors into training, calibration and test groups, by
 experiment when there are at least three, otherwise by capacitor ID, never by
@@ -119,6 +126,21 @@ Forecasts use the tested model and range unchanged, and are withheld for
 capacitors whose early readings lie more than 10% of the training range beyond
 the training capacitors. A synthetic example shows the workflow; its results
 say nothing about real capacitors. The logic lives in `caplife/rul_workflow.py`.
+
+### Measurement files
+
+*Analyze measurements*, *RUL prediction* and *Train RUL model* read CSV and
+Excel (.xlsx) files: comma, semicolon or tab separated, with decimal points or
+the decimal commas European Excel writes, in UTF-8 or Windows encoding. Common
+column-name variations (`cap_id`, `Time (h)`, `Capacitance (uF)`, `ESR`,
+`Pressure`...) are recognised, `n/a` and `-` count as missing, and rows without
+a capacitor ID or time, with negative time, or repeating a reading are left out
+with a note rather than rejecting the file. Under **File settings**, choose the
+time unit (hours, days, weeks, months; a `Days` column converts automatically)
+and whether pressure is absolute or gauge (detected automatically when a
+capacitor's first reading is below 80 kPa). The page lists every adjustment;
+no reading is invented. *Analyze measurements* also hands its file to *RUL
+prediction* with one button.
 
 ## 1 — Try the web app locally (Windows / macOS / Linux)
 
