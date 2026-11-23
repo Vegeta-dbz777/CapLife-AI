@@ -58,7 +58,7 @@ def test_signed_in_user_reopens_a_saved_six_parameter_dataset(database, monkeypa
     assert not app.exception, app.exception
     picker = app.selectbox(key="caplife_six_saved")
     assert len(picker.options) == 1 and picker.options[0].startswith("Bench batch")
-    assert next(m.value for m in app.metric if m.label == "Capacitors") == "8"
+    assert next(m.value for m in app.metric if m.label == "Capacitors") == "12"
 
 
 def test_signed_in_user_reopens_a_saved_training_dataset(database, monkeypatch):

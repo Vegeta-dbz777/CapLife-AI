@@ -36,10 +36,8 @@ MIN_READINGS = 3
 QUANTILES = (0.1, 0.5, 0.9)
 INTERVAL_MASS = 0.8
 RUL_OFFSET_H = 24.0
-# Nominal limits for the two indicators that are not end-of-life criteria
-# themselves: the expansion and generated H2 at which a typical simulated
-# capacitor reaches the vent pressure.
-NOMINAL_LIMITS = {"Case_Expansion_um": 52.0, "H2_Generated_mL_STP": 6.0}
+# Expansion and generated H2 are measured from the first reading.
+EOL_CAUSES = ("capacitance", "ESR", "leakage", "expansion", "H2", "pressure")
 STEP_FEATURES = ("log_age", "log_gap", *(f"{signal}_used" for signal in SIGNALS),
                  *(f"{signal}_measured" for signal in SIGNALS), "padding")
 USED, MEASURED = slice(2, 2 + len(SIGNALS)), slice(2 + len(SIGNALS), 2 + 2 * len(SIGNALS))
@@ -112,9 +110,9 @@ def current_limit_used(readings: pd.DataFrame) -> pd.DataFrame:
         "ESR_ohm": (column("ESR_ohm") / base("ESR_ohm") - 1) / (EOL_LIMITS["esr_ratio"] - 1),
         "Leakage_uA": (column("Leakage_uA") / base("Leakage_uA") - 1) / (EOL_LIMITS["leakage_ratio"] - 1),
         "Case_Expansion_um": (column("Case_Expansion_um") - base("Case_Expansion_um"))
-        / NOMINAL_LIMITS["Case_Expansion_um"],
+        / EOL_LIMITS["expansion_um"],
         "H2_Generated_mL_STP": (column("H2_Generated_mL_STP") - base("H2_Generated_mL_STP"))
-        / NOMINAL_LIMITS["H2_Generated_mL_STP"],
+        / EOL_LIMITS["h2_ml"],
         "Pressure_Abs_kPa": (column("Pressure_Abs_kPa") - ATMOSPHERE_KPA)
         / (EOL_LIMITS["pressure_abs_kpa"] - ATMOSPHERE_KPA),
     }, index=readings.index)
@@ -318,7 +316,7 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
         "training_data": "Simulated capacitors from caplife.six_sim; not real measurements",
         "signals": list(SIGNALS), "step_features": list(STEP_FEATURES), "window": WINDOW,
         "min_readings": MIN_READINGS, "rul_offset_h": RUL_OFFSET_H,
-        "eol_limits": EOL_LIMITS, "nominal_limits": NOMINAL_LIMITS, "interval_mass": INTERVAL_MASS,
+        "eol_limits": EOL_LIMITS, "interval_mass": INTERVAL_MASS,
         "conformal_adjustment_log": adjustments[full],
         "conformal_adjustment_log_by_subset": adjustments,
         "fleets": {name: {"capacitors": n, "seed": fleet_seed, "predictions": int(len(data[name][1]))}
@@ -377,7 +375,6 @@ class SixRULModel:
         if len(readings) >= MIN_READINGS:
             q = _predict(self.net, sequences(readings, measured))
             low, mid, high = _to_hours(q[:, 0] - adjustment), _to_hours(q[:, 1]), _to_hours(q[:, 2] + adjustment)
-        criteria = [signal for signal in measured if signal not in NOMINAL_LIMITS]
         for index in range(len(readings)):
             fractions = used.iloc[index]
             row = {"Hours": float(readings.loc[index, "Hours"])}
@@ -386,7 +383,7 @@ class SixRULModel:
                                                if signal in measured else np.nan)
             row["Overall_health_pct"] = min(row[f"{signal}_health_pct"] for signal in measured)
             row["Limiting_indicator"] = INDICATOR_LABELS[fractions.idxmax()]
-            reached = bool(criteria) and bool((fractions[criteria] >= 1 - 1e-9).any())
+            reached = bool((fractions >= 1 - 1e-9).any())
             row["End_of_life_reached"] = reached
             k = index - (MIN_READINGS - 1)
             if k >= 0 and not reached:
@@ -408,7 +405,7 @@ def example_fleet(seed: int = 2027, devices_per_cause: int = 2) -> tuple[pd.Data
     measurements, meta = simulate_fleet(120, seed, prefix="POOL")
     meta = meta.assign(cause=meta["eol_cause"].str.split(", ").str[0])
     chosen = pd.concat([meta.loc[meta["cause"].eq(cause)].head(devices_per_cause)
-                        for cause in ("capacitance", "ESR", "leakage", "pressure")])
+                        for cause in EOL_CAUSES])
     stages = np.random.default_rng(seed).permutation(np.linspace(0.35, 0.9, len(chosen)))
     kept, truth = [], {}
     for number, (row, stage) in enumerate(zip(chosen.itertuples(index=False), stages), start=1):
