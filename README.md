@@ -52,12 +52,16 @@ internal pressure at 250 kPa. On 400 further simulated capacitors it never saw:
 
 | Parameters | Typical error | True RUL inside 80% range | Trend line |
 |---|---|---|---|
-| All six | 514 h (10%) | 81% | 1,544 h |
-| Capacitance, ESR, leakage | 649 h (13%) | 82% | 1,962 h |
-| Capacitance, ESR | 718 h (14%) | 79% | 2,148 h |
-| Capacitance only | 1,324 h (23%) | 82% | 3,340 h |
+| All six | 521 h (11%) | 79% | 1,572 h |
+| Capacitance, ESR, leakage | 652 h (13%) | 82% | 2,006 h |
+| Capacitance, ESR | 722 h (14%) | 81% | 2,212 h |
+| Capacitance only | 1,296 h (22%) | 84% | 3,427 h |
 
 Across all 63 combinations the 80% range contained the true value 77–84% of the time.
+Aging damage is treated as lasting: health and end of life use the worst level a
+parameter has held (three consecutive readings), and the network sees earlier
+readings cleaned with their neighbours, so one faulty reading affects only its own
+prediction. Status: Good above 70% health, Watch from 40%, Critical below.
 These figures hold for the simulator only: the coefficients are illustrative,
 and accuracy on real capacitors is unknown until the model is tested on
 measured failures. Retrain with `python -m caplife.six_rul --output artifacts/six_rul`.
