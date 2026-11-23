@@ -192,3 +192,19 @@ def test_parameter_lists_keep_abbreviations_capitalised():
     from caplife.six_rul_page import _names
     assert _names(("Capacitance_uF", "ESR_ohm", "Leakage_uA")) == "capacitance, ESR and leakage current"
     assert _names(("H2_Generated_mL_STP",)) == "H₂ generated"
+
+
+def test_capacitor_past_its_limit_from_the_start_gets_a_clear_message_not_a_flat_chart(model):
+    from caplife.measurement_review import nasa_reference_to_caplife
+    from caplife.six_rul_page import _always_at_end_of_life, _end_of_life_message
+    nasa = nasa_reference_to_caplife(pd.read_csv(Path(__file__).resolve().parents[1] / "sample_data"
+                                                 / "nasa_es14_reference.csv", dtype={"Cap_ID": str}))
+    readings = nasa.loc[nasa["Cap_ID"].eq("ES14C1"), ["Cap_ID", "Hours", "Capacitance_uF", "ESR_ohm"]]
+    assessment = model.assess(readings)
+    # ES14C1's ESR doubled within 2 h of electrical overstress, and it lost over 20% of its
+    # capacitance within the first day.
+    assert _always_at_end_of_life(assessment)
+    assert _end_of_life_message(assessment) == ("End-of-life limit first met at 2 h (ESR) and still met at "
+                                                "the latest reading, 5,106 h (Capacitance).")
+    healthy = model.assess(example_fleet()[0].query("Cap_ID == 'DEMO_01'"))
+    assert not _always_at_end_of_life(healthy)

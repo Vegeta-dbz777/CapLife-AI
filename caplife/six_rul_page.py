@@ -313,11 +313,29 @@ def _signal_charts(readings: pd.DataFrame) -> None:
             st.altair_chart((line + marker).properties(height=170), width="stretch")
 
 
+def _end_of_life_message(assessment: pd.DataFrame) -> str:
+    """Say when, and on which indicator, a limit was first met, not only at the latest reading."""
+    last = assessment.iloc[-1]
+    first = assessment.loc[assessment["End_of_life_reached"].astype(bool)].iloc[0]
+    latest = f"{last['Hours']:,.0f} h ({last['Limiting_indicator']})"
+    if float(first["Hours"]) < float(last["Hours"]):
+        return (f"End-of-life limit first met at {first['Hours']:,.0f} h ({first['Limiting_indicator']}) "
+                f"and still met at the latest reading, {latest}.")
+    return f"End-of-life limit met at the latest reading, {latest}."
+
+
+def _always_at_end_of_life(assessment: pd.DataFrame) -> bool:
+    """True when every remaining-life prediction is 0 h, so a trend chart would be a flat line."""
+    predicted = assessment.dropna(subset=["RUL_median_h"])
+    return bool(len(predicted)) and bool((predicted["RUL_high_h"] == 0).all())
+
+
 def _rul_chart(assessment: pd.DataFrame, true_eol: float | None) -> alt.Chart:
     data = assessment.dropna(subset=["RUL_median_h"])
     band = alt.Chart(data).mark_area(opacity=.25, color=TEAL).encode(
         x=alt.X("Hours:Q", title="Capacitor age when the prediction was made (h)"),
-        y=alt.Y("RUL_low_h:Q", title="Remaining useful life (h)"), y2="RUL_high_h:Q")
+        y=alt.Y("RUL_low_h:Q", title="Remaining useful life (h)", axis=alt.Axis(format=",.0f"),
+                scale=alt.Scale(domainMin=0)), y2="RUL_high_h:Q")
     line = alt.Chart(data).mark_line(point=True, color=TEAL).encode(
         x="Hours:Q", y="RUL_median_h:Q",
         tooltip=[alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
@@ -439,7 +457,7 @@ def render() -> None:
     readings, assessment = results[device]
     last = assessment.iloc[-1]
     if bool(last["End_of_life_reached"]):
-        st.error(f"An end-of-life limit is already met at {last['Hours']:,.0f} h ({last['Limiting_indicator']}).")
+        st.error(_end_of_life_message(assessment))
     elif "RUL_median_h" not in assessment or pd.isna(last.get("RUL_median_h")):
         st.warning(f"Remaining life needs at least {MIN_READINGS} readings; this capacitor has {len(readings)}.")
     else:
@@ -465,10 +483,14 @@ def render() -> None:
     _signal_charts(readings)
     if assessment["RUL_median_h"].notna().any() if "RUL_median_h" in assessment else False:
         st.markdown("##### Remaining-life prediction over time")
-        true_eol = truth[device]["eol_h"] if truth else None
-        st.altair_chart(_rul_chart(assessment, true_eol), width="stretch")
-        st.caption("Each point uses only the readings available at that age. Shaded band: 80% range."
-                   + (" Dashed orange line: the simulated true remaining life." if truth else ""))
+        if _always_at_end_of_life(assessment):
+            st.info("Every prediction is 0 h because an end-of-life limit was already met when the first "
+                    "prediction could be made, so there is no remaining-life trend to plot.")
+        else:
+            true_eol = truth[device]["eol_h"] if truth else None
+            st.altair_chart(_rul_chart(assessment, true_eol), width="stretch")
+            st.caption("Each point uses only the readings available at that age. Shaded band: 80% range."
+                       + (" Dashed orange line: the simulated true remaining life." if truth else ""))
 
     with st.expander("About the model and how well it did on simulated data"):
         _model_card(measured)
