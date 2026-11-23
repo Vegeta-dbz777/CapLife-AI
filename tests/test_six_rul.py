@@ -314,3 +314,29 @@ def test_near_limit_ranges_are_calibrated_separately():
     by_closeness = metadata["test_metrics_custom_limits_by_closeness_to_limit"]
     for closeness, metrics in by_closeness.items():
         assert 0.72 <= metrics["interval_coverage"] <= 0.9, closeness
+
+
+def test_each_capacitor_is_assessed_with_its_own_parameters():
+    import json
+    from caplife import six_rul_page as page
+    measurements, _ = example_fleet()
+    mixed = measurements.copy()
+    own = {"DEMO_01": SIGNALS, "DEMO_02": ("Capacitance_uF", "ESR_ohm"),
+           "DEMO_03": ("Capacitance_uF", "Pressure_Abs_kPa", "Leakage_uA"), "DEMO_04": ("ESR_ohm",)}
+    mixed = mixed.loc[mixed["Cap_ID"].isin(own)]
+    for device, signals in own.items():
+        mixed.loc[mixed["Cap_ID"].eq(device), [s for s in SIGNALS if s not in signals]] = np.nan
+    # One reading of DEMO_02 lacks its ESR: only that reading is left out.
+    gap = mixed.index[mixed["Cap_ID"].eq("DEMO_02")][3]
+    mixed.loc[gap, "ESR_ohm"] = np.nan
+    parsed, _, _ = page._parse(mixed.to_csv(index=False).encode(), "mixed", save=False)
+    assert sorted(parsed["Cap_ID"].unique()) == sorted(own)  # nobody is dropped for lacking other parameters
+    assert len(parsed) == len(mixed) - 1
+    results = page._assess_cached(parsed, json.dumps({}), "test")
+    for device, signals in own.items():
+        readings, assessment = results[device]
+        assert page._measured(readings) == tuple(s for s in SIGNALS if s in signals)
+        health = assessment.iloc[-1].filter(like="_health_pct").drop("Overall_health_pct")
+        assert health.notna().sum() == len(signals)
+    fleet = page._fleet_table(results, None)
+    assert fleet.set_index("Capacitor").loc["DEMO_02", "Parameters"] == "2 of 6"

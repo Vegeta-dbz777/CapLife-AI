@@ -164,36 +164,52 @@ def _parse(payload: bytes, label: str, save: bool) -> tuple[pd.DataFrame, dict |
         return None
     if save:
         save_controls("six_parameter", {"measurements": payload}, label.removesuffix(".csv"), "caplife_six")
-    measured = [signal for signal in SIGNALS if signal in readings and readings[signal].notna().any()]
-    complete = readings.dropna(subset=measured)
-    if len(complete) < len(readings):
-        st.warning(f"{len(readings) - len(complete)} reading(s) missing one of the measured parameters were left "
-                   "out. No values were filled in.")
-    if complete.empty:
-        st.error("No reading has all the parameters this file contains.")
+    present = [signal for signal in SIGNALS if signal in readings and readings[signal].notna().any()]
+    if not present:
+        st.error("The file has none of the six parameters.")
         return None
-    # Capacitance, ESR and leakage are scored as ratios to the first reading, so it must be positive.
-    first = complete.sort_values("Hours").groupby("Cap_ID").first()
-    ratio_based = [signal for signal in ("Capacitance_uF", "ESR_ohm", "Leakage_uA") if signal in measured]
-    unusable = first.index[(first[ratio_based] <= 0).any(axis=1)].tolist()
+    kept, dropped_readings, unusable, empty = [], {}, [], []
+    for device, group in readings.sort_values("Hours").groupby("Cap_ID", sort=True):
+        # A capacitor's parameters are the ones measured in at least half of its readings; readings
+        # missing one of them are left out, and nothing is filled in.
+        own = [signal for signal in present if group[signal].notna().mean() >= 0.5]
+        if not own:
+            empty.append(str(device))
+            continue
+        complete = group.dropna(subset=own)
+        if len(complete) < len(group):
+            dropped_readings[str(device)] = len(group) - len(complete)
+        # Capacitance, ESR and leakage are scored as ratios to the first reading, so it must be positive.
+        ratio_based = [signal for signal in ("Capacitance_uF", "ESR_ohm", "Leakage_uA") if signal in own]
+        if complete.empty or (complete.iloc[0][ratio_based] <= 0).any():
+            unusable.append(str(device))
+            continue
+        complete = complete.copy()
+        complete[[signal for signal in present if signal not in own]] = np.nan
+        kept.append(complete)
+    shown = lambda names: ", ".join(names[:5]) + (" …" if len(names) > 5 else "")
+    if dropped_readings:
+        st.warning("Left out readings missing one of their capacitor's parameters (no values were filled in): "
+                   + shown([f"{device} ({count})" for device, count in dropped_readings.items()]) + ".")
+    if empty:
+        st.warning(f"Left out {len(empty)} capacitor(s) with no parameter in at least half of their readings: "
+                   f"{shown(empty)}.")
     if unusable:
-        shown = ", ".join(unusable[:5]) + (" …" if len(unusable) > 5 else "")
-        st.warning(f"Left out {len(unusable)} capacitor(s) whose first reading has zero leakage current, which "
-                   f"cannot serve as a baseline: {shown}.")
-        complete = complete.loc[~complete["Cap_ID"].isin(unusable)]
-        if complete.empty:
-            return None
-    return complete.loc[:, ["Cap_ID", "Hours", *measured]], None, label
+        st.warning(f"Left out {len(unusable)} capacitor(s) whose first reading has zero capacitance, ESR or leakage "
+                   f"current, which cannot serve as a baseline: {shown(unusable)}.")
+    if not kept:
+        st.error("No capacitor has enough complete readings to assess.")
+        return None
+    return pd.concat(kept, ignore_index=True).loc[:, ["Cap_ID", "Hours", *present]], None, label
 
 
 @st.cache_data(show_spinner="Assessing capacitors…", max_entries=8)
 def _assess_cached(measurements: pd.DataFrame, limits_json: str,
                    version: str) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
     model = _model()
-    measured = _measured(measurements)
     limits = json.loads(limits_json)
     return {device: (readings.sort_values("Hours").reset_index(drop=True),
-                     model.assess(readings, measured, limits.get(str(device))))
+                     model.assess(readings, _measured(readings), limits.get(str(device))))
             for device, readings in measurements.groupby("Cap_ID", sort=True)}
 
 
@@ -202,8 +218,9 @@ def _forecast_cached(readings: pd.DataFrame, remaining_h: float, limits_json: st
     return _model().forecast(readings, remaining_h, _measured(readings), json.loads(limits_json))
 
 
-def _measured(measurements: pd.DataFrame) -> tuple[str, ...]:
-    return tuple(signal for signal in SIGNALS if signal in measurements)
+def _measured(readings: pd.DataFrame) -> tuple[str, ...]:
+    """Parameters with a value in every reading (for one capacitor: the ones it was assessed with)."""
+    return tuple(signal for signal in SIGNALS if signal in readings and readings[signal].notna().all())
 
 
 def _assess(measurements: pd.DataFrame, limits: dict) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
@@ -248,7 +265,7 @@ def _limit_inputs(device: str, measured: tuple[str, ...], devices) -> dict:
         columns[index % 3].number_input(
             label, min_value=_shown_limit(signal, low), max_value=_shown_limit(signal, high), step=step,
             key=widget(signal), on_change=changed, args=(signal,), disabled=signal not in measured,
-            help=("Not in this data." if signal not in measured else
+            help=("Not measured for this capacitor." if signal not in measured else
                   f"Allowed: {_shown_limit(signal, low):g} to {_shown_limit(signal, high):g}, the range the model "
                   "was trained on."), **kwargs)
     left, right, _ = st.columns([1.3, 1, 2])
@@ -264,6 +281,7 @@ def _fleet_table(results: dict, truth: dict | None, limits: dict | None = None) 
         has_rul = "RUL_median_h" in assessment and pd.notna(last.get("RUL_median_h"))
         row = {
             "Capacitor": device,
+            "Parameters": f"{len(_measured(results[device][0]))} of 6",
             "Latest reading (h)": last["Hours"],
             "Overall health (%)": round(last["Overall_health_pct"]),
             "Limiting indicator": last["Limiting_indicator"],
@@ -583,6 +601,15 @@ def _model_card(measured: tuple[str, ...]) -> None:
                "`python -m caplife.six_rul`.")
 
 
+def _parameter_note(measured: tuple[str, ...], device: str | None = None) -> None:
+    accuracy = _model().metrics_for(measured)
+    missing = [signal for signal in SIGNALS if signal not in measured]
+    st.info(f"**Using {len(measured)} of 6 parameters{f' for {device}' if device else ''}:** {_names(measured)}. "
+            f"Not in this data: {_names(missing)}. With these parameters, the model's typical error on simulated "
+            f"test capacitors is {accuracy['median_absolute_error_h']:,.0f} h "
+            f"({accuracy['median_relative_error']:.0%} of remaining life), and its 80% range is wider to match.")
+
+
 def render() -> None:
     st.header("Six-parameter health and remaining-life prediction")
     st.write("Upload measurement histories of capacitance, ESR, leakage current, case expansion, generated "
@@ -595,18 +622,19 @@ def render() -> None:
     if loaded is None:
         return
     measurements, truth, label = loaded
-    measured = _measured(measurements)
     devices = sorted(measurements["Cap_ID"].astype(str).unique())
     all_limits = _device_limits(devices)
     results = _assess(measurements, all_limits)
     fleet = _fleet_table(results, truth, all_limits)
-    if len(measured) < len(SIGNALS):
-        accuracy = _model().metrics_for(measured)
-        missing = [signal for signal in SIGNALS if signal not in measured]
-        st.info(f"**Using {len(measured)} of 6 parameters:** {_names(measured)}. Not in this data: "
-                f"{_names(missing)}. With these parameters, the model's typical error on simulated test "
-                f"capacitors is {accuracy['median_absolute_error_h']:,.0f} h "
-                f"({accuracy['median_relative_error']:.0%} of remaining life), and its 80% range is wider to match.")
+    sets = {device: _measured(readings) for device, (readings, _) in results.items()}
+    if len(set(sets.values())) > 1:
+        counts = pd.Series([len(found) for found in sets.values()]).value_counts().sort_index(ascending=False)
+        st.info("**Parameters differ between capacitors:** "
+                + ", ".join(f"{n} with {k} of 6" for k, n in counts.items())
+                + ". Each capacitor is assessed with the parameters it has (see the Parameters column), and its "
+                "80% range is calibrated for that combination: fewer parameters, wider range.")
+    elif len(next(iter(sets.values()))) < len(SIGNALS):
+        _parameter_note(next(iter(sets.values())))
 
     st.subheader("Fleet overview")
     st.caption(label)
@@ -628,8 +656,11 @@ def render() -> None:
 
     st.subheader("Capacitor detail")
     device = st.selectbox("Capacitor", list(results), key="caplife_six_device")
-    limits = _limit_inputs(str(device), measured, devices)
     readings, assessment = results[device]
+    measured = _measured(readings)
+    if len(set(sets.values())) > 1 and len(measured) < len(SIGNALS):
+        _parameter_note(measured, device)
+    limits = _limit_inputs(str(device), measured, devices)
     last = assessment.iloc[-1]
     default_limits = limits == full_limits()
     if bool(last["End_of_life_reached"]):
