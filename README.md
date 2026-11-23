@@ -57,21 +57,26 @@ limits a user sets. On 400 further simulated capacitors with the default limits:
 
 | Parameters | Typical error | True RUL inside 80% range | Trend line |
 |---|---|---|---|
-| All six | 536 h (11%) | 84% | 1,572 h |
-| Capacitance, ESR, leakage | 660 h (13%) | 88% | 2,122 h |
-| Capacitance, ESR | 768 h (15%) | 86% | 2,315 h |
-| Capacitance only | 1,402 h (24%) | 84% | 3,561 h |
+| All six | 536 h (11%) | 86% | 1,572 h |
+| Capacitance, ESR, leakage | 660 h (13%) | 90% | 2,122 h |
+| Capacitance, ESR | 768 h (15%) | 88% | 2,315 h |
+| Capacitance only | 1,402 h (24%) | 83% | 3,561 h |
 
-On 400 more with random limits, the typical error with all six is 422 h and the
-80% range held the true value 78–85% of the time across all 63 combinations
-(82–89% with the default limits: calibrated on mixed limits, the ranges are
-slightly cautious there).
+On 400 more with random limits (half of them inspected again in the last 3% of
+their life), the typical error with all six is 366 h and the 80% range held the
+true value 80–87% of the time across all 63 combinations. The ranges are
+calibrated on capacitors with mixed limits, so with the default limits they are
+cautious (83–92%). Within 5% of a limit the network tends to overestimate the
+short remaining life, so the range there is calibrated separately (Mondrian
+conformal prediction): it held the true value 78% of the time, with a typical
+error of 127 h, and the page says when a parameter is that close.
 
 A second network forecasts each parameter's path from the latest reading to the
 predicted end of life, at 10% steps of the remaining life, as a median that never
 improves and a calibrated 80% range. On the test capacitors its median is
 typically within 1–3% of the limit halfway there and 2–9% at end of life, and
-the range held the true path 77–85% of the time.
+the range held the true path 82–88% of the time. The trend charts start at the
+first reading: measured readings, then the forecast.
 
 Aging damage is treated as lasting: health and end of life use the worst level a
 parameter has held (three consecutive readings), and the network sees earlier

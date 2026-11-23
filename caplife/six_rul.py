@@ -66,10 +66,15 @@ INDICATOR_LABELS = {
     "Pressure_Abs_kPa": "Internal pressure",
 }
 HIDDEN = 64
-# Capacitors, seed and whether their limits vary. "test" keeps the default limits so its accuracy is
-# comparable with earlier models; "test_custom" scores random user limits.
-SPLITS = {"train": (2400, 101, True), "validation": (400, 202, True), "calibration": (500, 303, True),
-          "test": (400, 404, False), "test_custom": (400, 505, True)}
+# Capacitors, seed, whether their limits vary, and the share with extra inspections right before end
+# of life. User limits often put a capacitor close to one, so the calibration and random-limit test
+# capacitors include such readings. "test" keeps the default limits and inspection plan so its
+# accuracy is comparable with earlier models.
+SPLITS = {"train": (2400, 101, True, 0.0), "validation": (400, 202, True, 0.0),
+          "calibration": (500, 303, True, 0.5), "test": (400, 404, False, 0.0), "test_custom": (400, 505, True, 0.5)}
+# Within 5% of a limit, remaining life is short and harder to predict, so the 80% range is
+# calibrated separately there (Mondrian conformal prediction).
+NEAR_LIMIT = 0.95
 
 
 def subset_key(signals) -> str:
@@ -267,7 +272,7 @@ def _future_fractions(frame: pd.DataFrame, when: np.ndarray, hours: np.ndarray, 
     return current_limit_used(both, limits).to_numpy(dtype=float)[1:].reshape(*when.shape, N)
 
 
-def _fleet_data(n: int, seed: int, prefix: str, vary_limits: bool) -> dict:
+def _fleet_data(n: int, seed: int, prefix: str, vary_limits: bool, near_end_share: float = 0.0) -> dict:
     """Simulated capacitors with network inputs, log RUL targets and future-fraction targets."""
     parts = {"x": [], "y": [], "path": [], "devices": []}
 
@@ -281,7 +286,8 @@ def _fleet_data(n: int, seed: int, prefix: str, vary_limits: bool) -> dict:
         parts["path"].append(_future_fractions(frame, when, hours, truth, limits))
         parts["devices"] += [meta["Cap_ID"]] * len(ages)
 
-    measurements, meta = simulate_fleet(n, seed, prefix=prefix, vary_limits=vary_limits, on_truth=collect)
+    measurements, meta = simulate_fleet(n, seed, prefix=prefix, vary_limits=vary_limits, on_truth=collect,
+                                        near_end_share=near_end_share)
     return {"measurements": measurements, "meta": meta, "x": np.concatenate(parts["x"]),
             "y": np.concatenate(parts["y"]).astype(np.float32),
             "path": np.concatenate(parts["path"]).astype(np.float32), "devices": np.asarray(parts["devices"])}
@@ -381,6 +387,12 @@ def _fit(net: nn.Module, loss_fn, x_train, target_train, x_val, target_val, rng,
     return best, best_epoch
 
 
+def _conformal(scores: np.ndarray) -> float:
+    """The split-conformal quantile of nonconformity scores for an ``INTERVAL_MASS`` range."""
+    rank = min(math.ceil((len(scores) + 1) * INTERVAL_MASS), len(scores))
+    return float(np.sort(scores)[rank - 1])
+
+
 def _path_metrics(path: np.ndarray, truth: np.ndarray, measured: np.ndarray) -> dict:
     """Accuracy and 80% coverage of forecast paths, in fractions of each limit, per indicator."""
     out = {}
@@ -401,8 +413,8 @@ def _path_metrics(path: np.ndarray, truth: np.ndarray, measured: np.ndarray) -> 
 def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -> dict:
     torch.manual_seed(seed)
     torch.set_num_threads(min(4, torch.get_num_threads()))
-    data = {name: _fleet_data(n, fleet_seed, name[:3].upper() + ("C" if name == "test_custom" else ""), vary)
-            for name, (n, fleet_seed, vary) in SPLITS.items()}
+    data = {name: _fleet_data(n, fleet_seed, name[:3].upper() + ("C" if name == "test_custom" else ""), vary, near)
+            for name, (n, fleet_seed, vary, near) in SPLITS.items()}
     train_data, val = data["train"], data["validation"]
     rng = np.random.default_rng(seed)
 
@@ -413,24 +425,30 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
     path_best, path_epoch = _fit(path_net, _path_pinball, train_data["x"], train_data["path"],
                                  val["x"], val["path"], rng, epochs)
 
-    # Conformalized quantile regression for every combination of measured indicators, with one
-    # randomly chosen reading per calibration capacitor so the scores are independent.
+    # Conformalized quantile regression for every combination of measured indicators, separately for
+    # readings within 5% of a limit and the rest. Away from the limits, one randomly chosen reading per
+    # calibration capacitor keeps the scores independent; near a limit every such reading is used.
     cal = data["calibration"]
     pick = np.array([rng.choice(np.flatnonzero(cal["devices"] == device)) for device in np.unique(cal["devices"])])
-    rank = math.ceil((len(pick) + 1) * INTERVAL_MASS)
-    adjustments, by_subset, custom_by_subset = {}, {}, {}
+    adjustments, near_adjustments, by_subset, custom_by_subset = {}, {}, {}, {}
     for subset in SUBSETS:
         keep = _subset_mask(subset)
-        q_cal = _predict(net, hide_indicators(cal["x"][pick], np.tile(keep, (len(pick), 1))))
-        scores = np.maximum(q_cal[:, 0] - cal["y"][pick], cal["y"][pick] - q_cal[:, 2])
-        adjustment = float(np.sort(scores)[rank - 1])
+        x_cal = hide_indicators(cal["x"], np.tile(keep, (len(cal["x"]), 1)))
+        q_cal = _predict(net, x_cal)
+        scores = np.maximum(q_cal[:, 0] - cal["y"], cal["y"] - q_cal[:, 2])
+        near = x_cal[:, -1, USED].max(axis=1) >= NEAR_LIMIT
+        far_rows = pick[~near[pick]]
+        adjustment = _conformal(scores[far_rows])
+        near_adjustment = _conformal(scores[near]) if near.sum() >= 30 else adjustment
         key = subset_key(subset)
-        adjustments[key] = round(adjustment, 6)
+        adjustments[key], near_adjustments[key] = round(adjustment, 6), round(near_adjustment, 6)
         for name, store in (("test", by_subset), ("test_custom", custom_by_subset)):
             test = data[name]
-            q = _predict(net, hide_indicators(test["x"], np.tile(keep, (len(test["x"]), 1))))
-            store[key] = _metrics(np.exp(test["y"]) - RUL_OFFSET_H, _to_hours(q[:, 0] - adjustment),
-                                  _to_hours(q[:, 1]), _to_hours(q[:, 2] + adjustment))
+            x_test = hide_indicators(test["x"], np.tile(keep, (len(test["x"]), 1)))
+            q = _predict(net, x_test)
+            pad = np.where(x_test[:, -1, USED].max(axis=1) >= NEAR_LIMIT, near_adjustment, adjustment)
+            store[key] = _metrics(np.exp(test["y"]) - RUL_OFFSET_H, _to_hours(q[:, 0] - pad),
+                                  _to_hours(q[:, 1]), _to_hours(q[:, 2] + pad))
 
     # Path ranges: one additive adjustment per forecast point and indicator, from calibration
     # capacitors with the training mix of measured indicators.
@@ -454,6 +472,19 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
             p[..., 2] += path_adjust
             path_metrics[f"{name}, {label}"] = _path_metrics(p, test["path"], _subset_mask(subset))
 
+    # Accuracy by how close the nearest parameter already is to its limit (random-limit test capacitors).
+    custom = data["test_custom"]
+    q = _predict(net, custom["x"])
+    full = subset_key(SIGNALS)
+    nearest = custom["x"][:, -1, USED].max(axis=1)
+    adjustment = np.where(nearest >= NEAR_LIMIT, near_adjustments[full], adjustments[full])
+    by_closeness = {}
+    for low_edge, high_edge in ((0.0, 0.8), (0.8, 0.95), (0.95, 1.0)):
+        rows = (nearest >= low_edge) & (nearest < high_edge)
+        by_closeness[f"{low_edge:.2f}-{high_edge:.2f}"] = _metrics(
+            np.exp(custom["y"][rows]) - RUL_OFFSET_H, _to_hours(q[rows, 0] - adjustment[rows]),
+            _to_hours(q[rows, 1]), _to_hours(q[rows, 2] + adjustment[rows]))
+
     baselines = {}
     test = data["test"]
     rul = np.exp(test["y"]) - RUL_OFFSET_H
@@ -464,7 +495,6 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
             "predictions_with_estimate": int(available.sum()),
             "median_absolute_error_h": round(float(np.median(np.abs(trend[available] - rul[available]))), 1),
         }
-    full = subset_key(SIGNALS)
     x_train = train_data["x"]
     train_used = x_train[:, :, USED][x_train[:, :, -1] == 0]
     metadata = {
@@ -479,10 +509,12 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
         "eol_limits": EOL_LIMITS, "limit_ranges": LIMIT_RANGES, "interval_mass": INTERVAL_MASS,
         "conformal_adjustment_log": adjustments[full],
         "conformal_adjustment_log_by_subset": adjustments,
+        "near_limit_fraction": NEAR_LIMIT,
+        "conformal_adjustment_log_near_limit_by_subset": near_adjustments,
         "trajectory_conformal_adjustment": np.round(path_adjust, 6).tolist(),
         "fleets": {name: {"capacitors": n, "seed": fleet_seed, "limits": "random" if vary else "default",
-                          "predictions": int(len(data[name]["y"]))}
-                   for name, (n, fleet_seed, vary) in SPLITS.items()},
+                          "near_end_share": near, "predictions": int(len(data[name]["y"]))}
+                   for name, (n, fleet_seed, vary, near) in SPLITS.items()},
         "training_seed": seed, "best_epoch": best_epoch, "validation_pinball": round(best, 5),
         "trajectory_best_epoch": path_epoch, "trajectory_validation_pinball": round(path_best, 5),
         "limit_used_training_range": {
@@ -495,6 +527,7 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
         "test_metrics_by_subset_custom_limits": custom_by_subset,
         "trend_baseline_by_subset": baselines,
         "trajectory_test_metrics": path_metrics,
+        "test_metrics_custom_limits_by_closeness_to_limit": by_closeness,
         "end_of_life_causes_in_test_fleet": test["meta"]["eol_cause"].str.split(", ").str[0]
         .value_counts().to_dict(),
     }
@@ -520,6 +553,8 @@ class SixRULModel:
         self.path_net.eval()
         self.path_adjust = np.asarray(self.metadata["trajectory_conformal_adjustment"])
         self.adjustments = self.metadata["conformal_adjustment_log_by_subset"]
+        self.near_adjustments = self.metadata.get("conformal_adjustment_log_near_limit_by_subset", self.adjustments)
+        self.near_limit = self.metadata.get("near_limit_fraction", NEAR_LIMIT)
         self.train_max = np.asarray(self.metadata["limit_used_training_range"]["max"])
 
     def metrics_for(self, measured) -> dict:
@@ -549,12 +584,14 @@ class SixRULModel:
         readings, measured = self._prepare(readings, measured)
         used = limit_used(readings, limits)[list(measured)]
         seen = pd.DataFrame(_network_inputs(readings, limits)[1], columns=SIGNALS)[list(measured)]  # newest inputs
-        adjustment = self.adjustments[subset_key(measured)]
+        key = subset_key(measured)
         columns = [SIGNALS.index(signal) for signal in measured]
         rows = []
         if len(readings) >= MIN_READINGS:
             q = _predict(self.net, sequences(readings, measured, limits))
-            low, mid, high = _to_hours(q[:, 0] - adjustment), _to_hours(q[:, 1]), _to_hours(q[:, 2] + adjustment)
+            near = seen.to_numpy()[MIN_READINGS - 1:].max(axis=1) >= self.near_limit
+            pad = np.where(near, self.near_adjustments[key], self.adjustments[key])
+            low, mid, high = _to_hours(q[:, 0] - pad), _to_hours(q[:, 1]), _to_hours(q[:, 2] + pad)
         for index in range(len(readings)):
             fractions = used.iloc[index]
             row = {"Hours": float(readings.loc[index, "Hours"])}

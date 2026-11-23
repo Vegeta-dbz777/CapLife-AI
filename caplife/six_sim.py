@@ -134,11 +134,13 @@ def end_of_life_causes(baseline: dict, reading: dict, limits: dict | None = None
 
 
 def simulate_device(rng: np.random.Generator, cap_id: str, fine_step_h: float = 5.0,
-                    limits: dict | None = None, keep_truth: bool = False):
+                    limits: dict | None = None, keep_truth: bool = False, near_end_share: float = 0.0):
     """Noisy inspections until end of life, and the true (noise-free) end-of-life age and cause.
 
     ``limits`` (default: ``EOL_LIMITS``) decides end of life. With ``keep_truth`` the noise-free
-    trajectory is returned as well, as ``(hours, {indicator: values})``.
+    trajectory is returned as well, as ``(hours, {indicator: values})``. A ``near_end_share`` of
+    capacitors get one or two extra inspections in the last 3% of their life, so a model also
+    learns from readings taken right next to a limit.
     """
     limits = EOL_LIMITS if limits is None else limits
     while True:
@@ -164,6 +166,9 @@ def simulate_device(rng: np.random.Generator, cap_id: str, fine_step_h: float = 
         if times[-1] + step >= eol_h:
             break
         times.append(times[-1] + step)
+    if near_end_share and rng.random() < near_end_share:
+        extra = eol_h * (1 - rng.uniform(0.003, 0.03, rng.integers(1, 3)))
+        times += sorted(t for t in extra if t > times[-1] + 1.0)
     times = np.round(np.array(times), 1)
     # Cumulative H2 is integrated on the sorted dense grid (``truth``) and then read off at the
     # inspection times, so it does not depend on inspection spacing.
@@ -195,7 +200,7 @@ def simulate_device(rng: np.random.Generator, cap_id: str, fine_step_h: float = 
 
 
 def simulate_fleet(n_devices: int, seed: int, prefix: str = "SIM", vary_limits: bool = False,
-                   on_truth=None) -> tuple[pd.DataFrame, pd.DataFrame]:
+                   on_truth=None, near_end_share: float = 0.0) -> tuple[pd.DataFrame, pd.DataFrame]:
     """A fleet of simulated capacitors with the default limits, or random ones with ``vary_limits``.
 
     ``on_truth(frame, meta, hours, truth)`` is called for each capacitor with its noise-free
@@ -206,7 +211,8 @@ def simulate_fleet(n_devices: int, seed: int, prefix: str = "SIM", vary_limits: 
     frames, metas = [], []
     for index in range(1, n_devices + 1):
         limits = random_limits(limit_rng) if vary_limits else None
-        frame, meta, (hours, truth) = simulate_device(rng, f"{prefix}_{index:04d}", limits=limits, keep_truth=True)
+        frame, meta, (hours, truth) = simulate_device(rng, f"{prefix}_{index:04d}", limits=limits, keep_truth=True,
+                                                      near_end_share=near_end_share)
         if on_truth is not None:
             on_truth(frame, meta, hours, truth)
         frames.append(frame)
