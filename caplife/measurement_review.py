@@ -9,8 +9,17 @@ import pandas as pd
 from caplife.real_data import RealDataValidationError
 
 
-def read_experimental_csv(payload: bytes, reference_age: bool = False) -> pd.DataFrame:
-    """Preserve literal IDs and reject duplicate or misaligned measurement columns."""
+def read_experimental_csv(payload: bytes, reference_age: bool = False, filename: str | None = None,
+                          time_unit: str = "hours", pressure: str = "auto") -> pd.DataFrame:
+    """Read an uploaded measurement file (CSV or Excel), reporting adjustments in ``frame.attrs["notes"]``.
+
+    See ``caplife.file_reader``. The NASA reference-age format keeps its own strict reader.
+    """
+    if not reference_age:
+        from caplife.file_reader import read_measurement_file
+        frame, notes = read_measurement_file(payload, filename, time_unit, pressure)
+        frame.attrs["notes"] = notes
+        return frame
     with TextIOWrapper(BytesIO(payload), encoding="utf-8-sig", newline="") as source:
         try:
             rows = csv.reader(source, strict=True)
@@ -21,8 +30,7 @@ def read_experimental_csv(payload: bytes, reference_age: bool = False) -> pd.Dat
         raise RealDataValidationError("Duplicate CSV column headers are not supported.")
     frame = pd.read_csv(
         BytesIO(payload), low_memory=False, converters={"Cap_ID": str},
-        keep_default_na=not reference_age,
-        float_precision="round_trip" if reference_age else None,
+        keep_default_na=False, float_precision="round_trip",
     )
     if not isinstance(frame.index, pd.RangeIndex):
         raise RealDataValidationError("CSV rows must match the header column count.")

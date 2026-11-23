@@ -10,6 +10,7 @@ import streamlit as st
 
 from caplife.accounts import save_controls, saved_picker, saving_available
 from caplife.measurement_review import read_experimental_csv
+from caplife.upload_ui import UPLOAD_TYPES, file_settings, show_notes
 from caplife.real_data import RealDataValidationError
 from caplife.rul_example import example_dataset
 from caplife.versioning import code_version
@@ -36,16 +37,18 @@ def _example_csvs() -> tuple[bytes, bytes]:
     return _example_csvs_cached(code_version())
 
 
-def _run(measurements: bytes, outcomes: bytes, method: str, calibration: str | None, test: str | None) -> dict:
-    return _run_cached(measurements, outcomes, method, calibration, test, code_version())
+def _run(measurements: bytes, outcomes: bytes, method: str, calibration: str | None, test: str | None,
+         settings: tuple[str, str] = ("hours", "auto")) -> dict:
+    return _run_cached(measurements, outcomes, method, calibration, test, settings, code_version())
 
 
 # Keyed by code_version() so results from an older model version are never reused after an update.
 @st.cache_data(show_spinner=False, max_entries=8)
 def _run_cached(measurements: bytes, outcomes: bytes, method: str, calibration: str | None, test: str | None,
-                version: str) -> dict:
-    return run_rul_workflow(read_experimental_csv(measurements), read_outcomes(outcomes),
-                            method, calibration, test)
+                settings: tuple[str, str], version: str) -> dict:
+    time_unit, pressure = settings
+    return run_rul_workflow(read_experimental_csv(measurements, time_unit=time_unit, pressure=pressure),
+                            read_outcomes(outcomes, time_unit), method, calibration, test)
 
 
 def _hours(value) -> str:
@@ -130,19 +133,20 @@ def _inputs() -> tuple[bytes, bytes] | None:
 
     left, right = st.columns(2)
     with left:
-        measurements = st.file_uploader("Measurement history CSV", type=["csv"], key="caplife_rul_measurements")
+        measurements = st.file_uploader("Measurement history (CSV or Excel)", type=UPLOAD_TYPES,
+                                        key="caplife_rul_measurements")
         st.download_button("Download measurement template", measurement_template_csv(),
                            "caplife_rul_measurements_template.csv", mime="text/csv")
     with right:
-        outcomes = st.file_uploader("Outcome CSV", type=["csv"], key="caplife_rul_outcomes")
+        outcomes = st.file_uploader("Outcomes (CSV or Excel)", type=UPLOAD_TYPES, key="caplife_rul_outcomes")
         st.download_button("Download outcome template", outcome_template_csv(),
                            "caplife_rul_outcomes_template.csv", mime="text/csv")
     with st.expander("What goes in each file"):
         st.markdown(
-            "**Measurement history** — one row per reading: `Cap_ID`, `Hours` and all six indicators "
+            "**Measurement history** — one row per reading: `Cap_ID`, `Hours` and any of the six indicators "
             "(capacitance µF, ESR Ω, leakage µA, case expansion µm, cumulative H₂ mL at 0 °C and 1 atm, "
-            "absolute internal pressure kPa). Each capacitor needs a complete reading at 0 h and two more "
-            "complete readings. Add `ESR_Test_Hz` and `ESR_Test_Temp_C` when known.\n\n"
+            "absolute internal pressure kPa). The model uses the parameters that every capacitor with an outcome "
+            "has measured at least three times. Add `ESR_Test_Hz` and `ESR_Test_Temp_C` when known.\n\n"
             "**Outcomes** — one row per capacitor that finished testing: `Cap_ID`, `Experiment_ID`, "
             "`Endpoint` (the same failure definition for every row), `Last_alive_h` (last age it was seen "
             "working) and `Failure_by_h` (age by which it was found failed). Leave `Failure_by_h` blank if "
@@ -158,7 +162,7 @@ def _inputs() -> tuple[bytes, bytes] | None:
             st.error(f"{upload.name} exceeds the 8 MB limit.")
             return None
     save_controls("train_rul", {"measurements": measurements.getvalue(), "outcomes": outcomes.getvalue()},
-                  measurements.name.removesuffix(".csv"), "caplife_rul")
+                  measurements.name.rsplit(".", 1)[0], "caplife_rul")
     return measurements.getvalue(), outcomes.getvalue()
 
 
@@ -195,6 +199,11 @@ def _show_results(result: dict, attempts: int) -> None:
     cards[2].metric("Calibration", roles["calibration"])
     cards[3].metric("Test", roles["test"])
     by_role = result["experiments_by_role"]
+    from caplife.real_data import MEASUREMENTS
+    used = [MEASUREMENTS[signal][0].split(" (")[0] for signal in result["parameters"]]
+    st.caption(f"Parameters used ({len(used)} of 6, the ones every capacitor with an outcome has): "
+               f"{', '.join(used)}. The training capacitors gave {result['training_landmarks']:,} readings to "
+               "learn from.")
     st.caption(f"Endpoint: {result['audit']['endpoint']}. Training experiments: "
                f"{', '.join(by_role['training'])}. Calibration: {', '.join(by_role['calibration'])}. "
                f"Test: {', '.join(by_role['test'])}.")
@@ -252,10 +261,16 @@ def _show_results(result: dict, attempts: int) -> None:
             st.caption("Teal bars: 80% range for the age at failure, with the dot at the predicted failure age. "
                        "Orange tick: each capacitor's latest reading.")
             st.dataframe(_forecast_display(forecasts), hide_index=True, width="stretch")
-            made_at = forecasts["Forecast made at (h)"].unique()
-            when = f"{made_at[0]:,.0f} h" if len(made_at) == 1 else "each capacitor's third complete reading"
-            st.caption(f"Each forecast uses readings up to {when}, the same point used in testing. "
-                       "Remaining life counts from the latest reading.")
+            st.caption("Each forecast uses all of a capacitor's readings up to its latest one. Remaining life "
+                       "counts from that reading.")
+            history = result.get("forecast_history")
+            if history is not None and len(history):
+                from caplife.six_rul_page import _rul_chart
+                st.markdown("##### Remaining-life prediction over time")
+                device = st.selectbox("Capacitor", list(forecasts["Capacitor"]), key="caplife_rul_forecast_device")
+                st.altair_chart(_rul_chart(history.loc[history["Capacitor"].eq(device)], None), width="stretch")
+                st.caption("Each point is the forecast the trained model would have made at that reading, using "
+                           "only the readings up to it. Shaded band: the calibrated 80% range.")
         if withheld:
             st.write(f"Withheld for {len(withheld)} capacitor(s):")
             st.markdown(_reason_list(withheld))
@@ -276,7 +291,7 @@ def _show_results(result: dict, attempts: int) -> None:
 
 def render() -> None:
     st.header("Train a remaining-life model on your data")
-    st.write("Upload six-indicator measurement histories and the recorded outcome of each tested capacitor. "
+    st.write("Upload measurement histories (any of the six indicators) and the recorded outcome of each tested capacitor. "
              "CapLife trains a neural network on some of your capacitors, tests it on capacitors it never saw, "
              "and forecasts remaining life for your other capacitors only if that test passes.")
     with st.expander("How it works"):
@@ -287,22 +302,30 @@ def render() -> None:
             "2. **Calibration** capacitors set the width of the 80% range.\n"
             "3. **Test** capacitors check the predictions against what actually happened. A simple log-linear "
             "model and an average-lifetime guess are scored alongside for comparison.\n"
-            "4. If the neural network passes, it forecasts each capacitor without an outcome, using the same "
-            "trained model and range that were tested.\n\n"
-            "Each capacitor contributes one forecast, made at its third complete reading after a complete 0 h "
-            "baseline, from the changes and rates of change up to that point."
+            "4. If the neural network passes, it forecasts each capacitor without an outcome from its latest "
+            "reading, using the same trained model and range that were tested.\n\n"
+            "The model learns from every reading from a capacitor's third onward: the change in each parameter "
+            "since the first reading, its recent rate and the time since the first reading, against the time "
+            "that was left until the endpoint. Each capacitor counts equally, however many readings it has. "
+            "Calibration and testing use one reading per capacitor, chosen from its ID and readings, never from "
+            "its outcome, so the checks stay independent."
         )
 
     payload = _inputs()
     if payload is None:
         return
     measurements, outcomes = payload
+    settings = ("hours", "auto")
+    if st.session_state.get("caplife_rul_source") != EXAMPLE:
+        settings = file_settings("caplife_rul_file", time_help="The unit of the time in both files: the measurement "
+                                                               "time column and the outcome ages.")
     try:
-        outcome_frame = read_outcomes(outcomes)
-        measurement_frame = read_experimental_csv(measurements)
+        outcome_frame = read_outcomes(outcomes, settings[0])
+        measurement_frame = read_experimental_csv(measurements, time_unit=settings[0], pressure=settings[1])
     except INPUT_ERRORS as error:
         st.error(f"The files could not be read: {error}")
         return
+    show_notes(list(dict.fromkeys(measurement_frame.attrs.get("notes", []) + outcome_frame.attrs.get("notes", []))))
     experiments = sorted(outcome_frame["Experiment_ID"].astype(str).str.strip().unique()) \
         if "Experiment_ID" in outcome_frame else []
     measured = measurement_frame["Cap_ID"].astype(str).str.strip().nunique() if "Cap_ID" in measurement_frame else 0
@@ -324,7 +347,7 @@ def render() -> None:
         return
     try:
         with st.spinner("Training and testing…"):
-            result = _run(measurements, outcomes, method, calibration, test)
+            result = _run(measurements, outcomes, method, calibration, test, settings)
     except INPUT_ERRORS as error:
         st.error(f"The model could not be trained: {error}")
         return

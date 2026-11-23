@@ -447,9 +447,12 @@ if workflow == MEASUREMENT_WORKFLOW:
     upload_column, sample_column = st.columns([1.7, 1])
     with upload_column, st.container(border=True, key="caplife_upload_card"):
         st.subheader("Upload measurements")
+        from caplife.upload_ui import UPLOAD_TYPES, file_settings, show_notes
         upload_real = st.file_uploader(
-            "Measurement CSV", type=["csv"], key="caplife_real_csv_v06", on_change=clear_public_sample,
+            "Measurement file (CSV or Excel)", type=UPLOAD_TYPES, key="caplife_real_csv_v06",
+            on_change=clear_public_sample,
         )
+        analyze_settings = file_settings("caplife_analyze_file")
         with st.expander("CSV columns and units"):
             st.write(
                 "Include **Cap_ID**, **Hours**, and any of the six parameters you measured: capacitance, ESR, "
@@ -483,7 +486,9 @@ if workflow == MEASUREMENT_WORKFLOW:
         st.error("The CSV exceeds the 8 MB limit.")
         st.stop()
     try:
-        uploaded_frame = public_sample_frame() if using_sample else read_experimental_csv(upload_real.getvalue())
+        uploaded_frame = (public_sample_frame() if using_sample else
+                          read_experimental_csv(upload_real.getvalue(), filename=upload_real.name,
+                                                time_unit=analyze_settings[0], pressure=analyze_settings[1]))
         real_report = assess_real_measurements(uploaded_frame)
     except (RealDataValidationError, ValueError, pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeError) as exc:
         st.error(f"Upload could not be assessed: {exc}")
@@ -492,6 +497,8 @@ if workflow == MEASUREMENT_WORKFLOW:
 
     st.header("Measurement results")
     st.caption("NASA ES14 example" if using_sample else upload_real.name)
+    if not using_sample:
+        show_notes(uploaded_frame.attrs.get("notes", []))
 
     def show_observed_threshold(capacitance_history: pd.DataFrame) -> None:
         with st.expander("Check an observed capacitance-loss threshold"):
@@ -524,7 +531,35 @@ if workflow == MEASUREMENT_WORKFLOW:
     for warning in group_capacitor_warnings(warnings):
         st.warning(warning)
 
-    overview, signals, research, exports = st.tabs(["Overview", "Signal history", "Research tools", "Downloads"])
+    summary_tab, signals, overview, research, exports = st.tabs(
+        ["Summary", "Signal history", "Data quality", "Research tools", "Downloads"])
+    with summary_tab:
+        from caplife.measurement_summary import capacitor_summary
+
+        def predict_remaining_life() -> None:
+            # Hand the same readings to RUL prediction, already read and converted to hours.
+            st.session_state["caplife_six_handoff"] = (
+                uploaded_frame.to_csv(index=False).encode(),
+                "NASA ES14 example" if using_sample else upload_real.name)
+            st.session_state["caplife_six_source"] = "From Analyze measurements"
+            st.session_state[MAIN_KEY] = SIX_RUL_WORKFLOW
+            st.session_state[RESEARCH_KEY] = None
+
+        left, right = st.columns([3, 1.3])
+        left.write("One row per capacitor: how much each parameter changed from its first to its latest reading, "
+                   "and which parameter has come closest to its default end-of-life limit.")
+        right.button("Predict remaining life for these capacitors →", type="primary", on_click=predict_remaining_life,
+                     key="caplife_analyze_to_rul", width="stretch")
+        st.dataframe(capacitor_summary(readings, warnings), hide_index=True, width="stretch", column_config={
+            **{label: st.column_config.NumberColumn(format="%+.1f") for label in (
+                "Capacitance change (%)", "ESR change (%)", "Leakage change (%)", "Case expansion (µm)",
+                "Pressure rise (kPa)")},
+            "H₂ generated (mL)": st.column_config.NumberColumn(format="%+.2f"),
+        })
+        st.caption("Changes compare each capacitor's first and latest available reading of that parameter. "
+                   "Default limits: capacitance loss 20%, ESR 2×, leakage 5×, case expansion 52 µm, H₂ 6 mL, "
+                   "pressure 250 kPa; set your own on RUL prediction. Data notes counts the data-quality "
+                   "messages for that capacitor (see Data quality).")
     with overview:
         st.subheader("Measurement quality")
         st.caption("Zero recorded readings means 'not supplied' or 'no measurements' — not a zero sensor reading.")
@@ -572,7 +607,7 @@ if workflow == MEASUREMENT_WORKFLOW:
 
     with signals:
         st.subheader("Measured history")
-        cap_choice = st.selectbox("Capacitor ID", sorted(readings["Cap_ID"].unique()))
+        cap_choice = st.selectbox("Capacitor ID", sorted(readings["Cap_ID"].unique()), key="caplife_analyze_cap")
         cap_rows = readings.loc[readings["Cap_ID"] == cap_choice].sort_values("Hours")
         cap_notes = reference_age_observations(capacitance_history.loc[capacitance_history["Cap_ID"].eq(cap_choice)])
         gap = cap_notes["largest_gap"]
@@ -582,46 +617,23 @@ if workflow == MEASUREMENT_WORKFLOW:
                 f"({gap['hours']:,.0f} h, {cap_notes['largest_gap_fraction_of_span']:.0%} of this "
                 "capacitor's recorded span)."
             )
-        plot_groups = (
-            ("C_ratio", "Capacitance ratio"),
-            ("ESR_ratio", "ESR ratio"),
-            ("Leakage_ratio", "Leakage current ratio"),
-            ("Case_Expansion_um", "Case expansion (µm)"),
-        )
-        left, right = st.columns(2)
-        for idx, (column, label) in enumerate(plot_groups):
-            place = left if idx % 2 == 0 else right
-            with place:
-                st.markdown(f"**{label}**")
-                if column not in cap_rows or cap_rows[column].notna().sum() == 0:
-                    st.caption("No comparable measured values are available.")
-                else:
-                    # Scatter only: connecting points could conceal missing measurements.
-                    actual_points = cap_rows[["Hours", column]].dropna()
-                    st.scatter_chart(actual_points, x="Hours", y=column, height=240)
-                    missing_hours = cap_rows.loc[cap_rows[column].isna(), "Hours"].tolist()
-                    if missing_hours:
-                        preview = ", ".join(f"{x:g}" for x in missing_hours[:12])
-                        st.caption(
-                            f"Missing / unavailable at {preview} h"
-                            + (" (more omitted)" if len(missing_hours) > 12 else "")
-                        )
-        # Two additional measured channels. Missing channels remain missing;
-        # no assumed physics output is passed off as sensor data.
-        present_measured_gas = [
-            ("H2_Generated_mL_STP", "Measured H₂ generation (mL at 0°C, 1 atm)"),
-            ("Pressure_Abs_kPa", "Measured internal absolute pressure (kPa)"),
-        ]
-        if any(col in cap_rows and cap_rows[col].notna().any() for col, _ in present_measured_gas):
-            st.markdown("**Additional directly measured indicators (if recorded)**")
-            mleft, mright = st.columns(2)
-            for place, (column, label) in zip((mleft, mright), present_measured_gas):
-                with place:
-                    st.markdown(f"**{label}**")
-                    if column in cap_rows and cap_rows[column].notna().any():
-                        st.scatter_chart(cap_rows[["Hours", column]].dropna(), x="Hours", y=column, height=240)
-                    else:
-                        st.caption("No direct measurements supplied for this channel.")
+        from caplife.six_rul_page import signal_charts
+        signal_charts(cap_rows, reference=True)
+        gaps = {label: cap_rows.loc[cap_rows[column].isna(), "Hours"].tolist()
+                for column, label in (("Capacitance_uF", "Capacitance"), ("ESR_ohm", "ESR"),
+                                      ("Leakage_uA", "Leakage current"), ("Case_Expansion_um", "Case expansion"),
+                                      ("H2_Generated_mL_STP", "H₂ generated"), ("Pressure_Abs_kPa", "Internal pressure"))
+                if column in cap_rows and cap_rows[column].notna().sum() >= 2 and cap_rows[column].isna().any()}
+        for label, hours in gaps.items():
+            preview = ", ".join(f"{hour:g}" for hour in hours[:12])
+            st.caption(f"{label}: no reading at {preview} h" + (" (more omitted)" if len(hours) > 12 else "")
+                       + ". The line joins the readings on either side; nothing was filled in.")
+        absent = [label for column, label in (("Capacitance_uF", "capacitance"), ("ESR_ohm", "ESR"),
+                                               ("Leakage_uA", "leakage current"), ("Case_Expansion_um", "case expansion"),
+                                               ("H2_Generated_mL_STP", "H₂ generated"), ("Pressure_Abs_kPa", "internal pressure"))
+                  if column not in cap_rows or cap_rows[column].notna().sum() < 2]
+        if absent:
+            st.caption("Not enough readings to chart: " + ", ".join(absent) + ".")
         with st.expander("View processed measurements"):
             st.dataframe(cap_rows, hide_index=True, width="stretch")
         gas_df = None
