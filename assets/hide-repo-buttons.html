@@ -1,0 +1,21 @@
+<script>
+(() => {
+    // Streamlit Community Cloud adds "Fork" and a GitHub ("source") button to the app's toolbar for
+    // visitors. Hide those two; the owner's own buttons (Share, star, edit) stay.
+    if (window.__caplifeRepoButtons) return;
+    window.__caplifeRepoButtons = true;
+    const isRepoButton = (item) => {
+        const label = (item.querySelector('[data-testid="stToolbarActionButtonLabel"]')?.textContent || "").trim();
+        const text = (item.textContent || "").trim().toLowerCase();
+        const link = item.querySelector('a[href*="github.com"]');
+        return label === "Fork" || text === "source" || Boolean(link);
+    };
+    const hide = () => {
+        for (const item of document.querySelectorAll('[data-testid="stToolbarActionButton"]')) {
+            if (item.style.display !== "none" && isRepoButton(item)) item.style.display = "none";
+        }
+    };
+    new MutationObserver(hide).observe(document.body, { childList: true, subtree: true });
+    hide();
+})();
+</script>
