@@ -43,22 +43,36 @@ range is calibrated separately for each of the 63 combinations, so it widens
 when fewer parameters are available, and the page reports the test accuracy for
 the combination in use.
 
-The network was trained on 1,600 capacitors from a physics-inspired simulator
+The network was trained on 2,400 capacitors from a physics-inspired simulator
 (`caplife/six_sim.py`): temperature-accelerated electrolyte loss lowers
 capacitance and raises ESR, leakage current generates hydrogen by Faraday's
 law, and retained hydrogen raises internal pressure and bulges the case. End of
-life is the first of six limits, one per parameter: capacitance loss of 20%, ESR
-at 2× initial, leakage at 5× initial, case expansion of 52 µm, 6 mL of generated
-H₂, or internal pressure at 250 kPa. On 400 further simulated capacitors it never saw:
+life is the first parameter to reach its limit. Users set the six limits for
+each capacitor (a series' own tolerance); the defaults are capacitance loss of
+20%, ESR at 2× initial, leakage at 5× initial, case expansion of 52 µm, 6 mL of
+generated H₂ and internal pressure at 250 kPa. Each training capacitor had
+limits drawn at random from the ranges the app allows (30% kept the defaults),
+and every limit is an input to the network, so it predicts the time to the
+limits a user sets. On 400 further simulated capacitors with the default limits:
 
 | Parameters | Typical error | True RUL inside 80% range | Trend line |
 |---|---|---|---|
-| All six | 560 h (11%) | 79% | 1,574 h |
-| Capacitance, ESR, leakage | 656 h (13%) | 83% | 2,118 h |
-| Capacitance, ESR | 751 h (15%) | 82% | 2,317 h |
-| Capacitance only | 1,300 h (21%) | 82% | 3,564 h |
+| All six | 536 h (11%) | 84% | 1,572 h |
+| Capacitance, ESR, leakage | 660 h (13%) | 88% | 2,122 h |
+| Capacitance, ESR | 768 h (15%) | 86% | 2,315 h |
+| Capacitance only | 1,402 h (24%) | 84% | 3,561 h |
 
-Across all 63 combinations the 80% range contained the true value 78–85% of the time.
+On 400 more with random limits, the typical error with all six is 422 h and the
+80% range held the true value 78–85% of the time across all 63 combinations
+(82–89% with the default limits: calibrated on mixed limits, the ranges are
+slightly cautious there).
+
+A second network forecasts each parameter's path from the latest reading to the
+predicted end of life, at 10% steps of the remaining life, as a median that never
+improves and a calibrated 80% range. On the test capacitors its median is
+typically within 1–3% of the limit halfway there and 2–9% at end of life, and
+the range held the true path 77–85% of the time.
+
 Aging damage is treated as lasting: health and end of life use the worst level a
 parameter has held (three consecutive readings), and the network sees earlier
 readings cleaned with their neighbours, so one faulty reading affects only its own

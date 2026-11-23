@@ -176,7 +176,11 @@ def test_every_parameter_combination_is_calibrated_and_tested():
     metadata = json.loads((ARTIFACTS / "metadata.json").read_text())
     by_subset = metadata["test_metrics_by_subset"]
     assert len(by_subset) == 63 == len(metadata["conformal_adjustment_log_by_subset"])
-    assert all(0.74 <= metrics["interval_coverage"] <= 0.87 for metrics in by_subset.values())
+    # Ranges are calibrated on capacitors with a mix of user limits; with the default limits they come
+    # out slightly cautious (wider), never narrow.
+    assert all(0.78 <= metrics["interval_coverage"] <= 0.91 for metrics in by_subset.values())
+    custom = metadata["test_metrics_by_subset_custom_limits"]
+    assert len(custom) == 63 and all(0.74 <= m["interval_coverage"] <= 0.87 for m in custom.values())
     # Fewer parameters must not look more precise than all six.
     full = by_subset["+".join(SIGNALS)]["median_absolute_error_h"]
     assert by_subset["Capacitance_uF"]["median_absolute_error_h"] > full
@@ -256,3 +260,49 @@ def test_every_indicator_can_end_a_capacitors_life(model):
         bulged.loc[len(bulged) - 3:, signal] = past  # held over the last three readings
         last = model.assess(bulged).iloc[-1]
         assert last["End_of_life_reached"] and last[f"{signal}_health_pct"] == 0
+
+
+def test_user_limits_decide_end_of_life_and_health(model):
+    measurements, _ = example_fleet()
+    readings = measurements.loc[measurements["Cap_ID"].eq("DEMO_01")].reset_index(drop=True)
+    loss = 100 * (1 - readings["Capacitance_uF"].iloc[-3:].max() / readings["Capacitance_uF"].iloc[0])
+    strict = {"capacitance_loss_pct": max(5.0, loss * 0.8)}  # already passed for the last three readings
+    loose = {"capacitance_loss_pct": 40.0}
+    tight_last = model.assess(readings, limits=strict).iloc[-1]
+    loose_last = model.assess(readings, limits=loose).iloc[-1]
+    default_last = model.assess(readings).iloc[-1]
+    if loss * 0.8 >= 5.0:
+        assert tight_last["End_of_life_reached"] and tight_last["Limiting_indicator"] == "Capacitance"
+    assert loose_last["Capacitance_uF_health_pct"] > default_last["Capacitance_uF_health_pct"]
+    assert loose_last["RUL_median_h"] >= default_last["RUL_median_h"]
+
+
+def test_limits_outside_the_trained_ranges_are_reported():
+    from caplife.six_rul import limits_outside_training
+    assert limits_outside_training(None) == []
+    assert limits_outside_training({"capacitance_loss_pct": 60.0, "esr_ratio": 1.1}) == [
+        "capacitance_loss_pct", "esr_ratio"]
+
+
+def test_trend_forecast_rises_from_the_latest_reading_to_the_limit_at_end_of_life(model):
+    measurements, _ = example_fleet()
+    readings = measurements.loc[measurements["Cap_ID"].eq("DEMO_02")].reset_index(drop=True)
+    last = model.assess(readings).iloc[-1]
+    forecast = model.forecast(readings, last["RUL_median_h"])
+    assert len(forecast) == len(SIGNALS) * 11  # the latest reading plus ten points to end of life
+    assert forecast["Hours"].min() == readings["Hours"].iloc[-1]
+    assert forecast["Hours"].max() == pytest.approx(readings["Hours"].iloc[-1] + last["RUL_median_h"])
+    for _, path in forecast.groupby("signal"):
+        assert path["fraction_median"].is_monotonic_increasing  # damage does not heal
+        assert (path["low"] <= path["median"] + 1e-9).all() and (path["median"] <= path["high"] + 1e-9).all()
+    end = forecast.loc[forecast["Hours"].eq(forecast["Hours"].max()), "fraction_median"]
+    assert 0.7 < end.max() < 1.4  # the first parameter reaches about its limit at the predicted end of life
+
+
+def test_models_are_calibrated_for_user_limits_and_trends():
+    metadata = json.loads((ARTIFACTS / "metadata.json").read_text())
+    custom = metadata["test_metrics"]["neural_calibrated_custom_limits"]
+    assert 0.74 <= custom["interval_coverage"] <= 0.87
+    for name, by_signal in metadata["trajectory_test_metrics"].items():
+        for signal, metrics in by_signal.items():
+            assert 0.7 <= metrics["interval_coverage"] <= 0.92, (name, signal)

@@ -110,3 +110,17 @@ def test_rul_prediction_runs_with_only_three_parameters():
     assert not app.exception, app.exception
     assert any("Using 3 of 6 parameters" in i.value for i in app.info)
     assert metric(app, "Remaining useful life").endswith(" h")
+
+
+def test_rul_prediction_takes_user_limits_and_forecasts_parameter_trends():
+    app = open_workspace("RUL prediction")
+    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
+    device = app.selectbox(key="caplife_six_device").value
+    boxes = [box for box in app.number_input if box.key.startswith(f"caplife_six_limit_{device}_")]
+    assert len(boxes) == 6
+    assert any("Predicted parameter trends to end of life" in m.value for m in app.markdown)
+    before = metric(app, "Overall health")
+    app.number_input(key=f"caplife_six_limit_{device}_Capacitance_uF").set_value(40.0).run()
+    assert not app.exception
+    assert metric(app, "Overall health") != before or before == "100%"
+    assert any("Custom limits:" in c.value for c in app.caption)
