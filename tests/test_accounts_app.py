@@ -34,7 +34,8 @@ def run_app(user=None) -> AppTest:
 def test_signed_out_visitors_see_sign_in_and_no_my_data(database, monkeypatch):
     monkeypatch.setattr(accounts, "current_user", lambda: None)
     app = run_app()
-    assert any(b.label == "Sign in" for b in app.sidebar.button)
+    assert any(b.label == "Sign in" for b in app.button)  # top-right corner, not the sidebar
+    assert not any(b.label == "Sign in" for b in app.sidebar.button)
     assert "My saved datasets" not in app.sidebar.radio(key=WORKSPACE_KEY).options
     assert "My data" not in app.sidebar.radio(key=WORKSPACE_KEY).options
 
@@ -43,6 +44,7 @@ def test_without_auth_settings_the_app_shows_no_account_controls():
     app = AppTest.from_file(APP, default_timeout=120)
     app.run()
     assert not app.exception
+    assert not any(b.label in ("Sign in", "Sign out") for b in app.button)
     assert not any(b.label in ("Sign in", "Sign out") for b in app.sidebar.button)
 
 
@@ -52,7 +54,7 @@ def test_signed_in_user_reopens_a_saved_six_parameter_dataset(database, monkeypa
     database.save(ALICE["id"], "six_parameter", "Bench batch", {"measurements": measurements.to_csv(index=False).encode()})
     database.save("someone-else", "six_parameter", "Not Alice's", {"measurements": b"Cap_ID,Hours\n"})
     app = run_app()
-    assert any(b.label == "Sign out" for b in app.sidebar.button)
+    assert any(b.label == "Sign out" for b in app.button)  # in the top-right account menu
     app.sidebar.radio(key=WORKSPACE_KEY).set_value("Six-parameter RUL prediction (demonstration model)").run()
     app.radio(key="caplife_six_source").set_value("My saved datasets").run()
     assert not app.exception, app.exception
@@ -115,7 +117,7 @@ def test_signed_out_visitor_is_asked_to_sign_in_before_saving(database, monkeypa
     app = AppTest.from_string(SAVE_SCRIPT, default_timeout=60)
     app.secrets["auth"] = {"redirect_uri": "x", "cookie_secret": "x"}
     app.run()
-    assert any("Sign in from the sidebar" in c.value for c in app.caption)
+    assert any("Sign in (top right)" in c.value for c in app.caption)
     assert not any(b.key == "probe_save" for b in app.button)
 
 
@@ -133,5 +135,15 @@ def test_signing_out_while_on_my_data_returns_to_the_home_page(database, monkeyp
     monkeypatch.setattr(accounts, "current_user", lambda: None)
     app.run()
     assert not app.exception, app.exception
-    assert app.sidebar.radio(key=WORKSPACE_KEY).value == "Home"
+    assert app.sidebar.radio(key=WORKSPACE_KEY).value is None  # back on Home
+    assert any("Choose where to start" in m.value for m in app.markdown)
     assert "My data" not in app.sidebar.radio(key=WORKSPACE_KEY).options
+
+
+def test_account_menu_opens_my_data(database, monkeypatch):
+    monkeypatch.setattr(accounts, "current_user", lambda: ALICE)
+    app = run_app()
+    app.button(key="caplife_account_my_data").click().run()
+    assert not app.exception, app.exception
+    assert app.header[0].value == "My data"
+    assert app.sidebar.radio(key=WORKSPACE_KEY).value == "My saved datasets"

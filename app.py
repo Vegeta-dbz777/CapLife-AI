@@ -32,7 +32,7 @@ _forget_outdated_caplife_modules()
 
 from caplife.config import EOL_THRESHOLDS, FEATURES, SEQ_LEN
 from caplife.data import DataValidationError, validate_measurements
-from caplife.accounts import current_user, render_my_data, sidebar_account
+from caplife.accounts import account_bar, current_user, render_my_data
 from caplife.predict import assess_capacitor, default_prediction_hour, load_engine
 from caplife.trend import assess_trend
 from caplife.versioning import code_version
@@ -51,9 +51,8 @@ MEASUREMENT_WORKFLOW = "Experimental measurements (v0.8)"
 RUL_WORKFLOW = "Train an RUL model on uploaded outcomes"
 SIX_RUL_WORKFLOW = "Six-parameter RUL prediction (demonstration model)"
 MY_DATA_WORKFLOW = "My saved datasets"
-HOME_WORKFLOW = "Home"
+HOME_WORKFLOW = "Home"  # shown when no workspace is chosen; the CapLife AI brand opens it
 MAIN_WORKFLOWS = {
-    HOME_WORKFLOW: "Home",
     MEASUREMENT_WORKFLOW: "Analyze measurements",
     SIX_RUL_WORKFLOW: "RUL prediction",
     RUL_WORKFLOW: "Train RUL model",
@@ -78,18 +77,21 @@ if st.query_params.get("page") == "privacy":
     render_privacy(PUBLIC_APP_URL)
     st.stop()
 
+def _go_home() -> None:
+    # Clearing both lists shows Home; uploaded files and other page state are kept.
+    st.session_state[MAIN_KEY] = None
+    st.session_state[RESEARCH_KEY] = None
+
+
 with st.sidebar:
-    st.html(
-        '<div class="caplife-brand"><span class="caplife-brand-mark" aria-hidden="true">CL</span>'
-        '<span>CapLife AI</span></div>'
-    )
+    st.button("CapLife AI", key="caplife_brand_home", on_click=_go_home, help="Home")
     st.html(ASSETS / "theme-switch.html", unsafe_allow_javascript=True)
     main_pages = {**MAIN_WORKFLOWS, **({MY_DATA_WORKFLOW: "My data"} if current_user() else {})}
     # Two lists, one selection: choosing a page in one list clears the other.
-    st.session_state.setdefault(MAIN_KEY, HOME_WORKFLOW)
+    st.session_state.setdefault(MAIN_KEY, None)  # nothing chosen: Home
     st.session_state.setdefault(RESEARCH_KEY, None)
     if st.session_state[MAIN_KEY] not in (None, *main_pages):  # e.g. My data after signing out
-        st.session_state[MAIN_KEY] = HOME_WORKFLOW
+        st.session_state[MAIN_KEY] = None
 
     def _choose(chosen_key: str, other_key: str) -> None:
         if st.session_state[chosen_key] is not None:
@@ -102,9 +104,15 @@ with st.sidebar:
                  key=RESEARCH_KEY, label_visibility="collapsed", on_change=_choose, args=(RESEARCH_KEY, MAIN_KEY))
     workflow = st.session_state[MAIN_KEY] or st.session_state[RESEARCH_KEY] or HOME_WORKFLOW
     st.divider()
-    sidebar_account()
     st.markdown(f"[Project and methods ↗]({PROJECT_URL})")
     st.markdown(f"[Privacy]({PUBLIC_APP_URL}?page=privacy)")
+
+def _open_my_data() -> None:
+    st.session_state[MAIN_KEY] = MY_DATA_WORKFLOW
+    st.session_state[RESEARCH_KEY] = None
+
+
+account_bar(_open_my_data)
 
 if workflow == HOME_WORKFLOW:
     from caplife.home_page import render as render_home
