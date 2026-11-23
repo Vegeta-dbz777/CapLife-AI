@@ -95,25 +95,36 @@ def saving_available() -> bool:
     return current_user() is not None and store() is not None
 
 
-def sidebar_account() -> None:
-    """Sign-in controls, shown only when sign-in is configured."""
+def account_bar(open_my_data=None) -> None:
+    """Sign-in controls in the top-right corner of every page, shown only when sign-in is configured.
+
+    Signed out: a Sign in button. Signed in: an account menu with the email, My data and Sign out.
+    """
     if not auth_configured():
         return
     user = current_user()
-    if user is None:
-        st.caption("Sign in to save datasets privately and reopen them later.")
-        provider = _login_provider()
-        st.button("Sign in", key="caplife_sign_in", on_click=st.login, args=(provider,) if provider else ())
-    else:
-        st.caption(f"Signed in as **{user['email'] or user['name']}**")
-        st.button("Sign out", key="caplife_sign_out", on_click=st.logout)
+    with st.container(horizontal=True, horizontal_alignment="right", key="caplife_account_bar"):
+        if user is None:
+            provider = _login_provider()
+            st.button("Sign in", key="caplife_sign_in", icon=":material/login:", on_click=st.login,
+                      args=(provider,) if provider else (),
+                      help="Sign in to save datasets privately and reopen them later.")
+            return
+        who = user["email"] or user["name"] or "Account"
+        with st.popover(who, icon=":material/account_circle:", key="caplife_account_menu"):
+            st.caption(f"Signed in as **{who}**")
+            if open_my_data is not None:
+                st.button("My data", key="caplife_account_my_data", icon=":material/folder_open:",
+                          on_click=open_my_data, width="stretch")
+            st.button("Sign out", key="caplife_sign_out", icon=":material/logout:", on_click=st.logout,
+                      width="stretch")
 
 
 def save_controls(kind: str, files: dict[str, bytes], default_name: str, key: str) -> None:
     """Let a signed-in user keep the current files in their account."""
     if not saving_available():
         if auth_configured() and current_user() is None and storage_url():
-            st.caption("Sign in from the sidebar to save this dataset to your account.")
+            st.caption("Sign in (top right) to save this dataset to your account.")
         return
     with st.expander("Save this dataset to your account"):
         name = st.text_input("Name", value=default_name[:80], max_chars=80, key=f"{key}_name")

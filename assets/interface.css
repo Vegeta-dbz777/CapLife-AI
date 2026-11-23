@@ -19,6 +19,51 @@
     letter-spacing: -.025em;
 }
 
+/* The CapLife AI brand at the top of the sidebar is the home button: drawn like the brand, not a button. */
+.st-key-caplife_brand_home button {
+    min-height: 0;
+    margin-bottom: .9rem;
+    padding: 0;
+    gap: .8rem;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    color: inherit;
+}
+
+.st-key-caplife_brand_home button::before {
+    display: grid;
+    width: 2.45rem;
+    height: 2.45rem;
+    flex: none;
+    place-items: center;
+    border: 1px solid light-dark(#82afa5, #4a7e75);
+    border-radius: .72rem;
+    background: light-dark(#d0e9e3, #203f3b);
+    color: light-dark(#1b5b51, #9cf9e5);
+    content: "CL";
+    font-size: .81rem;
+    font-weight: 780;
+    letter-spacing: .04em;
+}
+
+.st-key-caplife_brand_home button p {
+    font-size: 1.23rem;
+    font-weight: 730;
+    letter-spacing: -.025em;
+}
+
+.st-key-caplife_brand_home button:hover,
+.st-key-caplife_brand_home button:focus-visible {
+    background: transparent;
+    color: light-dark(#0b6b5e, #8ce7d5);
+}
+
+.st-key-caplife_brand_home button:focus-visible {
+    outline: 2px solid light-dark(#0b6b5e, #8ce7d5);
+    outline-offset: 3px;
+}
+
 .caplife-brand-mark {
     display: grid;
     width: 2.45rem;
@@ -368,4 +413,9 @@
 
 [class*="st-key-caplife_home_card_"] > [class*="st-key-caplife_home_open_"] {
     margin-top: auto;
+}
+
+/* Account controls (Sign in / account menu) at the top right of every page, clear of the app's top bar. */
+.st-key-caplife_account_bar {
+    margin-top: 1.25rem;
 }

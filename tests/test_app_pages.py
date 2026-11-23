@@ -9,7 +9,6 @@ MAIN_KEY, RESEARCH_KEY = "caplife_workflow_v07", "caplife_research_page"
 
 # Shown label -> (sidebar list, internal workspace value), as defined in app.py.
 WORKSPACES = {
-    "Home": (MAIN_KEY, "Home"),
     "Analyze measurements": (MAIN_KEY, "Experimental measurements (v0.8)"),
     "RUL prediction": (MAIN_KEY, "Six-parameter RUL prediction (demonstration model)"),
     "Train RUL model": (MAIN_KEY, "Train an RUL model on uploaded outcomes"),
@@ -146,7 +145,8 @@ def test_app_opens_on_home_and_each_card_opens_its_workspace():
     app = AppTest.from_file(APP, default_timeout=120)
     app.run()
     assert not app.exception
-    assert app.sidebar.radio(key=MAIN_KEY).value == "Home"
+    assert app.sidebar.radio(key=MAIN_KEY).value is None  # no workspace chosen: Home
+    assert "Home" not in app.sidebar.radio(key=MAIN_KEY).options
     assert any("Choose where to start" in m.value for m in app.markdown)
     cards = {"caplife_home_open_analyze": ("Experimental measurements (v0.8)", "Analyze measurements"),
              "caplife_home_open_predict": ("Six-parameter RUL prediction (demonstration model)",
@@ -154,11 +154,25 @@ def test_app_opens_on_home_and_each_card_opens_its_workspace():
              "caplife_home_open_train": ("Train an RUL model on uploaded outcomes",
                                          "Train a remaining-life model on your data")}
     for key, (workspace, header) in cards.items():
-        app.sidebar.radio(key=MAIN_KEY).set_value("Home").run()
+        app.sidebar.button(key="caplife_brand_home").click().run()
         app.button(key=key).click().run()
         assert not app.exception
         assert app.sidebar.radio(key=MAIN_KEY).value == workspace
         assert app.header[0].value == header
+
+
+def test_brand_returns_home_from_any_page_and_keeps_the_work():
+    app = open_workspace("RUL prediction")
+    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
+    app.sidebar.button(key="caplife_brand_home").click().run()
+    assert not app.exception
+    assert app.sidebar.radio(key=MAIN_KEY).value is None and app.sidebar.radio(key=RESEARCH_KEY).value is None
+    assert any("Choose where to start" in m.value for m in app.markdown)
+    app.sidebar.radio(key=MAIN_KEY).set_value("Six-parameter RUL prediction (demonstration model)").run()
+    assert app.radio(key="caplife_six_source").value == "Use simulated example capacitors"  # still chosen
+    research = open_workspace("Earlier GRU demo")
+    research.sidebar.button(key="caplife_brand_home").click().run()
+    assert any("Choose where to start" in m.value for m in research.markdown)
 
 
 def test_analyze_page_renames_its_columns_help_and_keeps_its_upload():
