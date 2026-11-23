@@ -4,6 +4,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from caplife.real_data import RATIO_COLUMNS
 from caplife.six_rul import INDICATOR_LABELS, current_limit_used
 from caplife.six_sim import SIGNALS
 
@@ -19,7 +20,11 @@ CHANGE_COLUMNS = {
 
 def capacitor_summary(readings: pd.DataFrame, warnings: list[str]) -> pd.DataFrame:
     """Readings, time span, parameters measured, change of each parameter from its first to its latest
-    reading, the parameter closest to its default end-of-life limit, and the number of data notes."""
+    reading, the parameter closest to its default end-of-life limit, and the number of data notes.
+
+    A change the assessment withholds (no usable ratio, e.g. ESR under changed test conditions) is
+    left blank and does not count towards the closest limit.
+    """
     rows = []
     for device, group in readings.sort_values("Hours").groupby("Cap_ID", sort=True):
         measured = [signal for signal in SIGNALS if signal in group and group[signal].notna().sum() >= 2]
@@ -29,6 +34,12 @@ def capacitor_summary(readings: pd.DataFrame, warnings: list[str]) -> pd.DataFra
         used = {}
         for signal, label in CHANGE_COLUMNS.items():
             values = group[signal].dropna() if signal in group else pd.Series(dtype=float)
+            # The assessment withholds a ratio (for example ESR measured under changed test conditions);
+            # the summary withholds that change too rather than compare incomparable readings.
+            ratio = RATIO_COLUMNS.get(signal)
+            if ratio in group and group[ratio].notna().sum() < 2:
+                row[label] = np.nan
+                continue
             if signal not in measured:
                 row[label] = np.nan
                 continue
