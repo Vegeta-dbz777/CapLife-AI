@@ -61,6 +61,7 @@ def _limit_text(signal: str, limits: dict | None = None) -> str:
         return f"{value:g} mL"
     return f"{value:g} kPa vent"
 TEAL, ORANGE, GREY = "#2f9e8f", "#d9822b", "#8a9a9a"
+DIVIDER = "#9fb0bd"  # the latest reading: measured to the left, forecast to the right
 PURPLE = "#8e6bd8"  # forecasts: distinct from measured readings (teal) and limits (orange) in both themes
 INPUT_ERRORS = (RealDataValidationError, ValueError, pd.errors.ParserError,
                 pd.errors.EmptyDataError, UnicodeError)
@@ -364,7 +365,7 @@ def _chart_domain(values: pd.Series, limit: float, digits: int) -> tuple[float, 
 
 def _signal_charts(readings: pd.DataFrame, limits: dict | None = None) -> None:
     baseline = readings.iloc[0]
-    columns = st.columns(3)
+    columns = st.columns(2)
     for index, signal in enumerate(_measured(readings)):
         data = readings[["Hours", signal]].rename(columns={signal: "value"}).reset_index(drop=True)
         limit = _limit_value(signal, baseline, limits)
@@ -389,9 +390,9 @@ def _signal_charts(readings: pd.DataFrame, limits: dict | None = None) -> None:
                                ).mark_text(align="left", dx=4, baseline="top" if off_chart == "above" else "bottom",
                                            dy=4 if off_chart == "above" else -4, color=ORANGE, fontSize=11).encode(
                 x="Hours:Q", y=alt.Y("value:Q", scale=alt.Scale(domain=[bottom, top], nice=False)), text="label:N")
-        with columns[index % 3]:
+        with columns[index % 2]:
             st.caption(f"**{INDICATOR_LABELS[signal]}** · limit: {_limit_text(signal, limits)}")
-            st.altair_chart((line + marker).properties(height=170), width="stretch")
+            st.altair_chart((line + marker).properties(height=260), width="stretch")
 
 
 def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Series,
@@ -421,9 +422,12 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
         number = f",.{DIGITS[signal]}f"
         window = alt.Chart(eol_range).mark_rect(color=GREY, opacity=.16).encode(
             x=alt.X("from:Q", scale=hours_scale), x2="to:Q")
-        now = alt.Chart(pd.DataFrame({"Hours": [latest]})).mark_rule(color=GREY, strokeDash=[2, 3]).encode(
+        now = alt.Chart(pd.DataFrame({"Hours": [latest]})).mark_rule(color=DIVIDER, strokeWidth=3).encode(
             x=alt.X("Hours:Q", scale=hours_scale),
             tooltip=[alt.Tooltip("Hours:Q", title="Latest reading (h)", format=",.0f")])
+        now_label = alt.Chart(pd.DataFrame({"Hours": [latest], "value": [top], "label": ["Latest reading"]})).mark_text(
+            align="right", baseline="top", dx=-5, dy=4, color=DIVIDER, fontSize=11, fontWeight="bold").encode(
+            x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale), text="label:N")
         history = alt.Chart(measured).mark_line(color=TEAL, strokeWidth=1.8, clip=True, point=alt.OverlayMarkDef(
             color=TEAL, size=26, filled=True)).encode(
             x=x, y=alt.Y("value:Q", title=UNITS[signal], scale=scale),
@@ -441,7 +445,7 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
         eol = alt.Chart(pd.DataFrame({"Hours": [end]})).mark_rule(color=GREY, strokeWidth=1.5).encode(
             x=alt.X("Hours:Q", scale=hours_scale),
             tooltip=[alt.Tooltip("Hours:Q", title="Predicted end of life (h)", format=",.0f")])
-        layers = [window, now, band, history, path, eol]
+        layers = [window, now, now_label, band, history, path, eol]
         if off_chart is None:
             layers.append(alt.Chart(pd.DataFrame({"limit": [limit]})).mark_rule(color=ORANGE, strokeDash=[5, 4])
                           .encode(y=alt.Y("limit:Q", scale=scale),
@@ -662,8 +666,8 @@ def render() -> None:
         forecast = _forecast_cached(readings, float(last["RUL_median_h"]), json.dumps(limits, sort_keys=True),
                                     code_version())
         st.markdown("##### Predicted parameter trends to end of life")
-        st.caption(f"Teal: the {len(readings)} measured readings up to {last['Hours']:,.0f} h (dotted grey "
-                   "line). Purple: the trend network's median forecast from there (dashed) and its 80% range "
+        st.caption(f"Teal: the {len(readings)} measured readings up to {last['Hours']:,.0f} h (the thick line "
+                   "marked Latest reading). Purple: the trend network's median forecast from there (dashed) and its 80% range "
                    f"(band). Grey line: the predicted end of life at {last['Hours'] + last['RUL_median_h']:,.0f} h, "
                    f"with its 80% range shaded grey. Orange dashed line: your limit. {_first_to_limit(forecast)} is "
                    "expected to reach its limit first.")
