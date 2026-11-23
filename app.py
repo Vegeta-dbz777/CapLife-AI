@@ -46,7 +46,6 @@ ARTIFACTS = ROOT / "artifacts"
 ASSETS = ROOT / "assets"
 UNCERTAINTY_JSON = ARTIFACTS / "trend_uncertainty_synthetic_v0_5.json"
 PUBLIC_APP_URL = "https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/"
-PROJECT_URL = "https://github.com/Vegeta-dbz777/CapLife-AI"
 MEASUREMENT_WORKFLOW = "Experimental measurements (v0.8)"
 RUL_WORKFLOW = "Train an RUL model on uploaded outcomes"
 SIX_RUL_WORKFLOW = "Six-parameter RUL prediction (demonstration model)"
@@ -105,7 +104,6 @@ with st.sidebar:
                  key=RESEARCH_KEY, label_visibility="collapsed", on_change=_choose, args=(RESEARCH_KEY, MAIN_KEY))
     workflow = st.session_state[MAIN_KEY] or st.session_state[RESEARCH_KEY] or HOME_WORKFLOW
     st.divider()
-    st.markdown(f"[Project and methods ↗]({PROJECT_URL})")
     st.markdown(f"[Privacy]({PUBLIC_APP_URL}?page=privacy)")
 
 def _open_my_data() -> None:
