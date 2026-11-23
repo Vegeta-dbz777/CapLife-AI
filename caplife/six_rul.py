@@ -75,9 +75,29 @@ def limit_used(readings: pd.DataFrame) -> pd.DataFrame:
     worst level held so far, where "held" means the median of three consecutive readings, so a
     single outlying reading cannot mark lasting damage. Readings must be in time order.
     """
+    return np.maximum(current_limit_used(readings), held_limit_used(readings))
+
+
+def held_limit_used(readings: pd.DataFrame) -> pd.DataFrame:
+    """Worst fraction of each limit held so far, by the median of three consecutive readings."""
+    return current_limit_used(readings).rolling(3, min_periods=1).median().cummax()
+
+
+def _network_inputs(readings: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    """Limit fractions the network sees: (past readings, newest reading).
+
+    Damage does not heal, and one outlying reading should not drag down the predictions that
+    follow it. When predicting at reading t, every earlier reading s already has its neighbour
+    s + 1, so it is cleaned with the median of readings s - 1, s and s + 1 and the worst cleaned
+    level is held. The newest reading has no later neighbour and enters as measured, or the
+    worst cleaned level before it, whichever is higher. Nothing after t is used.
+    """
     current = current_limit_used(readings)
-    held = current.rolling(3, min_periods=1).median().cummax()
-    return np.maximum(current, held)
+    cleaned = current.rolling(3, center=True, min_periods=1).median()
+    cleaned.iloc[0] = current.iloc[0]
+    past = cleaned.cummax()
+    newest = np.maximum(current, past.shift(1).fillna(current))
+    return past.to_numpy(dtype=float), newest.to_numpy(dtype=float)
 
 
 def current_limit_used(readings: pd.DataFrame) -> pd.DataFrame:
@@ -110,12 +130,13 @@ def sequences(readings: pd.DataFrame, measured: tuple[str, ...] | None = None) -
     mask = np.array([signal in measured for signal in SIGNALS], dtype=float)
     age = (readings["Hours"] - readings["Hours"].iloc[0]).to_numpy(dtype=float)
     gap = np.concatenate([[0.0], np.diff(age)])
-    used = np.nan_to_num(limit_used(readings).to_numpy(dtype=float)) * mask
-    steps = np.column_stack([np.log1p(age / 1000), np.log1p(gap / 1000), used,
+    past, newest = (np.nan_to_num(values) * mask for values in _network_inputs(readings))
+    steps = np.column_stack([np.log1p(age / 1000), np.log1p(gap / 1000), past,
                              np.tile(mask, (len(age), 1)), np.zeros(len(age))])
     windows = []
     for end in range(MIN_READINGS - 1, len(steps)):
-        window = steps[max(0, end - WINDOW + 1):end + 1]
+        window = steps[max(0, end - WINDOW + 1):end + 1].copy()
+        window[-1, USED] = newest[end]
         if len(window) < WINDOW:
             padding = np.zeros((WINDOW - len(window), steps.shape[1]))
             padding[:, -1] = 1.0
@@ -349,6 +370,7 @@ class SixRULModel:
             raise ValueError("The first reading needs positive capacitance, ESR and leakage current "
                              "(where measured) to serve as a baseline.")
         used = limit_used(readings)[list(measured)]
+        seen = pd.DataFrame(_network_inputs(readings)[1], columns=SIGNALS)[list(measured)]  # newest inputs
         adjustment = self.adjustments[subset_key(measured)]
         columns = [SIGNALS.index(signal) for signal in measured]
         rows = []
@@ -370,7 +392,7 @@ class SixRULModel:
             if k >= 0 and not reached:
                 row.update({"RUL_low_h": low[k], "RUL_median_h": mid[k], "RUL_high_h": high[k]})
                 row["Outside_training_range"] = bool(
-                    (fractions.to_numpy() > self.train_max[columns] * 1.1).any())
+                    (seen.iloc[index].to_numpy() > self.train_max[columns] * 1.1).any())
             elif reached:
                 row.update({"RUL_low_h": 0.0, "RUL_median_h": 0.0, "RUL_high_h": 0.0, "Outside_training_range": False})
             rows.append(row)

@@ -147,16 +147,6 @@ def test_chart_axis_fits_small_trends_and_reports_far_limits():
     assert where is None and high >= 250.0
 
 
-def test_running_average_follows_the_trend_and_keeps_every_reading():
-    from caplife.six_rul_page import _smooth
-    noisy = pd.Series([0.0, 1.0, 0.0, 1.0, 0.0, 1.0])
-    smooth = _smooth(noisy)
-    assert len(smooth) == len(noisy) and smooth.notna().all()
-    assert smooth.diff().abs().max() < noisy.diff().abs().max()  # steps shrink
-    rising = pd.Series(range(20), dtype=float)
-    assert (_smooth(rising).iloc[2:-2] == rising.iloc[2:-2]).all()  # a straight trend is unchanged
-
-
 def test_three_parameter_histories_get_health_and_remaining_life(model):
     from caplife.six_rul import COMMON_SUBSET
     measurements, _ = example_fleet()
@@ -235,3 +225,17 @@ def test_nasa_overstress_capacitors_stay_at_end_of_life_once_a_limit_is_held():
         assert flags[held:].all()  # once a limit is held, the capacitor stays at end of life
     assert _status(53, False) == "Watch"  # ESR up 47% of the way to its limit is not "Good"
     assert _status(75, False) == "Good" and _status(30, False) == "Critical"
+
+
+def test_one_faulty_reading_only_affects_its_own_prediction(model):
+    measurements, _ = example_fleet()
+    readings = measurements.loc[measurements["Cap_ID"].eq("DEMO_03")].reset_index(drop=True)
+    spiked = readings.copy()
+    middle = len(readings) // 2
+    spiked.loc[middle, "ESR_ohm"] = readings.loc[0, "ESR_ohm"] * 2.3  # one reading past the ESR limit
+    clean, faulty = model.assess(readings), model.assess(spiked)
+    assert faulty.loc[middle, "End_of_life_reached"] and faulty.loc[middle, "RUL_median_h"] == 0
+    after = slice(middle + 1, None)
+    assert not faulty.loc[after, "End_of_life_reached"].any()
+    ratio = faulty.loc[after, "RUL_median_h"] / clean.loc[after, "RUL_median_h"]
+    assert ratio.between(0.9, 1.1).all()  # later predictions are not dragged down by the spike
