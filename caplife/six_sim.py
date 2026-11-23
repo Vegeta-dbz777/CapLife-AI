@@ -35,6 +35,33 @@ EOL_LIMITS = {
     "expansion_um": 52.0,  # bulge of the case relative to the first reading
     "h2_ml": 6.0,  # cumulative hydrogen generated, at 0 °C and 1 atm
 }
+# Users can set their own limit for each indicator (a capacitor series' own tolerance). The model is
+# trained on limits drawn from these ranges, so it can predict the time to any limit inside them.
+LIMIT_RANGES = {
+    "capacitance_loss_pct": (5.0, 40.0),
+    "esr_ratio": (1.2, 4.0),
+    "leakage_ratio": (1.5, 10.0),
+    "expansion_um": (10.0, 100.0),
+    "h2_ml": (1.0, 12.0),
+    "pressure_abs_kpa": (130.0, 350.0),
+}
+DEFAULT_LIMIT_SHARE = 0.3  # share of training capacitors that keep the default limits
+
+
+def random_limits(rng: np.random.Generator) -> dict:
+    """The default limits, or each limit drawn log-uniformly from its range (pressure: its rise)."""
+    if rng.random() < DEFAULT_LIMIT_SHARE:
+        return dict(EOL_LIMITS)
+    limits = {}
+    for key, (low, high) in LIMIT_RANGES.items():
+        if key in ("esr_ratio", "leakage_ratio"):  # the allowed rise is what varies by orders of magnitude
+            limits[key] = 1 + float(np.exp(rng.uniform(np.log(low - 1), np.log(high - 1))))
+        elif key == "pressure_abs_kpa":
+            rise = np.exp(rng.uniform(np.log(low - ATMOSPHERE_KPA), np.log(high - ATMOSPHERE_KPA)))
+            limits[key] = ATMOSPHERE_KPA + float(rise)
+        else:
+            limits[key] = float(np.exp(rng.uniform(np.log(low), np.log(high))))
+    return limits
 ATMOSPHERE_KPA = 101.325
 FARADAY_ML_PER_AS = 0.116  # mL of H2 at 0 °C and 1 atm per ampere-second
 MEASUREMENT_TEMP_K = 298.15
@@ -85,36 +112,49 @@ def _state(device: dict, hours: np.ndarray) -> dict[str, np.ndarray]:
             "Case_Expansion_um": expansion, "H2_Generated_mL_STP": h2, "Pressure_Abs_kPa": pressure}
 
 
-def end_of_life_causes(baseline: dict, reading: dict) -> list[str]:
-    """Which end-of-life limits a reading meets, relative to its baseline."""
+def end_of_life_causes(baseline: dict, reading: dict, limits: dict | None = None) -> list[str]:
+    """Which end-of-life limits a reading meets, relative to its baseline (default limits unless given)."""
+    limits = EOL_LIMITS if limits is None else limits
     # A small tolerance so a reading exactly at a limit counts despite floating-point rounding.
     tolerance = 1e-9
     causes = []
-    if 100 * (1 - reading["Capacitance_uF"] / baseline["Capacitance_uF"]) >= EOL_LIMITS["capacitance_loss_pct"] - tolerance:
+    if 100 * (1 - reading["Capacitance_uF"] / baseline["Capacitance_uF"]) >= limits["capacitance_loss_pct"] - tolerance:
         causes.append("capacitance")
-    if reading["ESR_ohm"] / baseline["ESR_ohm"] >= EOL_LIMITS["esr_ratio"] - tolerance:
+    if reading["ESR_ohm"] / baseline["ESR_ohm"] >= limits["esr_ratio"] - tolerance:
         causes.append("ESR")
-    if reading["Leakage_uA"] / baseline["Leakage_uA"] >= EOL_LIMITS["leakage_ratio"] - tolerance:
+    if reading["Leakage_uA"] / baseline["Leakage_uA"] >= limits["leakage_ratio"] - tolerance:
         causes.append("leakage")
-    if reading["Case_Expansion_um"] - baseline["Case_Expansion_um"] >= EOL_LIMITS["expansion_um"] - tolerance:
+    if reading["Case_Expansion_um"] - baseline["Case_Expansion_um"] >= limits["expansion_um"] - tolerance:
         causes.append("expansion")
-    if reading["H2_Generated_mL_STP"] - baseline["H2_Generated_mL_STP"] >= EOL_LIMITS["h2_ml"] - tolerance:
+    if reading["H2_Generated_mL_STP"] - baseline["H2_Generated_mL_STP"] >= limits["h2_ml"] - tolerance:
         causes.append("H2")
-    if reading["Pressure_Abs_kPa"] >= EOL_LIMITS["pressure_abs_kpa"] - tolerance:
+    if reading["Pressure_Abs_kPa"] >= limits["pressure_abs_kpa"] - tolerance:
         causes.append("pressure")
     return causes
 
 
-def simulate_device(rng: np.random.Generator, cap_id: str, fine_step_h: float = 5.0) -> tuple[pd.DataFrame, dict]:
-    """Noisy inspections until end of life, and the true (noise-free) end-of-life age and cause."""
-    device = _device(rng)
-    horizon = 4 * device["tau_h"]
-    fine = np.arange(0, horizon + fine_step_h, fine_step_h)
-    truth = _state(device, fine)
-    base = {name: values[0] for name, values in truth.items()}
-    eol_index = next(i for i in range(len(fine)) if end_of_life_causes(base, {k: v[i] for k, v in truth.items()}))
+def simulate_device(rng: np.random.Generator, cap_id: str, fine_step_h: float = 5.0,
+                    limits: dict | None = None, keep_truth: bool = False):
+    """Noisy inspections until end of life, and the true (noise-free) end-of-life age and cause.
+
+    ``limits`` (default: ``EOL_LIMITS``) decides end of life. With ``keep_truth`` the noise-free
+    trajectory is returned as well, as ``(hours, {indicator: values})``.
+    """
+    limits = EOL_LIMITS if limits is None else limits
+    while True:
+        device = _device(rng)
+        # Long enough for the loosest limits; coarser steps for very slow capacitors keep it small.
+        horizon = 12 * device["tau_h"]
+        step = max(fine_step_h, horizon / 40000)
+        fine = np.arange(0, horizon + step, step)
+        truth = _state(device, fine)
+        base = {name: values[0] for name, values in truth.items()}
+        eol_index = next((i for i in range(1, len(fine))
+                          if end_of_life_causes(base, {k: v[i] for k, v in truth.items()}, limits)), None)
+        if eol_index is not None:
+            break
     eol_h = float(fine[eol_index])
-    causes = end_of_life_causes(base, {k: v[eol_index] for k, v in truth.items()})
+    causes = end_of_life_causes(base, {k: v[eol_index] for k, v in truth.items()}, limits)
 
     # Inspections at a device-specific interval with jitter, stopping before end of life.
     interval = eol_h / rng.uniform(12, 40)
@@ -147,15 +187,28 @@ def simulate_device(rng: np.random.Generator, cap_id: str, fine_step_h: float = 
                 "H2_Generated_mL_STP": 4, "Pressure_Abs_kPa": 2}
     frame = frame.round(rounding)
     meta = {"Cap_ID": cap_id, "eol_h": eol_h, "eol_cause": ", ".join(causes),
+            **{f"limit_{k}": float(v) for k, v in limits.items()},
             **{k: round(float(v), 4) for k, v in device.items()}}
+    if keep_truth:
+        return frame, meta, (fine, truth)
     return frame, meta
 
 
-def simulate_fleet(n_devices: int, seed: int, prefix: str = "SIM") -> tuple[pd.DataFrame, pd.DataFrame]:
+def simulate_fleet(n_devices: int, seed: int, prefix: str = "SIM", vary_limits: bool = False,
+                   on_truth=None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """A fleet of simulated capacitors with the default limits, or random ones with ``vary_limits``.
+
+    ``on_truth(frame, meta, hours, truth)`` is called for each capacitor with its noise-free
+    trajectory, which is not kept (it can be large).
+    """
     rng = np.random.default_rng(seed)
+    limit_rng = np.random.default_rng(seed + 10_000)
     frames, metas = [], []
     for index in range(1, n_devices + 1):
-        frame, meta = simulate_device(rng, f"{prefix}_{index:04d}")
+        limits = random_limits(limit_rng) if vary_limits else None
+        frame, meta, (hours, truth) = simulate_device(rng, f"{prefix}_{index:04d}", limits=limits, keep_truth=True)
+        if on_truth is not None:
+            on_truth(frame, meta, hours, truth)
         frames.append(frame)
         metas.append(meta)
     return pd.concat(frames, ignore_index=True), pd.DataFrame(metas)

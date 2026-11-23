@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from base64 import b64encode
 from html import escape
+import json
 from pathlib import Path
 
 import altair as alt
@@ -14,10 +15,10 @@ from caplife.accounts import save_controls, saved_picker, saving_available
 from caplife.measurement_review import read_experimental_csv
 from caplife.real_data import RealDataValidationError, validate_real_measurements
 from caplife.six_rul import (
-    COMMON_SUBSET, INDICATOR_LABELS, MIN_READINGS, SixRULModel, current_limit_used,
-    example_fleet, limit_used, subset_key,
+    COMMON_SUBSET, INDICATOR_LABELS, LIMIT_KEYS, MIN_READINGS, SixRULModel, current_limit_used,
+    example_fleet, full_limits, limit_used, subset_key, value_at_fraction,
 )
-from caplife.six_sim import ATMOSPHERE_KPA, EOL_LIMITS, SIGNALS
+from caplife.six_sim import ATMOSPHERE_KPA, EOL_LIMITS, LIMIT_RANGES, SIGNALS
 from caplife.versioning import code_version
 
 ARTIFACT_DIR = Path(__file__).resolve().parents[1] / "artifacts" / "six_rul"
@@ -26,14 +27,39 @@ UNITS = {"Capacitance_uF": "µF", "ESR_ohm": "Ω", "Leakage_uA": "µA", "Case_Ex
          "H2_Generated_mL_STP": "mL", "Pressure_Abs_kPa": "kPa"}
 DIGITS = {"Capacitance_uF": 1, "ESR_ohm": 4, "Leakage_uA": 2, "Case_Expansion_um": 1,
           "H2_Generated_mL_STP": 2, "Pressure_Abs_kPa": 1}
-LIMIT_TEXT = {
-    "Capacitance_uF": f"{EOL_LIMITS['capacitance_loss_pct']:.0f}% loss",
-    "ESR_ohm": f"{EOL_LIMITS['esr_ratio']:g}× initial",
-    "Leakage_uA": f"{EOL_LIMITS['leakage_ratio']:g}× initial",
-    "Case_Expansion_um": f"{EOL_LIMITS['expansion_um']:g} µm bulge",
-    "H2_Generated_mL_STP": f"{EOL_LIMITS['h2_ml']:g} mL",
-    "Pressure_Abs_kPa": f"{EOL_LIMITS['pressure_abs_kpa']:g} kPa vent",
+# The six end-of-life limit inputs: label, the limit key, how the box shows it, and its step.
+# ESR and leakage limits are entered as a rise in percent (100% rise = 2x the first reading).
+LIMIT_INPUTS = {
+    "Capacitance_uF": ("Capacitance loss (%)", 0.5),
+    "ESR_ohm": ("ESR rise (%)", 5.0),
+    "Leakage_uA": ("Leakage current rise (%)", 10.0),
+    "Case_Expansion_um": ("Case expansion (µm)", 1.0),
+    "H2_Generated_mL_STP": ("H₂ generated (mL)", 0.1),
+    "Pressure_Abs_kPa": ("Internal pressure (kPa, absolute)", 5.0),
 }
+LIMITS_STATE = "caplife_six_limits"
+
+
+def _shown_limit(signal: str, value: float) -> float:
+    """A limit as its input box shows it."""
+    return round((value - 1) * 100, 6) if signal in ("ESR_ohm", "Leakage_uA") else value
+
+
+def _stored_limit(signal: str, shown: float) -> float:
+    return 1 + shown / 100 if signal in ("ESR_ohm", "Leakage_uA") else float(shown)
+
+
+def _limit_text(signal: str, limits: dict | None = None) -> str:
+    value = full_limits(limits)[LIMIT_KEYS[signal]]
+    if signal == "Capacitance_uF":
+        return f"{value:g}% loss"
+    if signal in ("ESR_ohm", "Leakage_uA"):
+        return f"+{(value - 1) * 100:g}% ({value:g}× initial)"
+    if signal == "Case_Expansion_um":
+        return f"{value:g} µm bulge"
+    if signal == "H2_Generated_mL_STP":
+        return f"{value:g} mL"
+    return f"{value:g} kPa vent"
 TEAL, ORANGE, GREY = "#2f9e8f", "#d9822b", "#8a9a9a"
 INPUT_ERRORS = (RealDataValidationError, ValueError, pd.errors.ParserError,
                 pd.errors.EmptyDataError, UnicodeError)
@@ -69,34 +95,14 @@ def _status(health: float, reached: bool) -> str:
     return "Good" if health >= GOOD_HEALTH_PCT else "Watch" if health >= WATCH_HEALTH_PCT else "Critical"
 
 
-def _value_at(signal: str, baseline: pd.Series, used: float) -> float:
-    """The parameter value at which the given fraction of its limit is used (inverse of limit_used)."""
-    if signal == "Capacitance_uF":
-        return baseline[signal] * (1 - used * EOL_LIMITS["capacitance_loss_pct"] / 100)
-    if signal == "ESR_ohm":
-        return baseline[signal] * (1 + used * (EOL_LIMITS["esr_ratio"] - 1))
-    if signal == "Leakage_uA":
-        return baseline[signal] * (1 + used * (EOL_LIMITS["leakage_ratio"] - 1))
-    if signal == "Pressure_Abs_kPa":
-        return ATMOSPHERE_KPA + used * (EOL_LIMITS["pressure_abs_kpa"] - ATMOSPHERE_KPA)
-    if signal == "Case_Expansion_um":
-        return baseline[signal] + used * EOL_LIMITS["expansion_um"]
-    return baseline[signal] + used * EOL_LIMITS["h2_ml"]
+def _value_at(signal: str, baseline: pd.Series, used: float, limits: dict | None = None) -> float:
+    """The parameter value at which the given fraction of its limit is used."""
+    return float(value_at_fraction(signal, baseline, used, limits))
 
 
-def _limit_value(signal: str, baseline: pd.Series) -> float:
-    """The parameter's end-of-life limit in its own units; only that parameter is looked up."""
-    if signal == "Capacitance_uF":
-        return baseline[signal] * (1 - EOL_LIMITS["capacitance_loss_pct"] / 100)
-    if signal == "ESR_ohm":
-        return baseline[signal] * EOL_LIMITS["esr_ratio"]
-    if signal == "Leakage_uA":
-        return baseline[signal] * EOL_LIMITS["leakage_ratio"]
-    if signal == "Case_Expansion_um":
-        return baseline[signal] + EOL_LIMITS["expansion_um"]
-    if signal == "H2_Generated_mL_STP":
-        return baseline[signal] + EOL_LIMITS["h2_ml"]
-    return EOL_LIMITS["pressure_abs_kpa"]
+def _limit_value(signal: str, baseline: pd.Series, limits: dict | None = None) -> float:
+    """The parameter's end-of-life limit in its own units."""
+    return _value_at(signal, baseline, 1.0, limits)
 
 
 def _hours(value) -> str:
@@ -113,9 +119,9 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
     template = pd.DataFrame(columns=["Cap_ID", "Hours", *SIGNALS]).to_csv(index=False)
     if source == EXAMPLE:
         measurements, truth = _example()
-        st.caption("Eight simulated capacitors, two for each way a capacitor can reach end of life, observed part "
-                   "of the way there. Because they are simulated, their true end of life is known and shown for "
-                   "comparison.")
+        st.caption("Twelve simulated capacitors, two for each of the six ways a capacitor can reach end of life, "
+                   "observed part of the way there. Because they are simulated, their true end of life with the "
+                   "default limits is known and shown for comparison.")
         if st.checkbox("Use only capacitance, ESR and leakage current", key="caplife_six_three_only",
                        help="Shows how the prediction works when the other three parameters are not measured."):
             measurements = measurements.loc[:, ["Cap_ID", "Hours", *COMMON_SUBSET]]
@@ -178,23 +184,78 @@ def _parse(payload: bytes, label: str, save: bool) -> tuple[pd.DataFrame, dict |
     return complete.loc[:, ["Cap_ID", "Hours", *measured]], None, label
 
 
-@st.cache_data(show_spinner="Assessing capacitors…", max_entries=4)
-def _assess_cached(measurements: pd.DataFrame, version: str) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
+@st.cache_data(show_spinner="Assessing capacitors…", max_entries=8)
+def _assess_cached(measurements: pd.DataFrame, limits_json: str,
+                   version: str) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
     model = _model()
     measured = _measured(measurements)
-    return {device: (readings.sort_values("Hours").reset_index(drop=True), model.assess(readings, measured))
+    limits = json.loads(limits_json)
+    return {device: (readings.sort_values("Hours").reset_index(drop=True),
+                     model.assess(readings, measured, limits.get(str(device))))
             for device, readings in measurements.groupby("Cap_ID", sort=True)}
+
+
+@st.cache_data(show_spinner=False, max_entries=16)
+def _forecast_cached(readings: pd.DataFrame, remaining_h: float, limits_json: str, version: str) -> pd.DataFrame:
+    return _model().forecast(readings, remaining_h, _measured(readings), json.loads(limits_json))
 
 
 def _measured(measurements: pd.DataFrame) -> tuple[str, ...]:
     return tuple(signal for signal in SIGNALS if signal in measurements)
 
 
-def _assess(measurements: pd.DataFrame) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
-    return _assess_cached(measurements, code_version())
+def _assess(measurements: pd.DataFrame, limits: dict) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
+    return _assess_cached(measurements, json.dumps(limits, sort_keys=True), code_version())
 
 
-def _fleet_table(results: dict, truth: dict | None) -> pd.DataFrame:
+def _device_limits(devices) -> dict:
+    """Each capacitor's end-of-life limits: the defaults until a user changes them."""
+    stored = st.session_state.setdefault(LIMITS_STATE, {})
+    return {str(device): full_limits(stored.get(str(device))) for device in devices}
+
+
+def _limit_inputs(device: str, measured: tuple[str, ...], devices) -> dict:
+    """Six limit boxes for the selected capacitor; returns its limits."""
+    stored = st.session_state.setdefault(LIMITS_STATE, {})
+    current = full_limits(stored.get(device))
+    widget = lambda signal: f"caplife_six_limit_{device}_{signal}"
+
+    def changed(signal):
+        stored.setdefault(device, {})[LIMIT_KEYS[signal]] = _stored_limit(signal, st.session_state[widget(signal)])
+
+    def apply_to_all():
+        for other in devices:
+            stored[str(other)] = dict(full_limits(stored.get(device)))
+            for signal in SIGNALS:
+                st.session_state.pop(f"caplife_six_limit_{other}_{signal}", None)
+
+    def reset():
+        stored.pop(device, None)
+        for signal in SIGNALS:
+            st.session_state.pop(widget(signal), None)
+
+    st.markdown(f"**End-of-life limits for {device}**")
+    st.caption("Set the failure boundary of each parameter for this capacitor's series, for example from its "
+               "datasheet tolerance. Health, end of life and every prediction below use these limits. Capacitance, "
+               "ESR and leakage are measured from the capacitor's first reading.")
+    columns = st.columns(3)
+    for index, signal in enumerate(SIGNALS):
+        label, step = LIMIT_INPUTS[signal]
+        low, high = LIMIT_RANGES[LIMIT_KEYS[signal]]
+        kwargs = {} if widget(signal) in st.session_state else {"value": _shown_limit(signal, current[LIMIT_KEYS[signal]])}
+        columns[index % 3].number_input(
+            label, min_value=_shown_limit(signal, low), max_value=_shown_limit(signal, high), step=step,
+            key=widget(signal), on_change=changed, args=(signal,), disabled=signal not in measured,
+            help=("Not in this data." if signal not in measured else
+                  f"Allowed: {_shown_limit(signal, low):g} to {_shown_limit(signal, high):g}, the range the model "
+                  "was trained on."), **kwargs)
+    left, right, _ = st.columns([1.3, 1, 2])
+    left.button("Apply these limits to every capacitor", on_click=apply_to_all, key=f"caplife_six_apply_{device}")
+    right.button("Reset to defaults", on_click=reset, key=f"caplife_six_reset_{device}")
+    return full_limits(stored.get(device))
+
+
+def _fleet_table(results: dict, truth: dict | None, limits: dict | None = None) -> pd.DataFrame:
     rows = []
     for device, (_, assessment) in results.items():
         last = assessment.iloc[-1]
@@ -211,7 +272,9 @@ def _fleet_table(results: dict, truth: dict | None) -> pd.DataFrame:
             "Predicted end-of-life age (h)": last["Hours"] + last["RUL_median_h"] if has_rul else np.nan,
         }
         if truth:
-            row["Simulated true end of life (h)"] = truth[device]["eol_h"]
+            # The simulated truth uses the default limits; it does not apply once a user changes them.
+            default = limits is None or limits.get(str(device)) == full_limits()
+            row["Simulated true end of life (h)"] = truth[device]["eol_h"] if default else np.nan
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -248,7 +311,7 @@ def _sparkline(hours: pd.Series, values: pd.Series, label: str, status: str = "g
             f'alt="{escape(label)} trend over {len(x)} readings">')
 
 
-def _health_cards(readings: pd.DataFrame, assessment: pd.DataFrame) -> None:
+def _health_cards(readings: pd.DataFrame, assessment: pd.DataFrame, limits: dict | None = None) -> None:
     baseline, latest, last = readings.iloc[0], readings.iloc[-1], assessment.iloc[-1]
     cards = []
     for signal in _measured(readings):
@@ -263,9 +326,9 @@ def _health_cards(readings: pd.DataFrame, assessment: pd.DataFrame) -> None:
         else:
             change = f"{100 * (value / baseline[signal] - 1):+.1f}% since baseline"
         # Health follows the worst level held so far; say so when the latest reading is better.
-        held_used = float(limit_used(readings)[signal].iloc[-1])
-        if held_used > float(current_limit_used(readings)[signal].iloc[-1]) + 0.05:
-            worst = _value_at(signal, baseline, held_used)
+        held_used = float(limit_used(readings, limits)[signal].iloc[-1])
+        if held_used > float(current_limit_used(readings, limits)[signal].iloc[-1]) + 0.05:
+            worst = _value_at(signal, baseline, held_used, limits)
             change += f" · worst held {worst:,.{DIGITS[signal]}f} {UNITS[signal]}"
         cards.append(
             f'<div class="caplife-health-card" data-status="{escape(status_key)}">'
@@ -277,7 +340,7 @@ def _health_cards(readings: pd.DataFrame, assessment: pd.DataFrame) -> None:
             f'<div class="caplife-health-bar" role="img" aria-label="{health:.0f}% health remaining">'
             f'<span style="width:{health:.1f}%"></span></div>'
             f'<div class="caplife-health-foot"><span>{health:.0f}% health</span>'
-            f'<span>Limit: {escape(LIMIT_TEXT[signal])}</span></div></div>'
+            f'<span>Limit: {escape(_limit_text(signal, limits))}</span></div></div>'
         )
     st.html('<div class="caplife-health-grid">' + "".join(cards) + "</div>")
 
@@ -298,12 +361,12 @@ def _chart_domain(values: pd.Series, limit: float, digits: int) -> tuple[float, 
     return min(low, limit) - pad, max(high, limit) + pad, None
 
 
-def _signal_charts(readings: pd.DataFrame) -> None:
+def _signal_charts(readings: pd.DataFrame, limits: dict | None = None) -> None:
     baseline = readings.iloc[0]
     columns = st.columns(3)
     for index, signal in enumerate(_measured(readings)):
         data = readings[["Hours", signal]].rename(columns={signal: "value"}).reset_index(drop=True)
-        limit = _limit_value(signal, baseline)
+        limit = _limit_value(signal, baseline, limits)
         bottom, top, off_chart = _chart_domain(data["value"], limit, DIGITS[signal])
         scale = alt.Scale(domain=[bottom, top], zero=False, nice=False)
         line = alt.Chart(data).mark_line(color=TEAL, strokeWidth=1.8, point=alt.OverlayMarkDef(
@@ -326,8 +389,60 @@ def _signal_charts(readings: pd.DataFrame) -> None:
                                            dy=4 if off_chart == "above" else -4, color=ORANGE, fontSize=11).encode(
                 x="Hours:Q", y=alt.Y("value:Q", scale=alt.Scale(domain=[bottom, top], nice=False)), text="label:N")
         with columns[index % 3]:
-            st.caption(f"**{INDICATOR_LABELS[signal]}** · limit: {LIMIT_TEXT[signal]}")
+            st.caption(f"**{INDICATOR_LABELS[signal]}** · limit: {_limit_text(signal, limits)}")
             st.altair_chart((line + marker).properties(height=170), width="stretch")
+
+
+def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Series,
+                     limits: dict | None = None) -> None:
+    """Each measured parameter's forecast path from the latest reading to the predicted end of life."""
+    baseline = readings.iloc[0]
+    start, end = float(last["Hours"]), float(last["Hours"] + last["RUL_median_h"])
+    eol_range = pd.DataFrame({"from": [start + float(last["RUL_low_h"])], "to": [start + float(last["RUL_high_h"])]})
+    hours_scale = alt.Scale(domain=[start, start + float(last["RUL_high_h"])], nice=False)
+    x = alt.X("Hours:Q", title="Hours", scale=hours_scale)
+    columns = st.columns(3)
+    for index, signal in enumerate(_measured(readings)):
+        data = forecast.loc[forecast["signal"].eq(signal)].reset_index(drop=True)
+        limit = _limit_value(signal, baseline, limits)
+        bottom, top, off_chart = _chart_domain(pd.concat([data["low"], data["high"]]), limit, DIGITS[signal])
+        scale = alt.Scale(domain=[bottom, top], zero=False, nice=False)
+        number = f",.{DIGITS[signal]}f"
+        window = alt.Chart(eol_range).mark_rect(color=GREY, opacity=.16).encode(
+            x=alt.X("from:Q", scale=hours_scale), x2="to:Q")
+        band = alt.Chart(data).mark_area(color=TEAL, opacity=.22).encode(
+            x=x, y=alt.Y("low:Q", title=UNITS[signal], scale=scale), y2="high:Q")
+        line = alt.Chart(data).mark_line(color=TEAL, strokeWidth=2, strokeDash=[6, 3], point=alt.OverlayMarkDef(
+            color=TEAL, size=22, filled=True)).encode(
+            x=x, y=alt.Y("median:Q", scale=scale),
+            tooltip=[alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
+                     alt.Tooltip("median:Q", title=f"Predicted {INDICATOR_LABELS[signal]}", format=number),
+                     alt.Tooltip("low:Q", title="80% range from", format=number),
+                     alt.Tooltip("high:Q", title="80% range to", format=number)])
+        eol = alt.Chart(pd.DataFrame({"Hours": [end]})).mark_rule(color=GREY, strokeWidth=1.5).encode(
+            x=alt.X("Hours:Q", scale=hours_scale), tooltip=[alt.Tooltip("Hours:Q", title="Predicted end of life (h)",
+                                                                    format=",.0f")])
+        layers = [window, band, line, eol]
+        if off_chart is None:
+            layers.append(alt.Chart(pd.DataFrame({"limit": [limit]})).mark_rule(color=ORANGE, strokeDash=[5, 4])
+                          .encode(y=alt.Y("limit:Q", scale=scale),
+                                  tooltip=[alt.Tooltip("limit:Q", title="Your limit", format=number)]))
+        else:
+            label = f"Limit {limit:{number}} {UNITS[signal]} {'↑' if off_chart == 'above' else '↓'}"
+            layers.append(alt.Chart(pd.DataFrame({"Hours": [start], "value": [top if off_chart == "above" else bottom],
+                                                  "label": [label]}))
+                          .mark_text(align="left", dx=4, baseline="top" if off_chart == "above" else "bottom",
+                                     dy=4 if off_chart == "above" else -4, color=ORANGE, fontSize=11)
+                          .encode(x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale), text="label:N"))
+        with columns[index % 3]:
+            st.caption(f"**{INDICATOR_LABELS[signal]}** · limit: {_limit_text(signal, limits)}")
+            st.altair_chart(alt.layer(*layers).properties(height=170), width="stretch")
+
+
+def _first_to_limit(forecast: pd.DataFrame) -> str:
+    """The parameter the forecast expects to reach its limit first (the highest share of its limit at the end)."""
+    final = forecast.loc[forecast["Hours"].eq(forecast["Hours"].max())]
+    return INDICATOR_LABELS[final.loc[final["fraction_median"].idxmax(), "signal"]]
 
 
 def _end_of_life_message(assessment: pd.DataFrame) -> str:
@@ -388,8 +503,8 @@ def _model_card(measured: tuple[str, ...]) -> None:
     fleets = meta["fleets"]
     st.markdown(
         f"- **Network:** a GRU (recurrent neural network) reads up to the last {meta['window']} readings. Each "
-        "indicator enters as the fraction of its limit already used, with a flag saying whether it was measured, "
-        "plus the capacitor's age and the time between readings. During training, indicators were hidden at "
+        "indicator enters as the fraction of its limit already used, with a flag saying whether it was measured "
+        "and the limit it is measured against, plus the capacitor's age and the time between readings. During training, indicators were hidden at "
         "random, so the same network predicts from any combination of them. It outputs the 10th, 50th and 90th "
         "percentiles of remaining life.\n"
         f"- **Training data:** {fleets['train']['capacitors']:,} simulated capacitors "
@@ -397,17 +512,24 @@ def _model_card(measured: tuple[str, ...]) -> None:
         "temperature-accelerated electrolyte loss lowers capacitance and raises ESR; leakage current generates "
         "hydrogen by Faraday's law; retained hydrogen raises internal pressure and bulges the case. "
         "Coefficients are illustrative, not fitted to a real capacitor series.\n"
-        f"- **End of life:** the first of six limits: capacitance loss ≥ {EOL_LIMITS['capacitance_loss_pct']:.0f}%, "
-        f"ESR ≥ {EOL_LIMITS['esr_ratio']:g}× initial, leakage ≥ {EOL_LIMITS['leakage_ratio']:g}× initial, case "
-        f"expansion ≥ {EOL_LIMITS['expansion_um']:g} µm, H₂ generated ≥ {EOL_LIMITS['h2_ml']:g} mL, or internal "
-        f"pressure ≥ {EOL_LIMITS['pressure_abs_kpa']:g} kPa (vent). The expansion and H₂ limits are the levels at "
+        "- **End of life:** the first parameter to reach the limit you set. Defaults: capacitance loss "
+        f"{EOL_LIMITS['capacitance_loss_pct']:.0f}%, ESR {EOL_LIMITS['esr_ratio']:g}× initial, leakage "
+        f"{EOL_LIMITS['leakage_ratio']:g}× initial, case expansion {EOL_LIMITS['expansion_um']:g} µm, H₂ generated "
+        f"{EOL_LIMITS['h2_ml']:g} mL, internal pressure {EOL_LIMITS['pressure_abs_kpa']:g} kPa (vent). The networks "
+        "were trained on simulated capacitors with limits drawn at random from the ranges the limit boxes allow "
+        "(30% kept the defaults), so they predict the time to the limits you set. The default expansion and H₂ "
+        "limits are the levels at "
         "which a typical simulated capacitor reaches the vent pressure.\n"
         f"- **80% range:** calibrated on {fleets['calibration']['capacitors']} further simulated capacitors "
         "(conformalized quantile regression), separately for every combination of measured parameters, so it "
-        "widens when fewer parameters are available."
+        "widens when fewer parameters are available.\n"
+        "- **Parameter trends:** a second GRU reads the same inputs and forecasts each parameter at 10%, 20%, ..., "
+        "100% of the predicted remaining life, as a median path that never improves (aging damage does not heal) "
+        "and an 80% range calibrated on the same capacitors. It learned from the simulated capacitors' true "
+        "paths to end of life."
     )
-    st.markdown(f"**Test on {fleets['test']['capacitors']} simulated capacitors the model never saw** "
-                f"({neural['predictions']:,} predictions), using {_names(measured)}")
+    st.markdown(f"**Test on {fleets['test']['capacitors']} simulated capacitors the model never saw**, with the "
+                f"default limits ({neural['predictions']:,} predictions), using {_names(measured)}")
 
     def row(method, metrics):
         return {"Method": method, "Typical error (h)": metrics["median_absolute_error_h"],
@@ -416,6 +538,9 @@ def _model_card(measured: tuple[str, ...]) -> None:
                 "Typical 80% range width (h)": metrics.get("median_interval_width_h")}
 
     rows = [row("Neural network (GRU), these parameters", neural)]
+    custom = meta.get("test_metrics_by_subset_custom_limits", {}).get(key)
+    if custom:
+        rows.append(row("Neural network (GRU), these parameters, random limits", custom))
     if key != subset_key(SIGNALS):
         rows.append(row("Neural network (GRU), all six parameters", full))
     if trend:
@@ -427,6 +552,8 @@ def _model_card(measured: tuple[str, ...]) -> None:
         "Typical 80% range width (h)": st.column_config.NumberColumn(format="%.0f"),
     })
     st.caption("Typical error is the median absolute difference between predicted and true remaining life. "
+               f"The random-limits row is a further {fleets.get('test_custom', {}).get('capacitors', 0)} test "
+               "capacitors, each with its own limits drawn from the allowed ranges. "
                "These results hold for the simulator. Real capacitors may age differently, so accuracy on real "
                "data is unknown until the model is tested on measured failures. Retrain with "
                "`python -m caplife.six_rul`.")
@@ -445,8 +572,10 @@ def render() -> None:
         return
     measurements, truth, label = loaded
     measured = _measured(measurements)
-    results = _assess(measurements)
-    fleet = _fleet_table(results, truth)
+    devices = sorted(measurements["Cap_ID"].astype(str).unique())
+    all_limits = _device_limits(devices)
+    results = _assess(measurements, all_limits)
+    fleet = _fleet_table(results, truth, all_limits)
     if len(measured) < len(SIGNALS):
         accuracy = _model().metrics_for(measured)
         missing = [signal for signal in SIGNALS if signal not in measured]
@@ -469,11 +598,16 @@ def render() -> None:
     if truth:
         config["Simulated true end of life (h)"] = st.column_config.NumberColumn(format="%.0f")
     st.dataframe(fleet, hide_index=True, width="stretch", column_config=config)
+    custom = [device for device in devices if all_limits[device] != full_limits()]
+    st.caption("Each capacitor is assessed against its own end-of-life limits, set under Capacitor detail. "
+               + (f"Custom limits: {', '.join(custom)}." if custom else "All use the default limits."))
 
     st.subheader("Capacitor detail")
     device = st.selectbox("Capacitor", list(results), key="caplife_six_device")
+    limits = _limit_inputs(str(device), measured, devices)
     readings, assessment = results[device]
     last = assessment.iloc[-1]
+    default_limits = limits == full_limits()
     if bool(last["End_of_life_reached"]):
         st.error(_end_of_life_message(assessment))
     elif "RUL_median_h" not in assessment or pd.isna(last.get("RUL_median_h")):
@@ -486,28 +620,39 @@ def render() -> None:
         top[3].metric("Overall health", f"{last['Overall_health_pct']:.0f}%")
         note = f"Based on {len(readings)} readings up to {last['Hours']:,.0f} h. Limiting indicator: " \
                f"{last['Limiting_indicator']}."
-        if truth:
+        if truth and default_limits:
             true_rul = truth[device]["eol_h"] - last["Hours"]
             note += f" Simulated true remaining life: {true_rul:,.0f} h ({truth[device]['eol_cause']})."
         st.caption(note)
         if bool(last.get("Outside_training_range")):
             st.warning("Some readings go beyond what the simulated training capacitors showed, so this prediction "
                        "is an extrapolation.")
-    _health_cards(readings, assessment)
+    _health_cards(readings, assessment, limits)
 
     st.markdown("##### Parameter history" if len(measured) < len(SIGNALS) else "##### Six-parameter history")
     st.caption("Each dot is one reading, joined in time order.")
-    _signal_charts(readings)
+    _signal_charts(readings, limits)
+    has_rul = "RUL_median_h" in assessment and pd.notna(last.get("RUL_median_h"))
+    if has_rul and not bool(last["End_of_life_reached"]):
+        forecast = _forecast_cached(readings, float(last["RUL_median_h"]), json.dumps(limits, sort_keys=True),
+                                    code_version())
+        st.markdown("##### Predicted parameter trends to end of life")
+        st.caption(f"Forecast by the trend network from the {len(readings)} readings up to {last['Hours']:,.0f} h. "
+                   f"Dashed line: the median path of each parameter; teal band: its 80% range; grey line: the "
+                   f"predicted end of life at {last['Hours'] + last['RUL_median_h']:,.0f} h, with its 80% range "
+                   f"shaded grey; orange dashed line: your limit. {_first_to_limit(forecast)} is expected to reach "
+                   "its limit first.")
+        _forecast_charts(readings, forecast, last, limits)
     if assessment["RUL_median_h"].notna().any() if "RUL_median_h" in assessment else False:
         st.markdown("##### Remaining-life prediction over time")
         if _always_at_end_of_life(assessment):
             st.info("Every prediction is 0 h because an end-of-life limit was already met when the first "
                     "prediction could be made, so there is no remaining-life trend to plot.")
         else:
-            true_eol = truth[device]["eol_h"] if truth else None
+            true_eol = truth[device]["eol_h"] if truth and default_limits else None
             st.altair_chart(_rul_chart(assessment, true_eol), width="stretch")
             st.caption("Each point uses only the readings available at that age. Shaded band: 80% range."
-                       + (" Dashed orange line: the simulated true remaining life." if truth else ""))
+                       + (" Dashed orange line: the simulated true remaining life." if true_eol else ""))
 
     with st.expander("About the model and how well it did on simulated data"):
         _model_card(measured)
