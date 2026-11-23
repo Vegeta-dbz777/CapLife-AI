@@ -14,7 +14,8 @@ from caplife.accounts import save_controls, saved_picker, saving_available
 from caplife.measurement_review import read_experimental_csv
 from caplife.real_data import RealDataValidationError, validate_real_measurements
 from caplife.six_rul import (
-    COMMON_SUBSET, INDICATOR_LABELS, MIN_READINGS, NOMINAL_LIMITS, SixRULModel, example_fleet, subset_key,
+    COMMON_SUBSET, INDICATOR_LABELS, MIN_READINGS, NOMINAL_LIMITS, SixRULModel, current_limit_used,
+    example_fleet, limit_used, subset_key,
 )
 from caplife.six_sim import ATMOSPHERE_KPA, EOL_LIMITS, SIGNALS
 from caplife.versioning import code_version
@@ -57,10 +58,28 @@ def _example() -> tuple[pd.DataFrame, dict]:
     return _load_example(code_version())
 
 
+# Health is the share of a parameter's allowance to its limit that is still unused. "Good" needs
+# under 30% of it used (for ESR, a rise of under 30% towards the 2x limit); past 60% is "Critical".
+GOOD_HEALTH_PCT, WATCH_HEALTH_PCT = 70, 40
+
+
 def _status(health: float, reached: bool) -> str:
     if reached:
         return "End of life"
-    return "Good" if health >= 50 else "Watch" if health >= 20 else "Critical"
+    return "Good" if health >= GOOD_HEALTH_PCT else "Watch" if health >= WATCH_HEALTH_PCT else "Critical"
+
+
+def _value_at(signal: str, baseline: pd.Series, used: float) -> float:
+    """The parameter value at which the given fraction of its limit is used (inverse of limit_used)."""
+    if signal == "Capacitance_uF":
+        return baseline[signal] * (1 - used * EOL_LIMITS["capacitance_loss_pct"] / 100)
+    if signal == "ESR_ohm":
+        return baseline[signal] * (1 + used * (EOL_LIMITS["esr_ratio"] - 1))
+    if signal == "Leakage_uA":
+        return baseline[signal] * (1 + used * (EOL_LIMITS["leakage_ratio"] - 1))
+    if signal == "Pressure_Abs_kPa":
+        return ATMOSPHERE_KPA + used * (EOL_LIMITS["pressure_abs_kpa"] - ATMOSPHERE_KPA)
+    return baseline[signal] + used * NOMINAL_LIMITS[signal]
 
 
 def _limit_value(signal: str, baseline: pd.Series) -> float:
@@ -239,6 +258,11 @@ def _health_cards(readings: pd.DataFrame, assessment: pd.DataFrame) -> None:
             change = f"{value - baseline[signal]:+,.{DIGITS[signal]}f} {UNITS[signal]} since baseline"
         else:
             change = f"{100 * (value / baseline[signal] - 1):+.1f}% since baseline"
+        # Health follows the worst level held so far; say so when the latest reading is better.
+        held_used = float(limit_used(readings)[signal].iloc[-1])
+        if held_used > float(current_limit_used(readings)[signal].iloc[-1]) + 0.05:
+            worst = _value_at(signal, baseline, held_used)
+            change += f" · worst held {worst:,.{DIGITS[signal]}f} {UNITS[signal]}"
         cards.append(
             f'<div class="caplife-health-card" data-status="{escape(status_key)}">'
             f'<div class="caplife-health-top"><span>{escape(INDICATOR_LABELS[signal])}</span>'

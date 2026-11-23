@@ -208,3 +208,30 @@ def test_capacitor_past_its_limit_from_the_start_gets_a_clear_message_not_a_flat
                                                 "the latest reading, 5,106 h (Capacitance).")
     healthy = model.assess(example_fleet()[0].query("Cap_ID == 'DEMO_01'"))
     assert not _always_at_end_of_life(healthy)
+
+
+def test_aging_damage_does_not_heal_but_a_single_outlier_is_ignored():
+    from caplife.six_rul import current_limit_used
+    readings = pd.DataFrame({"Cap_ID": "X", "Hours": [0, 10, 20, 30, 40, 50, 60],
+                             "ESR_ohm": [0.10, 0.19, 0.19, 0.19, 0.15, 0.14, 0.14]})
+    held = limit_used(readings)["ESR_ohm"]
+    assert held.is_monotonic_increasing and held.iloc[-1] == pytest.approx(0.9)  # ESR held at 1.9x
+    assert current_limit_used(readings)["ESR_ohm"].iloc[-1] == pytest.approx(0.4)
+    spike = readings.assign(ESR_ohm=[0.10, 0.11, 0.30, 0.11, 0.12, 0.12, 0.12])
+    assert limit_used(spike)["ESR_ohm"].iloc[-1] < 0.25  # one 3x reading is not lasting damage
+    assert limit_used(spike)["ESR_ohm"].iloc[2] >= 1  # but that reading itself meets the limit
+
+
+def test_nasa_overstress_capacitors_stay_at_end_of_life_once_a_limit_is_held():
+    from caplife.measurement_review import nasa_reference_to_caplife
+    from caplife.six_rul_page import _status
+    model = SixRULModel(ARTIFACTS)
+    nasa = nasa_reference_to_caplife(pd.read_csv(Path(__file__).resolve().parents[1] / "sample_data"
+                                                 / "nasa_es14_reference.csv", dtype={"Cap_ID": str}))
+    for _, readings in nasa.groupby("Cap_ID"):
+        reached = model.assess(readings[["Cap_ID", "Hours", "Capacitance_uF", "ESR_ohm"]])["End_of_life_reached"]
+        flags = reached.to_numpy()
+        held = next(i for i in range(len(flags) - 1) if flags[i] and flags[i + 1])
+        assert flags[held:].all()  # once a limit is held, the capacitor stays at end of life
+    assert _status(53, False) == "Watch"  # ESR up 47% of the way to its limit is not "Good"
+    assert _status(75, False) == "Good" and _status(30, False) == "Critical"
