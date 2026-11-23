@@ -1,14 +1,16 @@
 <script>
 (() => {
-    // Streamlit Community Cloud adds "Fork" and a GitHub ("source") button to the app's toolbar for
-    // visitors. Hide those two; the owner's own buttons (Share, star, edit) stay.
+    // Streamlit Community Cloud adds "Fork" and a GitHub button to the app's toolbar for visitors.
+    // Hide those two; the owner's own buttons (Share, star, edit) stay.
     if (window.__caplifeRepoButtons) return;
     window.__caplifeRepoButtons = true;
+    // On the live app: Fork is a button labelled "Fork"; GitHub is an icon-only button whose name is
+    // only in aria-label="source" (it has no visible text).
     const isRepoButton = (item) => {
         const label = (item.querySelector('[data-testid="stToolbarActionButtonLabel"]')?.textContent || "").trim();
-        const text = (item.textContent || "").trim().toLowerCase();
-        const link = item.querySelector('a[href*="github.com"]');
-        return label === "Fork" || text === "source" || Boolean(link);
+        const names = [...item.querySelectorAll("button, a")].map((el) =>
+            `${el.getAttribute("aria-label") || ""} ${el.getAttribute("title") || ""} ${el.getAttribute("href") || ""}`.toLowerCase());
+        return label === "Fork" || names.some((name) => /\bsource\b|github/.test(name));
     };
     const hide = () => {
         for (const item of document.querySelectorAll('[data-testid="stToolbarActionButton"]')) {
