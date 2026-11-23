@@ -636,6 +636,11 @@ def render() -> None:
             true_rul = truth[device]["eol_h"] - last["Hours"]
             note += f" Simulated true remaining life: {true_rul:,.0f} h ({truth[device]['eol_cause']})."
         st.caption(note)
+        used_now = limit_used(readings, limits)[list(measured)].iloc[-1]
+        if used_now.max() >= 0.95:
+            st.info(f"**{INDICATOR_LABELS[used_now.idxmax()]} is within 5% of your limit** "
+                    f"({used_now.max():.0%} of the way), so end of life is close. Predictions this close to a limit "
+                    "are less precise; their 80% range is calibrated separately and is wider to match.")
         if bool(last.get("Outside_training_range")):
             st.warning("Some readings go beyond what the simulated training capacitors showed, so this prediction "
                        "is an extrapolation.")
