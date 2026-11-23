@@ -668,7 +668,8 @@ def render() -> None:
     cards[1].metric("Need attention", int(fleet["Status"].isin(["Watch", "Critical", "End of life"]).sum()))
     shortest = fleet["Remaining life, median (h)"].min()
     cards[2].metric("Shortest predicted remaining life", _hours(shortest))
-    config = {"Remaining life, median (h)": st.column_config.NumberColumn(format="%.0f"),
+    config = {"Capacitor": st.column_config.TextColumn(pinned=True),  # stays visible when swiping sideways on a phone
+              "Remaining life, median (h)": st.column_config.NumberColumn(format="%.0f"),
               "Predicted end-of-life age (h)": st.column_config.NumberColumn(format="%.0f"),
               "Latest reading (h)": st.column_config.NumberColumn(format="%.0f"),
               "Overall health (%)": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%d%%")}

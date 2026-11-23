@@ -415,7 +415,38 @@
     margin-top: auto;
 }
 
-/* Account controls (Sign in / account menu) at the top right of every page, clear of the app's top bar. */
+/* Account controls (Sign in / account menu) in the app's top bar, so the page starts with its own
+   content. assets/account-placement.html lines the right edge up with the banner, left of
+   Streamlit's toolbar; these values hold until it has measured. */
 .st-key-caplife_account_bar {
-    margin-top: 1.25rem;
+    position: fixed;
+    z-index: 999991;
+    top: .62rem;
+    right: 17rem;
+    width: auto !important;
+}
+
+.st-key-caplife_account_bar button {
+    min-height: 2.25rem;
+    padding: .2rem .8rem;
+}
+
+.st-key-caplife_account_bar button p {
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Short of space (a narrow phone): icon only; the label stays available to screen readers. */
+.st-key-caplife_account_bar[data-compact="true"] button {
+    padding: .2rem .55rem;
+}
+
+.st-key-caplife_account_bar[data-compact="true"] button p {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
 }
