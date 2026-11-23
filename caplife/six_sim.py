@@ -12,10 +12,13 @@ illustration and none is calibrated against a real capacitor series:
 - Retained hydrogen raises the absolute internal pressure in a fixed headspace,
   and the pressure rise bulges the case.
 
-End of life is the first of: capacitance loss of 20%, ESR at twice its initial
-value, leakage at five times its initial value, or internal pressure reaching
-the vent pressure. The first two are common criteria in the AEC literature; the
-leakage and vent limits are illustrative.
+End of life is the first of six limits, one per indicator: capacitance loss of
+20%, ESR at twice its initial value, leakage at five times its initial value,
+case expansion of 52 µm, 6 mL of generated hydrogen, or internal pressure
+reaching the vent pressure. The first two are common criteria in the AEC
+literature; the others are illustrative. The expansion and hydrogen limits are
+the levels at which a typical simulated capacitor reaches the vent pressure, so
+a stiff-cased or gas-retaining capacitor can still vent first.
 """
 from __future__ import annotations
 
@@ -29,6 +32,8 @@ EOL_LIMITS = {
     "esr_ratio": 2.0,
     "leakage_ratio": 5.0,
     "pressure_abs_kpa": 250.0,
+    "expansion_um": 52.0,  # bulge of the case relative to the first reading
+    "h2_ml": 6.0,  # cumulative hydrogen generated, at 0 °C and 1 atm
 }
 ATMOSPHERE_KPA = 101.325
 FARADAY_ML_PER_AS = 0.116  # mL of H2 at 0 °C and 1 atm per ampere-second
@@ -91,6 +96,10 @@ def end_of_life_causes(baseline: dict, reading: dict) -> list[str]:
         causes.append("ESR")
     if reading["Leakage_uA"] / baseline["Leakage_uA"] >= EOL_LIMITS["leakage_ratio"] - tolerance:
         causes.append("leakage")
+    if reading["Case_Expansion_um"] - baseline["Case_Expansion_um"] >= EOL_LIMITS["expansion_um"] - tolerance:
+        causes.append("expansion")
+    if reading["H2_Generated_mL_STP"] - baseline["H2_Generated_mL_STP"] >= EOL_LIMITS["h2_ml"] - tolerance:
+        causes.append("H2")
     if reading["Pressure_Abs_kPa"] >= EOL_LIMITS["pressure_abs_kpa"] - tolerance:
         causes.append("pressure")
     return causes

@@ -54,11 +54,15 @@ def test_rul_prediction_example_shows_fleet_and_capacitor_detail():
     app = open_workspace("RUL prediction")
     app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
     assert not app.exception
-    assert metric(app, "Capacitors") == "8"
+    assert metric(app, "Capacitors") == "12"  # two simulated capacitors per end-of-life cause
     assert metric(app, "Remaining useful life").endswith(" h")
     app.selectbox(key="caplife_six_device").set_value("DEMO_04").run()
     assert not app.exception
-    assert metric(app, "Overall health") == "26%"
+    from caplife.six_rul import SixRULModel, example_fleet
+    from caplife.six_rul_page import ARTIFACT_DIR
+    measurements, _ = example_fleet()
+    expected = SixRULModel(ARTIFACT_DIR).assess(measurements.query("Cap_ID == 'DEMO_04'")).iloc[-1]
+    assert metric(app, "Overall health") == f"{expected['Overall_health_pct']:.0f}%"
 
 
 def test_train_rul_model_example_passes_and_forecasts():

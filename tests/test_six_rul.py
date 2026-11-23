@@ -26,12 +26,16 @@ def test_simulator_is_reproducible_and_stops_before_end_of_life():
         assert readings["H2_Generated_mL_STP"].is_monotonic_increasing
         assert readings["Case_Expansion_um"].iloc[0] == 0
         assert readings["Case_Expansion_um"].min() > -1.5  # small negatives are sensor noise only
-    assert set(meta["eol_cause"].str.split(", ").str[0]) <= {"capacitance", "ESR", "leakage", "pressure"}
+    assert set(meta["eol_cause"].str.split(", ").str[0]) <= {"capacitance", "ESR", "leakage", "expansion", "H2",
+                                                             "pressure"}
 
 
 def test_end_of_life_rules_match_the_documented_limits():
-    base = {"Capacitance_uF": 100, "ESR_ohm": 0.1, "Leakage_uA": 10, "Pressure_Abs_kPa": 101.3}
+    base = {"Capacitance_uF": 100, "ESR_ohm": 0.1, "Leakage_uA": 10, "Case_Expansion_um": 0.0,
+            "H2_Generated_mL_STP": 0.0, "Pressure_Abs_kPa": 101.3}
     assert end_of_life_causes(base, base) == []
+    assert end_of_life_causes(base, {**base, "Case_Expansion_um": EOL_LIMITS["expansion_um"]}) == ["expansion"]
+    assert end_of_life_causes(base, {**base, "H2_Generated_mL_STP": EOL_LIMITS["h2_ml"]}) == ["H2"]
     assert end_of_life_causes(base, {**base, "Capacitance_uF": 100 - EOL_LIMITS["capacitance_loss_pct"]}) == ["capacitance"]
     assert end_of_life_causes(base, {**base, "ESR_ohm": 0.2, "Pressure_Abs_kPa": 250}) == ["ESR", "pressure"]
 
@@ -239,3 +243,16 @@ def test_one_faulty_reading_only_affects_its_own_prediction(model):
     assert not faulty.loc[after, "End_of_life_reached"].any()
     ratio = faulty.loc[after, "RUL_median_h"] / clean.loc[after, "RUL_median_h"]
     assert ratio.between(0.9, 1.1).all()  # later predictions are not dragged down by the spike
+
+
+def test_every_indicator_can_end_a_capacitors_life(model):
+    measurements, truth = example_fleet()
+    assert {cause.split(", ")[0] for cause in (t["eol_cause"] for t in truth.values())} == {
+        "capacitance", "ESR", "leakage", "expansion", "H2", "pressure"}
+    readings = measurements.loc[measurements["Cap_ID"].eq("DEMO_01")].reset_index(drop=True)
+    for signal, past in (("Case_Expansion_um", EOL_LIMITS["expansion_um"] + 1),
+                         ("H2_Generated_mL_STP", EOL_LIMITS["h2_ml"] + 0.1)):
+        bulged = readings.copy()
+        bulged.loc[len(bulged) - 3:, signal] = past  # held over the last three readings
+        last = model.assess(bulged).iloc[-1]
+        assert last["End_of_life_reached"] and last[f"{signal}_health_pct"] == 0

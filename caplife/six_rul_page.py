@@ -14,7 +14,7 @@ from caplife.accounts import save_controls, saved_picker, saving_available
 from caplife.measurement_review import read_experimental_csv
 from caplife.real_data import RealDataValidationError, validate_real_measurements
 from caplife.six_rul import (
-    COMMON_SUBSET, INDICATOR_LABELS, MIN_READINGS, NOMINAL_LIMITS, SixRULModel, current_limit_used,
+    COMMON_SUBSET, INDICATOR_LABELS, MIN_READINGS, SixRULModel, current_limit_used,
     example_fleet, limit_used, subset_key,
 )
 from caplife.six_sim import ATMOSPHERE_KPA, EOL_LIMITS, SIGNALS
@@ -30,8 +30,8 @@ LIMIT_TEXT = {
     "Capacitance_uF": f"{EOL_LIMITS['capacitance_loss_pct']:.0f}% loss",
     "ESR_ohm": f"{EOL_LIMITS['esr_ratio']:g}× initial",
     "Leakage_uA": f"{EOL_LIMITS['leakage_ratio']:g}× initial",
-    "Case_Expansion_um": f"{NOMINAL_LIMITS['Case_Expansion_um']:g} µm (nominal)",
-    "H2_Generated_mL_STP": f"{NOMINAL_LIMITS['H2_Generated_mL_STP']:g} mL (nominal)",
+    "Case_Expansion_um": f"{EOL_LIMITS['expansion_um']:g} µm bulge",
+    "H2_Generated_mL_STP": f"{EOL_LIMITS['h2_ml']:g} mL",
     "Pressure_Abs_kPa": f"{EOL_LIMITS['pressure_abs_kpa']:g} kPa vent",
 }
 TEAL, ORANGE, GREY = "#2f9e8f", "#d9822b", "#8a9a9a"
@@ -79,19 +79,23 @@ def _value_at(signal: str, baseline: pd.Series, used: float) -> float:
         return baseline[signal] * (1 + used * (EOL_LIMITS["leakage_ratio"] - 1))
     if signal == "Pressure_Abs_kPa":
         return ATMOSPHERE_KPA + used * (EOL_LIMITS["pressure_abs_kpa"] - ATMOSPHERE_KPA)
-    return baseline[signal] + used * NOMINAL_LIMITS[signal]
+    if signal == "Case_Expansion_um":
+        return baseline[signal] + used * EOL_LIMITS["expansion_um"]
+    return baseline[signal] + used * EOL_LIMITS["h2_ml"]
 
 
 def _limit_value(signal: str, baseline: pd.Series) -> float:
-    """The parameter's end-of-life (or nominal) limit in its own units; only that parameter is looked up."""
+    """The parameter's end-of-life limit in its own units; only that parameter is looked up."""
     if signal == "Capacitance_uF":
         return baseline[signal] * (1 - EOL_LIMITS["capacitance_loss_pct"] / 100)
     if signal == "ESR_ohm":
         return baseline[signal] * EOL_LIMITS["esr_ratio"]
     if signal == "Leakage_uA":
         return baseline[signal] * EOL_LIMITS["leakage_ratio"]
-    if signal in NOMINAL_LIMITS:
-        return baseline[signal] + NOMINAL_LIMITS[signal]
+    if signal == "Case_Expansion_um":
+        return baseline[signal] + EOL_LIMITS["expansion_um"]
+    if signal == "H2_Generated_mL_STP":
+        return baseline[signal] + EOL_LIMITS["h2_ml"]
     return EOL_LIMITS["pressure_abs_kpa"]
 
 
@@ -249,12 +253,12 @@ def _health_cards(readings: pd.DataFrame, assessment: pd.DataFrame) -> None:
     cards = []
     for signal in _measured(readings):
         health = last[f"{signal}_health_pct"]
-        status = _status(health, health <= 0 and signal not in NOMINAL_LIMITS)
+        status = _status(health, health <= 0)
         status_key = status.lower().replace(" ", "-")
         value = latest[signal]
         if signal == "Pressure_Abs_kPa":
             change = f"{value - ATMOSPHERE_KPA:+,.1f} kPa above atmospheric"
-        elif signal in NOMINAL_LIMITS:
+        elif signal in ("Case_Expansion_um", "H2_Generated_mL_STP"):
             change = f"{value - baseline[signal]:+,.{DIGITS[signal]}f} {UNITS[signal]} since baseline"
         else:
             change = f"{100 * (value / baseline[signal] - 1):+.1f}% since baseline"
@@ -393,10 +397,11 @@ def _model_card(measured: tuple[str, ...]) -> None:
         "temperature-accelerated electrolyte loss lowers capacitance and raises ESR; leakage current generates "
         "hydrogen by Faraday's law; retained hydrogen raises internal pressure and bulges the case. "
         "Coefficients are illustrative, not fitted to a real capacitor series.\n"
-        f"- **End of life:** capacitance loss ≥ {EOL_LIMITS['capacitance_loss_pct']:.0f}%, ESR ≥ "
-        f"{EOL_LIMITS['esr_ratio']:g}× initial, leakage ≥ {EOL_LIMITS['leakage_ratio']:g}× initial, or internal "
-        f"pressure ≥ {EOL_LIMITS['pressure_abs_kpa']:g} kPa (vent). Expansion and H₂ use nominal limits that "
-        "correspond to the vent pressure for a typical simulated capacitor.\n"
+        f"- **End of life:** the first of six limits: capacitance loss ≥ {EOL_LIMITS['capacitance_loss_pct']:.0f}%, "
+        f"ESR ≥ {EOL_LIMITS['esr_ratio']:g}× initial, leakage ≥ {EOL_LIMITS['leakage_ratio']:g}× initial, case "
+        f"expansion ≥ {EOL_LIMITS['expansion_um']:g} µm, H₂ generated ≥ {EOL_LIMITS['h2_ml']:g} mL, or internal "
+        f"pressure ≥ {EOL_LIMITS['pressure_abs_kpa']:g} kPa (vent). The expansion and H₂ limits are the levels at "
+        "which a typical simulated capacitor reaches the vent pressure.\n"
         f"- **80% range:** calibrated on {fleets['calibration']['capacitors']} further simulated capacitors "
         "(conformalized quantile regression), separately for every combination of measured parameters, so it "
         "widens when fewer parameters are available."
