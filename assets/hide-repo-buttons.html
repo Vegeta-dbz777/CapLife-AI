@@ -1,23 +1,23 @@
 <script>
 (() => {
-    // Streamlit Community Cloud adds "Fork" and a GitHub button to the app's toolbar for visitors.
-    // Hide those two; the owner's own buttons (Share, star, edit) stay.
+    // Streamlit Community Cloud gives visitors "Fork" and a GitHub button in the app's toolbar, and gives
+    // the app's owner Share, star, edit and the same GitHub button. Hide Fork and GitHub for visitors only:
+    // the owner, who never gets Fork, keeps every button.
     if (window.__caplifeRepoButtons) return;
     window.__caplifeRepoButtons = true;
-    // On the live app: Fork is a button labelled "Fork"; GitHub is an icon-only button whose name is
-    // only in aria-label="source" (it has no visible text).
-    const isRepoButton = (item) => {
-        const label = (item.querySelector('[data-testid="stToolbarActionButtonLabel"]')?.textContent || "").trim();
-        const names = [...item.querySelectorAll("button, a")].map((el) =>
-            `${el.getAttribute("aria-label") || ""} ${el.getAttribute("title") || ""} ${el.getAttribute("href") || ""}`.toLowerCase());
-        return label === "Fork" || names.some((name) => /\bsource\b|github/.test(name));
-    };
-    const hide = () => {
-        for (const item of document.querySelectorAll('[data-testid="stToolbarActionButton"]')) {
-            if (item.style.display !== "none" && isRepoButton(item)) item.style.display = "none";
+    const label = (item) => (item.querySelector('[data-testid="stToolbarActionButtonLabel"]')?.textContent || "").trim();
+    // The GitHub button is icon-only: its name is only in aria-label="source" (no visible text).
+    const isGitHub = (item) => [...item.querySelectorAll("button, a")].some((el) =>
+        /\bsource\b|github/.test(`${el.getAttribute("aria-label") || ""} ${el.getAttribute("title") || ""} ${el.getAttribute("href") || ""}`.toLowerCase()));
+    const update = () => {
+        const items = [...document.querySelectorAll('[data-testid="stToolbarActionButton"]')];
+        const visitor = items.some((item) => label(item) === "Fork");
+        for (const item of items) {
+            const hide = visitor && (label(item) === "Fork" || isGitHub(item));
+            if ((item.style.display === "none") !== hide) item.style.display = hide ? "none" : "";
         }
     };
-    new MutationObserver(hide).observe(document.body, { childList: true, subtree: true });
-    hide();
+    new MutationObserver(update).observe(document.body, { childList: true, subtree: true });
+    update();
 })();
 </script>
