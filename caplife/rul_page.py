@@ -216,6 +216,7 @@ def _show_results(result: dict, attempts: int) -> None:
     st.dataframe(
         result["model_table"], hide_index=True, width="stretch",
         column_config={
+            "Model": st.column_config.TextColumn(pinned=True),
             "Average miss (h)": st.column_config.NumberColumn(format="%.0f"),
             "Failures inside 80% range": st.column_config.NumberColumn(format="percent"),
             "Typical 80% range width (h)": st.column_config.NumberColumn(format="%.0f"),
@@ -229,7 +230,8 @@ def _show_results(result: dict, attempts: int) -> None:
                "Orange: when each test capacitor actually failed (between last seen working and found failed), "
                "or a triangle where it was still working when testing stopped.")
     with st.expander("Each test capacitor"):
-        st.dataframe(result["test_table"].round(1), hide_index=True, width="stretch")
+        st.dataframe(result["test_table"].round(1), hide_index=True, width="stretch",
+                     column_config={"Capacitor": st.column_config.TextColumn(pinned=True)})
 
     st.subheader("3 · Verdict")
     if result["passed"]:
@@ -260,7 +262,8 @@ def _show_results(result: dict, attempts: int) -> None:
             st.altair_chart(_interval_chart(forecasts, observed=False), width="stretch")
             st.caption("Teal bars: 80% range for the age at failure, with the dot at the predicted failure age. "
                        "Orange tick: each capacitor's latest reading.")
-            st.dataframe(_forecast_display(forecasts), hide_index=True, width="stretch")
+            st.dataframe(_forecast_display(forecasts), hide_index=True, width="stretch",
+                         column_config={"Capacitor": st.column_config.TextColumn(pinned=True)})
             st.caption("Each forecast uses all of a capacitor's readings up to its latest one. Remaining life "
                        "counts from that reading.")
             history = result.get("forecast_history")

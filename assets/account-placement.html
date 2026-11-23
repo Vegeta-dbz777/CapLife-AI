@@ -1,0 +1,40 @@
+<script>
+(() => {
+    // Keep the account control (Sign in / account menu) in the app's top bar: its right edge lines up
+    // with the content's (the banner's) right edge, but always stays left of Streamlit's own toolbar,
+    // whose buttons differ between the app owner and visitors. Shown as an icon only when space is short.
+    if (window.__caplifeAccountPlacer) { window.__caplifeAccountPlacer(); return; }
+    let queued = false;
+    const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    function place() {
+        queued = false;
+        const bar = document.querySelector(".st-key-caplife_account_bar");
+        const header = document.querySelector('[data-testid="stHeader"]');
+        const main = document.querySelector('[data-testid="stMainBlockContainer"]');
+        if (!bar || !header || !main) return;
+        const box = main.getBoundingClientRect();
+        let right = box.right - (parseFloat(getComputedStyle(main).paddingRight) || 0);
+        const actions = [...header.querySelectorAll('[data-testid="stToolbar"] button, [data-testid="stToolbar"] a')]
+            .filter((el) => visible(el) && !el.closest('[data-testid="stExpandSidebarButton"]'));
+        const toolsLeft = actions.length ? Math.min(...actions.map((el) => el.getBoundingClientRect().left)) : Infinity;
+        const band = header.getBoundingClientRect();
+        const expand = header.querySelector('[data-testid="stExpandSidebarButton"]');
+        const leftLimit = expand && visible(expand) ? expand.getBoundingClientRect().right + 6 : band.left + 8;
+        const put = (gap) => { bar.style.right = `${Math.max(window.innerWidth - Math.min(right, toolsLeft - gap), 8)}px`; };
+        bar.dataset.compact = "false";
+        put(12);
+        if (bar.getBoundingClientRect().left < leftLimit) {  // short of space: icon only, tighter gap
+            bar.dataset.compact = "true";
+            put(6);
+        }
+        bar.style.top = `${Math.max(band.top + (band.height - bar.offsetHeight) / 2, 4)}px`;
+        bar.dataset.placed = "true";
+    }
+    const later = () => { if (!queued) { queued = true; requestAnimationFrame(place); } };
+    window.__caplifeAccountPlacer = later;
+    window.addEventListener("resize", later);
+    new ResizeObserver(later).observe(document.body);
+    new MutationObserver(later).observe(document.body, { childList: true, subtree: true });
+    later();
+})();
+</script>

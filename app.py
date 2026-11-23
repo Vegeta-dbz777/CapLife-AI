@@ -565,6 +565,7 @@ if workflow == MEASUREMENT_WORKFLOW:
         right.button("Predict remaining life for these capacitors →", type="primary", on_click=predict_remaining_life,
                      key="caplife_analyze_to_rul", width="stretch")
         st.dataframe(capacitor_summary(readings, warnings), hide_index=True, width="stretch", column_config={
+            "Capacitor": st.column_config.TextColumn(pinned=True),
             **{label: st.column_config.NumberColumn(format="%+.1f") for label in (
                 "Capacitance change (%)", "ESR change (%)", "Leakage change (%)", "Case expansion (µm)",
                 "Pressure rise (kPa)")},
@@ -577,7 +578,7 @@ if workflow == MEASUREMENT_WORKFLOW:
     with overview:
         st.subheader("Measurement quality")
         st.caption("Zero recorded readings means 'not supplied' or 'no measurements' — not a zero sensor reading.")
-        st.dataframe(quality, hide_index=True, width="stretch")
+        st.dataframe(quality, hide_index=True, width="stretch", column_config={"Cap_ID": st.column_config.TextColumn(pinned=True)})
 
         st.subheader("Research-data readiness")
         audit = audit_measurement_readiness(real_report)
@@ -585,14 +586,14 @@ if workflow == MEASUREMENT_WORKFLOW:
             "This audit flags missing baselines, sparse histories, unrecorded conditions "
             "and measurement gaps. It does not certify sensor accuracy or predict RUL."
         )
-        st.dataframe(audit["summary"], hide_index=True, width="stretch")
+        st.dataframe(audit["summary"], hide_index=True, width="stretch", column_config={"Cap_ID": st.column_config.TextColumn(pinned=True)})
         with st.expander("Recommended measurement and documentation improvements"):
             st.dataframe(audit["actions"], hide_index=True, width="stretch")
         with st.expander("Recorded operating and test conditions"):
             st.dataframe(audit["conditions"], hide_index=True, width="stretch")
 
         st.subheader("Observed degradation")
-        st.dataframe(changes.round(3), hide_index=True, width="stretch")
+        st.dataframe(changes.round(3), hide_index=True, width="stretch", column_config={"Cap_ID": st.column_config.TextColumn(pinned=True)})
         st.caption(
             "Changes are calculated only with an available hour-zero baseline; percentages "
             "refer to the observed raw measurement, not to remaining life. "

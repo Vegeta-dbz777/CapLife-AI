@@ -7,6 +7,8 @@ database. Without them the app runs as a public demo and nothing is stored.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import os
 
 import pandas as pd
@@ -103,6 +105,8 @@ def account_bar(open_my_data=None) -> None:
     if not auth_configured():
         return
     user = current_user()
+    # The control sits in the app's top bar (assets/interface.css), placed by a small script.
+    st.html(Path(__file__).resolve().parents[1] / "assets" / "account-placement.html", unsafe_allow_javascript=True)
     with st.container(horizontal=True, horizontal_alignment="right", key="caplife_account_bar"):
         if user is None:
             provider = _login_provider()
