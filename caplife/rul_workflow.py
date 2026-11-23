@@ -56,9 +56,15 @@ MAX_CENSOR_CONTRADICTIONS = 0.2
 # Forecast inputs may exceed the training minimum or maximum by at most this
 # fraction of the training range before the forecast is withheld.
 TRAINING_RANGE_MARGIN = 0.10
+def _name(signal: str) -> str:
+    """A parameter's name mid-sentence: lower case except abbreviations such as ESR and H₂."""
+    name = MEASUREMENTS[signal][0].split(" (")[0]
+    return name if name.split()[0].isupper() or name.startswith("H₂") else name.lower()
+
+
 FEATURE_LABELS = {
-    **{f"{signal}_change": f"{MEASUREMENTS[signal][0].lower()} change" for signal in SIGNALS},
-    **{f"{signal}_rate_per_h": f"{MEASUREMENTS[signal][0].lower()} rate" for signal in SIGNALS},
+    **{f"{signal}_change": f"{_name(signal)} change" for signal in SIGNALS},
+    **{f"{signal}_rate_per_h": f"{_name(signal)} rate" for signal in SIGNALS},
     "age_since_first_h": "time since the first reading",
 }
 MIN_READINGS = 3  # a landmark needs the first reading and two more
@@ -339,7 +345,7 @@ def _forecasts(raw: pd.DataFrame, neural: dict, train: pd.DataFrame,
     span = (highs - lows).replace(0, 1)
     rows, withheld, history_rows = [], {}, []
     for device, history in readings.groupby("Cap_ID", sort=True):
-        lacking = [MEASUREMENTS[signal][0].lower() for signal in signals
+        lacking = [_name(signal) for signal in signals
                    if signal not in history or history[signal].count() < MIN_READINGS]
         if lacking:
             withheld[device] = f"Fewer than {MIN_READINGS} readings of " + ", ".join(lacking)
