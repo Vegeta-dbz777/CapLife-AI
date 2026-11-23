@@ -68,7 +68,20 @@ def measured_signals(readings: pd.DataFrame) -> tuple[str, ...]:
 
 
 def limit_used(readings: pd.DataFrame) -> pd.DataFrame:
-    """Fraction of each indicator's end-of-life limit used, relative to the first reading (NaN if not measured)."""
+    """Fraction of each indicator's end-of-life limit used so far (NaN if not measured).
+
+    Aging damage does not heal: a capacitor whose ESR doubled and then partly fell back has still
+    used up that part of its life. Each value is therefore the worse of the current reading and the
+    worst level held so far, where "held" means the median of three consecutive readings, so a
+    single outlying reading cannot mark lasting damage. Readings must be in time order.
+    """
+    current = current_limit_used(readings)
+    held = current.rolling(3, min_periods=1).median().cummax()
+    return np.maximum(current, held)
+
+
+def current_limit_used(readings: pd.DataFrame) -> pd.DataFrame:
+    """Fraction of each indicator's end-of-life limit used at each reading alone, relative to the first."""
     first = readings.iloc[0]
     nan = pd.Series(np.nan, index=readings.index)
     column = lambda name: readings[name] if name in readings else nan
