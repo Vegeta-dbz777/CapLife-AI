@@ -133,5 +133,5 @@ def test_signing_out_while_on_my_data_returns_to_the_home_page(database, monkeyp
     monkeypatch.setattr(accounts, "current_user", lambda: None)
     app.run()
     assert not app.exception, app.exception
-    assert app.sidebar.radio(key=WORKSPACE_KEY).value == "Experimental measurements (v0.8)"
+    assert app.sidebar.radio(key=WORKSPACE_KEY).value == "Home"
     assert "My data" not in app.sidebar.radio(key=WORKSPACE_KEY).options

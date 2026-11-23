@@ -1,7 +1,6 @@
 """CapLife AI measurement assessments and forecast research."""
 from __future__ import annotations
 
-from base64 import b64encode
 import hashlib
 import json
 from pathlib import Path
@@ -52,7 +51,9 @@ MEASUREMENT_WORKFLOW = "Experimental measurements (v0.8)"
 RUL_WORKFLOW = "Train an RUL model on uploaded outcomes"
 SIX_RUL_WORKFLOW = "Six-parameter RUL prediction (demonstration model)"
 MY_DATA_WORKFLOW = "My saved datasets"
+HOME_WORKFLOW = "Home"
 MAIN_WORKFLOWS = {
+    HOME_WORKFLOW: "Home",
     MEASUREMENT_WORKFLOW: "Analyze measurements",
     SIX_RUL_WORKFLOW: "RUL prediction",
     RUL_WORKFLOW: "Train RUL model",
@@ -85,10 +86,10 @@ with st.sidebar:
     st.html(ASSETS / "theme-switch.html", unsafe_allow_javascript=True)
     main_pages = {**MAIN_WORKFLOWS, **({MY_DATA_WORKFLOW: "My data"} if current_user() else {})}
     # Two lists, one selection: choosing a page in one list clears the other.
-    st.session_state.setdefault(MAIN_KEY, MEASUREMENT_WORKFLOW)
+    st.session_state.setdefault(MAIN_KEY, HOME_WORKFLOW)
     st.session_state.setdefault(RESEARCH_KEY, None)
     if st.session_state[MAIN_KEY] not in (None, *main_pages):  # e.g. My data after signing out
-        st.session_state[MAIN_KEY] = MEASUREMENT_WORKFLOW
+        st.session_state[MAIN_KEY] = HOME_WORKFLOW
 
     def _choose(chosen_key: str, other_key: str) -> None:
         if st.session_state[chosen_key] is not None:
@@ -99,22 +100,27 @@ with st.sidebar:
     with st.expander("Research", expanded=st.session_state[RESEARCH_KEY] is not None):
         st.radio("Research pages", tuple(RESEARCH_WORKFLOWS), format_func=RESEARCH_WORKFLOWS.__getitem__,
                  key=RESEARCH_KEY, label_visibility="collapsed", on_change=_choose, args=(RESEARCH_KEY, MAIN_KEY))
-    workflow = st.session_state[MAIN_KEY] or st.session_state[RESEARCH_KEY] or MEASUREMENT_WORKFLOW
+    workflow = st.session_state[MAIN_KEY] or st.session_state[RESEARCH_KEY] or HOME_WORKFLOW
     st.divider()
     sidebar_account()
     st.markdown(f"[Project and methods ↗]({PROJECT_URL})")
     st.markdown(f"[Privacy]({PUBLIC_APP_URL}?page=privacy)")
 
+if workflow == HOME_WORKFLOW:
+    from caplife.home_page import render as render_home
+
+    def _open_workspace(chosen: str) -> None:
+        st.session_state[MAIN_KEY] = chosen
+        st.session_state[RESEARCH_KEY] = None
+
+    render_home(ASSETS / "capacitor-hero.webp", _open_workspace,
+                {"analyze": MEASUREMENT_WORKFLOW, "predict": SIX_RUL_WORKFLOW, "train": RUL_WORKFLOW})
+    st.stop()
+
 if workflow == MEASUREMENT_WORKFLOW:
-    hero = b64encode((ASSETS / "capacitor-hero.webp").read_bytes()).decode("ascii")
-    st.html(
-        '<section class="caplife-hero">'
-        f'<img src="data:image/webp;base64,{hero}" alt="">'
-        '<div><div class="caplife-overline">Aluminum electrolytic capacitors</div>'
-        '<h1>CapLife AI</h1>'
-        '<p>Explore measured degradation, inspect thresholds, and export a report.</p></div>'
-        '</section>'
-    )
+    st.header("Analyze measurements")
+    st.write("Explore measured degradation, inspect thresholds, and export a report. Upload a measurement file or "
+             "start with the NASA example.")
 
 if workflow == MY_DATA_WORKFLOW:
     render_my_data()
@@ -453,7 +459,7 @@ if workflow == MEASUREMENT_WORKFLOW:
             on_change=clear_public_sample,
         )
         analyze_settings = file_settings("caplife_analyze_file")
-        with st.expander("CSV columns and units"):
+        with st.expander("Columns and units"):
             st.write(
                 "Include **Cap_ID**, **Hours**, and any of the six parameters you measured: capacitance, ESR, "
                 "leakage current, case expansion, generated H₂ and internal pressure. You don't need all six; "
