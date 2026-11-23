@@ -351,3 +351,21 @@
         margin: 0;
     }
 }
+
+/* Home page: the three workspace cards share a height, with their buttons lined up at the bottom.
+   Streamlit nests each card as column > block > layout wrapper > card; each layer has to stretch. */
+[data-testid="stColumn"]:has([class*="st-key-caplife_home_card_"]) > [data-testid="stVerticalBlock"] {
+    height: 100%;
+}
+
+[data-testid="stLayoutWrapper"]:has(> [class*="st-key-caplife_home_card_"]) {
+    flex: 1 1 auto;
+}
+
+[class*="st-key-caplife_home_card_"] {
+    height: 100%;
+}
+
+[class*="st-key-caplife_home_card_"] > [class*="st-key-caplife_home_open_"] {
+    margin-top: auto;
+}

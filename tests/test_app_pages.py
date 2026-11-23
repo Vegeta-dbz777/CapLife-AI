@@ -9,6 +9,7 @@ MAIN_KEY, RESEARCH_KEY = "caplife_workflow_v07", "caplife_research_page"
 
 # Shown label -> (sidebar list, internal workspace value), as defined in app.py.
 WORKSPACES = {
+    "Home": (MAIN_KEY, "Home"),
     "Analyze measurements": (MAIN_KEY, "Experimental measurements (v0.8)"),
     "RUL prediction": (MAIN_KEY, "Six-parameter RUL prediction (demonstration model)"),
     "Train RUL model": (MAIN_KEY, "Train an RUL model on uploaded outcomes"),
@@ -139,3 +140,29 @@ def test_analyze_measurements_summary_hands_the_file_to_rul_prediction():
     assert app.radio(key="caplife_six_source").value == "From Analyze measurements"
     assert metric(app, "Capacitors") == "8"
     assert any("Using 2 of 6 parameters" in i.value for i in app.info)
+
+
+def test_app_opens_on_home_and_each_card_opens_its_workspace():
+    app = AppTest.from_file(APP, default_timeout=120)
+    app.run()
+    assert not app.exception
+    assert app.sidebar.radio(key=MAIN_KEY).value == "Home"
+    assert any("Choose where to start" in m.value for m in app.markdown)
+    cards = {"caplife_home_open_analyze": ("Experimental measurements (v0.8)", "Analyze measurements"),
+             "caplife_home_open_predict": ("Six-parameter RUL prediction (demonstration model)",
+                                           "Six-parameter health and remaining-life prediction"),
+             "caplife_home_open_train": ("Train an RUL model on uploaded outcomes",
+                                         "Train a remaining-life model on your data")}
+    for key, (workspace, header) in cards.items():
+        app.sidebar.radio(key=MAIN_KEY).set_value("Home").run()
+        app.button(key=key).click().run()
+        assert not app.exception
+        assert app.sidebar.radio(key=MAIN_KEY).value == workspace
+        assert app.header[0].value == header
+
+
+def test_analyze_page_renames_its_columns_help_and_keeps_its_upload():
+    app = open_workspace("Analyze measurements")
+    assert app.header[0].value == "Analyze measurements"
+    assert any(e.label == "Columns and units" for e in app.expander)
+    assert not any(e.label == "CSV columns and units" for e in app.expander)
