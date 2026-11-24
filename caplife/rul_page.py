@@ -304,7 +304,7 @@ def _show_results(result: dict, attempts: int) -> None:
 
 
 def render() -> None:
-    st.header("Train a remaining-life model on your data")
+    st.header("Train The AI", help="Train a remaining-life model (a neural network) on your own capacitors.")
     st.write("Upload measurement histories (any of the six indicators) and the recorded outcome of each tested capacitor. "
              "CapLife trains a neural network on some of your capacitors, tests it on capacitors it never saw, "
              "and forecasts remaining life for your other capacitors only if that test passes.")

@@ -1,4 +1,4 @@
-"""Streamlit page: six-parameter health monitoring and neural RUL prediction (demonstration model)."""
+"""Streamlit page "Monitor and Predict": six-parameter health monitoring and neural RUL prediction."""
 from __future__ import annotations
 
 from base64 import b64encode
@@ -13,6 +13,7 @@ import streamlit as st
 
 from caplife.tables import table
 from caplife.chart_hover import NO_TOOLTIP, hoverable as _hoverable, hoverable_rule as _hoverable_rule
+from caplife.monitor_report import MonitorReport, pdf_bytes, xlsx_bytes
 
 from caplife.accounts import save_controls, saved_picker, saving_available
 from caplife.file_reader import read_measurement_file
@@ -28,7 +29,6 @@ from caplife.versioning import code_version
 
 ARTIFACT_DIR = Path(__file__).resolve().parents[1] / "artifacts" / "six_rul"
 UPLOAD, EXAMPLE, SAVED = "Upload my data", "Use simulated example capacitors", "My saved datasets"
-HANDOFF = "From Analyze measurements"  # the file just analyzed, passed on by its button
 UNITS = {"Capacitance_uF": "µF", "ESR_ohm": "Ω", "Leakage_uA": "µA", "Case_Expansion_um": "µm",
          "H2_Generated_mL_STP": "mL", "Pressure_Abs_kPa": "kPa"}
 DIGITS = {"Capacitance_uF": 1, "ESR_ohm": 4, "Leakage_uA": 2, "Case_Expansion_um": 1,
@@ -128,16 +128,9 @@ def _short(value: float) -> str:
 
 def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
     sources = (UPLOAD, EXAMPLE, SAVED) if saving_available() else (UPLOAD, EXAMPLE)
-    handoff = st.session_state.get("caplife_six_handoff")
-    if handoff:
-        sources = (HANDOFF, *sources)
-    elif st.session_state.get("caplife_six_source") == HANDOFF:
+    if st.session_state.get("caplife_six_source") not in (None, *sources):  # e.g. My saved datasets after signing out
         st.session_state["caplife_six_source"] = UPLOAD
     source = st.radio("Data", sources, horizontal=True, key="caplife_six_source")
-    if source == HANDOFF:
-        payload, name = handoff
-        st.caption(f"The readings from Analyze measurements ({name}), already converted to hours.")
-        return _parse(payload, name, save=False)
     template = pd.DataFrame(columns=["Cap_ID", "Hours", *SIGNALS, *CONDITION_COLUMNS]).to_csv(index=False)
     if source == EXAMPLE:
         measurements, truth = _example()
@@ -949,6 +942,22 @@ def _parameter_note(measured: tuple[str, ...], device: str | None = None) -> Non
             f"{accuracy['median_absolute_error_h']:,.0f} h ({accuracy['median_relative_error']:.0%}).")
 
 
+def _report(label, fleet, device, readings, assessment, measured, limits, all_limits, recorded, changed, forecast,
+            measurements) -> MonitorReport:
+    """Everything the downloads need; the data check is the readiness audit of the uploaded readings."""
+    check = None
+    try:
+        from caplife.readiness import audit_measurement_readiness
+        from caplife.real_data import assess_real_measurements
+        check = audit_measurement_readiness(assess_real_measurements(measurements))["summary"]
+    except (ValueError, KeyError):  # the data check is extra; the report is still useful without it
+        pass
+    return MonitorReport(source=label, fleet=fleet, device=device, readings=readings, assessment=assessment,
+                         measured=measured, limits=limits, all_limits=all_limits, recorded_conditions=recorded,
+                         changed_conditions=changed, forecast=forecast, data_check=check, measurements=measurements,
+                         accuracy=_model().metrics_for(measured))
+
+
 def _device_conditions(devices) -> dict:
     """Operating conditions the user changed, per capacitor (only the changed values)."""
     stored = st.session_state.setdefault(CONDITIONS_STATE, {})
@@ -1011,7 +1020,7 @@ def _condition_inputs(device: str, recorded: pd.Series, effective: pd.Series) ->
 
 
 def render() -> None:
-    st.header("Six-parameter health and remaining-life prediction",
+    st.header("Monitor and Predict",
               help="Upload measurement histories of capacitance, ESR, leakage current, case expansion, generated "
                    "hydrogen and internal pressure (any of them), optionally with operating conditions. CapLife "
                    "scores each parameter's health against its limit, and a neural network predicts remaining useful "
@@ -1131,6 +1140,7 @@ def render() -> None:
                    "An estimated history at your conditions needs a recorded core or ambient temperature.")
     _signal_charts(readings, limits, alternative=alternative)
     has_rul = "RUL_median_h" in assessment and pd.notna(last.get("RUL_median_h"))
+    forecast = None
     if has_rul and not bool(last["End_of_life_reached"]):
         forecast = _forecast_cached(readings, float(last["RUL_median_h"]), json.dumps(limits, sort_keys=True),
                                     code_version())
@@ -1180,10 +1190,20 @@ def render() -> None:
     with st.expander("About the model and how well it did on simulated data"):
         _model_card(measured)
 
-    st.subheader("Downloads")
-    left, right = st.columns(2)
-    left.download_button("Download fleet summary (CSV)", fleet.to_csv(index=False), "caplife_rul_fleet.csv",
-                         mime="text/csv", type="primary")
-    right.download_button(f"Download {device} assessment (CSV)",
-                          readings.merge(assessment, on="Hours").to_csv(index=False),
-                          f"caplife_rul_{device}.csv", mime="text/csv")
+    st.subheader("Downloads", help="The PDF and Excel reports cover the fleet, the selected capacitor (limits, "
+                                   "operating conditions, health, forecasts, remaining life) and a data check. They "
+                                   "are built when you click.")
+    report = lambda: _report(label, fleet, str(device), readings, assessment, measured, limits, all_limits,
+                             conditions.latest(original), planned.get(str(device), {}), forecast, measurements)
+    stem = f"caplife_{str(device).replace(' ', '_')}"
+    row = st.container(horizontal=True)
+    row.download_button("Report (PDF)", lambda: pdf_bytes(report()), f"{stem}_report.pdf", mime="application/pdf",
+                        type="primary", icon=":material/picture_as_pdf:", key="caplife_six_report_pdf")
+    row.download_button("Report (Excel)", lambda: xlsx_bytes(report()), f"{stem}_report.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        icon=":material/table_view:", key="caplife_six_report_xlsx")
+    row.download_button("Fleet summary (CSV)", fleet.to_csv(index=False), "caplife_fleet.csv", mime="text/csv",
+                        icon=":material/download:", key="caplife_six_fleet_csv")
+    row.download_button(f"{device} assessment (CSV)", readings.merge(assessment, on="Hours").to_csv(index=False),
+                        f"{stem}_assessment.csv", mime="text/csv", icon=":material/download:",
+                        key="caplife_six_device_csv")

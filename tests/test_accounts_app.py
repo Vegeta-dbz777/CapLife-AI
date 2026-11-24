@@ -31,13 +31,15 @@ def run_app(user=None) -> AppTest:
     return app
 
 
-def test_signed_out_visitors_see_sign_in_and_no_my_data(database, monkeypatch):
+def test_signed_out_visitors_see_sign_in_and_my_data_asks_them_to_sign_in(database, monkeypatch):
     monkeypatch.setattr(accounts, "current_user", lambda: None)
     app = run_app()
     assert any(b.label == "Sign in" for b in app.button)  # top-right corner, not the sidebar
     assert not any(b.label == "Sign in" for b in app.sidebar.button)
-    assert "My saved datasets" not in app.sidebar.radio(key=WORKSPACE_KEY).options
-    assert "My data" not in app.sidebar.radio(key=WORKSPACE_KEY).options
+    # The sidebar shows its labels; My Data is always listed, and asks visitors to sign in.
+    assert app.sidebar.radio(key=WORKSPACE_KEY).options == ["Monitor and Predict", "Train The AI", "My Data"]
+    app.sidebar.radio(key=WORKSPACE_KEY).set_value("My saved datasets").run()
+    assert any("Sign in" in i.value for i in app.info) and not app.dataframe
 
 
 def test_without_auth_settings_the_app_shows_no_account_controls():
@@ -127,17 +129,18 @@ def test_sign_in_dependencies_are_installed():
     from streamlit.auth_util import validate_auth_credentials  # noqa: F401
 
 
-def test_signing_out_while_on_my_data_returns_to_the_home_page(database, monkeypatch):
+def test_signing_out_while_on_my_data_asks_to_sign_in_again(database, monkeypatch):
     monkeypatch.setattr(accounts, "current_user", lambda: ALICE)
     app = run_app()
     app.sidebar.radio(key=WORKSPACE_KEY).set_value("My saved datasets").run()
-    assert app.header[0].value == "My data"
+    assert app.header[0].value == "My Data"
     monkeypatch.setattr(accounts, "current_user", lambda: None)
     app.run()
     assert not app.exception, app.exception
-    assert app.sidebar.radio(key=WORKSPACE_KEY).value is None  # back on Home
-    assert any("Choose where to start" in m.value for m in app.markdown)
-    assert "My data" not in app.sidebar.radio(key=WORKSPACE_KEY).options
+    # My Data is always in the sidebar; signed out, it asks to sign in and shows nobody's datasets.
+    assert app.sidebar.radio(key=WORKSPACE_KEY).value == "My saved datasets"
+    assert any("Sign in" in i.value for i in app.info)
+    assert not app.dataframe
 
 
 def test_account_menu_opens_my_data(database, monkeypatch):
@@ -145,5 +148,5 @@ def test_account_menu_opens_my_data(database, monkeypatch):
     app = run_app()
     app.button(key="caplife_account_my_data").click().run()
     assert not app.exception, app.exception
-    assert app.header[0].value == "My data"
+    assert app.header[0].value == "My Data"
     assert app.sidebar.radio(key=WORKSPACE_KEY).value == "My saved datasets"

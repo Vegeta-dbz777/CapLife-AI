@@ -33,7 +33,7 @@ request access to your Gmail, Drive, contacts or any other Google data.
 When you choose **Save this dataset to your account**, the app stores the CSV files you saved, the
 name you gave them, the time you saved them and your account ID in its database. Only you can list,
 open, download or delete them. You can delete one dataset, or everything, at any time on the
-**My data** page; deletion takes effect immediately.
+**My Data** page; deletion takes effect immediately.
 
 ### Sharing
 

@@ -1,35 +1,24 @@
-# CapLife AI — End-to-end AEC RUL **research demonstrator**
+# CapLife AI
 
-A browser app that accepts capacitor measurement histories, checks input quality,
-and displays measured health indicators and downloadable assessments. The public
-benchmarks evaluate threshold forecasts on real experiments. A separate synthetic
-demonstration illustrates a PyTorch GRU and a remaining-life estimate.
+A browser app for aluminum electrolytic capacitors with three workspaces:
 
-> **Research release.** **RUL prediction** monitors six parameters and predicts
-> remaining life with a neural network trained on simulated capacitors; it
-> demonstrates the method, and its accuracy on real capacitors is untested.
-> **Train RUL model** tests a neural model on your own held-out capacitors before
-> it forecasts anything.
+- **Monitor and Predict:** upload measurement histories (capacitance, ESR, leakage current, case expansion,
+  generated hydrogen, internal pressure; any of them) with optional operating conditions. See each
+  parameter's health against your own end-of-life limits, a neural network's remaining useful life with an
+  80% range, the predicted trend of every parameter, the effect of different operating conditions, and
+  download a PDF or Excel report.
+- **Train The AI:** train a neural network on your own tested capacitors, check it on capacitors it never
+  saw, and forecast the rest only if it passes.
+- **My Data:** the datasets you saved (sign-in required).
 
-Open [CapLife AI](https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/) in a
-browser. Choose **Load public example** to explore measurements from eight NASA
-ES14 capacitors, or upload a CSV with your own measurements: `Cap_ID`, `Hours`
-and any of the six parameters you measured (you don't need all six). The
-**Overview**, **Signal history**, **Research tools** and **Downloads** tabs
-organize the results. The NASA example is converted to this format on loading:
-reference age becomes `Hours`, and its resistance (the real impedance near
-10 kHz) becomes `ESR_ohm` with `ESR_Test_Hz = 10000`; each capacitor's two 0 h
-readings are combined by their median.
+> **Research release.** The Monitor and Predict networks learned from simulated capacitors; they demonstrate
+> the method, and their accuracy on real capacitors is untested. Not a maintenance or safety tool.
 
-Use **Check an observed capacitance-loss threshold**
-to set a loss threshold, inspect the first recorded crossing window, and export
-device status. Changes are measured from the hour-zero baseline.
-The observed threshold table also records repeat confirmation and the first
-subsequent below-threshold reading where available.
+Open [CapLife AI](https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/) in a browser.
 
-### Six-parameter health and RUL prediction (demonstration model)
+## Monitor and Predict
 
-Choose **RUL prediction** in the sidebar and upload a CSV with `Cap_ID`, `Hours`
+Choose **Monitor and Predict** in the sidebar and upload a CSV with `Cap_ID`, `Hours`
 and any of `Capacitance_uF`, `ESR_ohm`, `Leakage_uA`, `Case_Expansion_um`,
 `H2_Generated_mL_STP` and `Pressure_Abs_kPa`, or load the simulated example
 (optionally with only capacitance, ESR and leakage). Operating conditions are
@@ -111,18 +100,15 @@ These figures hold for the simulator only: the coefficients are illustrative,
 and accuracy on real capacitors is unknown until the model is tested on
 measured failures. Retrain with `python -m caplife.six_rul --output artifacts/six_rul`.
 
-### Accounts and saved datasets (optional)
+**Reports.** Under Downloads, *Report (PDF)* and *Report (Excel)* cover the fleet (health, status, remaining
+life and its 80% range), the selected capacitor (limits, operating conditions as recorded and as used,
+parameter health, history and forecast charts, remaining life over time) and a data check (missing readings,
+no 0 h reading, sampling gaps, changing ESR test settings). The Excel workbook adds every table in full. Both
+are built when the button is clicked (`caplife/monitor_report.py`).
 
-When sign-in and a database are configured in Streamlit secrets, visitors can
-sign in with Google, save uploads to their account, reopen them on *RUL
-prediction* and *Train RUL model*, and manage or delete them on **My data**.
-Each user sees only their own datasets. Without these settings the app is a
-public demo and stores nothing. Setup takes about 20 minutes:
-[docs/accounts-and-storage.md](docs/accounts-and-storage.md).
+## Train The AI
 
-### Train a remaining-life model on your own data
-
-Choose **Train RUL model** in the sidebar. Upload a measurement history (any
+Choose **Train The AI** in the sidebar. Upload a measurement history (any
 of the six indicators; the model uses the ones every capacitor with an outcome
 has measured at least three times) and an outcome file with one row per tested capacitor (`Cap_ID`,
 `Experiment_ID`, `Endpoint`, `Last_alive_h`, `Failure_by_h`; leave
@@ -152,9 +138,18 @@ capacitors whose early readings lie more than 10% of the training range beyond
 the training capacitors. A synthetic example shows the workflow; its results
 say nothing about real capacitors. The logic lives in `caplife/rul_workflow.py`.
 
-### Measurement files
+## My Data: accounts and saved datasets (optional)
 
-*Analyze measurements*, *RUL prediction* and *Train RUL model* read CSV and
+When sign-in and a database are configured in Streamlit secrets, visitors can
+sign in with Google, save uploads to their account, reopen them on *Monitor and
+Predict* and *Train The AI*, and manage or delete them on **My Data**.
+Each user sees only their own datasets. Without these settings the app is a
+public demo and stores nothing. Setup takes about 20 minutes:
+[docs/accounts-and-storage.md](docs/accounts-and-storage.md).
+
+## Measurement files
+
+*Monitor and Predict* and *Train The AI* read CSV and
 Excel (.xlsx) files: comma, semicolon or tab separated, with decimal points or
 the decimal commas European Excel writes, in UTF-8 or Windows encoding. Common
 column-name variations (`cap_id`, `Time (h)`, `Capacitance (uF)`, `ESR`,
@@ -164,10 +159,9 @@ with a note rather than rejecting the file. Under **File settings**, choose the
 time unit (hours, days, weeks, months; a `Days` column converts automatically)
 and whether pressure is absolute or gauge (detected automatically when a
 capacitor's first reading is below 80 kPa). The page lists every adjustment;
-no reading is invented. *Analyze measurements* also hands its file to *RUL
-prediction* with one button.
+no reading is invented.
 
-## 1 — Try the web app locally (Windows / macOS / Linux)
+## Run the app locally (Windows / macOS / Linux)
 
 1. Install Python 3.11 or 3.12 (Python 3.13 may work depending on installed packages).
 2. Extract this ZIP, then open a terminal inside the `CapLife_AI_Starter` folder.
@@ -192,173 +186,12 @@ prediction* with one button.
    ```
 
 6. Your browser should open the application, usually at `http://localhost:8501`.
-   Choose **Load public example** for measured NASA data or **Synthetic demo**
-   in the sidebar for the simulated histories.
+   Open **Monitor and Predict** and choose the simulated example capacitors.
 
-The bundled `artifacts/gru_demo_state.pt` and `artifacts/metadata.json` contain
-trained model weights and preprocessing statistics. You **do not need to train**
-the example model to open the website.
+The trained models are bundled in `artifacts/six_rul/`; you do not need to train
+anything to open the app.
 
-### Public-data forecast benchmark
-
-Choose **Forecast benchmarks** in the sidebar to inspect the results
-and download the device-level forecasts. The inputs are the six devices in
-[NASA EOS-2](https://data.nasa.gov/dataset/capacitor-electrical-stress-2) and the
-eight devices in the
-[original PoFINN measurement table](https://github.com/Anurag-Dutta/PoFINN/blob/6fe0fa7dd3df31b2dd62bd148182cb85f19494c7/DATA/data_combined.csv)
-(MIT, copyright 2025 The Authors).
-
-The endpoint is the first recorded reading at or above 20% capacitance loss
-relative to the initial reading. A crossing is bracketed by the previous and
-current inspections. One EOS-2 device finishes below the threshold and is
-right-censored at its final inspection. The benchmark uses a shared forecast
-origin of 94 aging hours. Each fit uses one source and is tested on every
-device in the other source, with test inputs limited to measurements through
-94 hours. The benchmark uses original inspections and retains each study's
-recorded aging clock.
-
-**How results change with forecast age** compares six pairs of nearby original
-inspections. Each study keeps its actual age in a pair. The forecast cohort
-at each age consists of devices still below the threshold, based on their
-measurements through that inspection. The same devices can contribute at
-multiple ages. The sensitivity download includes the number of observed
-crossings and censored devices, point errors, and prediction-band metrics.
-
-**When should a forecast be withheld?** compares showing all calibrated-trend
-forecasts with two screening policies across the six inspection pairs. The
-first requires increasing loss across the last three measurements and a band
-whose upper edge fits within the elapsed time between those measurements.
-The second also requires current loss to lie inside the training study's loss
-range at the paired inspection. Both decisions use data available at the origin.
-The section shows the number of forecasts retained, the error on their observed
-crossings, and the number of bands that overlap or fully contain an observed
-window. The benchmark reuses devices across ages, and the two existing studies
-provide an exploratory screening check. Uploads receive measured-health results
-while forecast performance and uncertainty await independent validation.
-
-- **Age only** fits a log-normal distribution to the training study's remaining
-  times at 94 hours. Its median is the same for every test device.
-- **Recent trend** fits a straight line to the last three available losses and
-  uses its slope to extrapolate from the latest observation to the threshold.
-- **Recent trend with study calibration** fits a single multiplicative correction
-  and a log-normal spread around the trend forecast. Both log-normal models use
-  the likelihood of the observed windows and right-censored follow-up, with a
-  log-scale bound of 0.15 to 3 to limit extreme fits in these small groups.
-
-Point error is the distance to the observed window. For the nominal 80% bands,
-overlap means the true crossing *could* be inside the band and full containment
-means the entire observed crossing window fits. The band width matters as well
-as the count. These are experimental threshold forecasts. The two protocols
-support neither validated physical-failure forecasts nor validated uncertainty on
-new devices. Temperature, voltage and ripple effects require comparable
-operating-condition records across groups.
-
-With the project's Python dependencies installed, regenerate the results from
-the public source URLs or pass downloaded files via `--eos2` and `--pofinn`.
-The output records the SHA-256 of the source measurements for reproducibility.
-
-```bash
-python -m caplife.public_benchmark
-```
-
-### Public-data neural experiment
-
-The neural experiment estimates 48-hour crossing probability for a 20% loss
-threshold. It uses current capacitance loss and the loss rates over the previous
-two inspection intervals. The evaluation holds out the entire other study in
-both directions. Fits and Brier scores give equal weight to each capacitor.
-A horizon is unresolved if it falls inside an inspection bracket or beyond the
-available follow-up. The published artifact includes all origins, their status,
-held-out predictions, flags for inputs outside training ranges, and inspection traces
-normalized to initial capacitance.
-
-The four-unit neural network and logistic model use identical features and L2
-regularization. The fixed baselines are training event frequency and a three-point
-linear trend. The neural result averages three fixed initializations, whose spread
-illustrates fit sensitivity. The simple trend scored better in both transfers.
-NASA ES10 is an additional false-alert check using the audited session export,
-with repeated reference ages represented by median capacitance. Its recorded
-trajectories stay below the study threshold.
-
-```bash
-python -m caplife.neural_benchmark
-python -m caplife.neural_benchmark --es10-sessions /path/to/nasa_es10_sessions_with_reference_age.csv
-```
-
-The [engine validation report](docs/engine-validation.md) covers 38 capacitors
-across three public held-out experiments, plus the separate exploratory
-ESR comparison. The neural experiment page includes a downloadable validation
-artifact with alerts, calibration and measurement-method sensitivity.
-
-## 2 — Input CSV contract (important)
-
-See `sample_data/upload_template.csv`. Every row is one timestamp/measurement.
-Every capacitor must have at least **six unique measurement hours**.
-
-Required columns:
-
-| Column | Description |
-| --- | --- |
-| `Cap_ID` | Unique capacitor identity, repeated for its measurements |
-| `Hours` | Elapsed operating hours (not a date string) |
-| `Ambient_C` | Operating ambient temperature, degrees C |
-| `Core_C` | Estimated/measured core temperature, degrees C |
-| `Voltage_ratio` | Applied voltage / rated voltage |
-| `Ripple_A` | RMS ripple current, amperes |
-| `Ripple_Hz` | Ripple (operating) frequency, Hz |
-| `C_ratio` | Capacitance divided by *initial* capacitance |
-| `ESR_ratio` | ESR divided by *initial* ESR, measured at consistent frequency/temperature |
-| `Leakage_ratio` | Leakage current divided by an initial reference, under controlled test conditions |
-| `Case_Strain_Index` | Hypothetical nonnegative strain indicator, not hydrogen volume |
-
-The app rejects missing columns, non-numeric measurements, invalid values,
-duplicate hours per capacitor, and histories with fewer than six points. It will
-warn if a prediction uses inputs outside the numerical range of the simulated
-training data. **Matching column names does not imply an uploaded real dataset
-is within the validated application domain.** It is not validated at all yet.
-
-Changing measurement frequency, temperature, voltage, or method may change
-observed C/ESR/leakage without corresponding aging. A future model must explicitly
-account for measurement protocols or normalize readings appropriately.
-
-## 3 — Retrain the demo model (optional)
-
-From the project folder:
-
-```bash
-python -m caplife.train --root . --caps 180 --epochs 25
-```
-
-This replaces the *demo* artifacts and example dataset. Training, validation and
-final test are split **by capacitor ID**, not randomly by measurement row.
-Scaler statistics are fit on the training capacitors alone. Early stopping uses
-validation capacitors, leaving test capacitors out of model selection.
-
-Saved artifacts:
-- `artifacts/gru_demo_state.pt`: neural network state dictionary.
-- `artifacts/metadata.json`: feature order, scaler, range checks, test metrics,
-  data provenance, and schema.
-- `sample_data/demo_capacitors.csv`: generated synthetic example histories.
-- `sample_data/upload_template.csv`: six-row CSV input example.
-
-## 4 — How it works
-
-`app.py` -> `caplife/data.py` -> `caplife/predict.py` -> `caplife/model.py`.
-
-- The **frontend** is the Streamlit browser app.
-- The **preprocessor** validates columns, orders measurements by time, and
-  standardizes data using **training-only** statistics.
-- The **neural network** is a small gated recurrent unit (GRU), taking six
-  successive measurements, each with ten explanatory inputs.
-- The **RUL output** is a continuous number of remaining hours.
-- An **illustrative EOL rule** overrides the prediction with zero at its toy
-  threshold (C <= 0.8 initial, ESR >= 2x, leakage >= 5x, strain >= 1.0).
-- The **results view** plots individual health indicators and allows CSV export.
-
-This is a time-series neural-network model, not an LSTM. Later work can compare
-GRU, LSTM, and physics-aware hybrid methods on the same validated real dataset.
-
-## 5 — Share the website through Streamlit Community Cloud
+## Share the app through Streamlit Community Cloud
 
 1. Create a GitHub repository containing the project folder's **contents**,
    including `app.py`, `requirements.txt`, `caplife/`, `artifacts/`, and
@@ -373,7 +206,7 @@ external researchers to upload sensitive measurements. Streamlit Community
 Cloud is suitable for a demonstrator, not automatically a secure production
 scientific data service.
 
-## 6 — What must be done before scientific use?
+## Before scientific use
 
 1. Obtain **real** accelerated life test (ALT) data with calibration records,
    device type/batch metadata, measured environmental/operating history, and
@@ -384,26 +217,13 @@ scientific data service.
    are made at comparable conditions or corrected using validated models.
 4. Use grouped and external validation by capacitor, batch, technology and
    stress regime. Evaluate generalization under changing/future conditions.
-5. Handle censored lifetimes explicitly. The public trend benchmark uses
-   interval and right censoring. The fixed-horizon experiment scores outcomes
-   only when the inspections resolve them.
+5. Handle censored lifetimes explicitly (Train The AI accepts right-censored
+   capacitors that were still working when testing stopped).
 6. Quantify and calibrate uncertainty; detect missing inputs, distribution
    shifts, and unsupported conditions and **abstain** when necessary.
 7. Conduct scientific review before removing the demonstrator warning.
 
-### Model limitations today
-
-- The GRU demonstration uses synthetic data. Real-data neural experiments use
-  capacitance only and need independent validation on comparable cohorts.
-- Six-timestep GRU estimates RUL; it does not separately forecast future C/ESR.
-- Experimental ranges have limited transfer coverage. A validated prediction
-  interval and health score require independent evidence.
-- No true support for arbitrary missing-column dataset formats.
-- Changing future stress is not modeled through user-supplied scenarios yet.
-- No database, authentication, production privacy controls, or server-side job queue.
-- The simulated 'strain index' is **not** a calibrated measurement of internal H2.
-
-## 7 — Run the tests
+## Run the tests
 
 Install the app and test dependencies, then run the suite from the repository root.
 `requirements.txt` stays limited to what Streamlit Community Cloud needs.
@@ -416,30 +236,27 @@ python -m pytest -q
 GitHub runs the same tests on every pull request and every change to `main`
 (`.github/workflows/tests.yml`), including the storage tests against PostgreSQL.
 
-## 8 — File map
+## File map
 
 ```text
-CapLife_AI_Starter/
-  app.py                         Streamlit interface
-  caplife/config.py              Canonical feature schema
-  caplife/simulator.py           Entirely invented teaching simulator
-  caplife/data.py                CSV validation, six-step windows, standardization
-  caplife/model.py               PyTorch GRU neural network
-  caplife/train.py               Training and held-out testing
-  caplife/predict.py             Reusable loaded prediction API
-  caplife/six_sim.py             Physics-inspired six-indicator capacitor simulator
-  caplife/six_rul.py             Six-indicator GRU RUL model: training and inference
-  caplife/six_rul_page.py        RUL prediction page
-  artifacts/six_rul/             Trained six-indicator model and its test metrics
-  caplife/rul_workflow.py        Train, test and forecast RUL on uploaded outcomes
-  caplife/accounts.py            Optional sign-in, save controls and My data page
-  caplife/storage.py             Private per-user dataset storage (SQL)
-  caplife/rul_page.py            Train RUL model page
-  artifacts/gru_demo_state.pt    Pretrained demo weights
-  artifacts/metadata.json       Preprocessing, provenance, metrics
-  sample_data/demo_capacitors.csv
-  sample_data/upload_template.csv
-  tests/                         Automated tests
-  requirements.txt               Deployed app dependencies
-  requirements-dev.txt           Adds test dependencies
+app.py                         Streamlit interface: Home and the three workspaces
+caplife/home_page.py           Home page
+caplife/six_rul_page.py        Monitor and Predict page
+caplife/six_rul.py             Six-parameter GRU models (remaining life and parameter trends)
+caplife/six_sim.py             Physics-inspired six-parameter capacitor simulator (training data)
+caplife/operating_conditions.py  Operating conditions: judgements, planned changes, estimated history
+caplife/monitor_report.py      PDF and Excel reports for Monitor and Predict
+caplife/chart_hover.py         Chart hover helpers
+caplife/rul_page.py            Train The AI page
+caplife/rul_workflow.py        Train, test and forecast remaining life on uploaded outcomes
+caplife/accounts.py            Optional sign-in, save controls and My Data page
+caplife/storage.py             Private per-user dataset storage (SQL)
+caplife/file_reader.py         CSV / Excel reading with header aliases and unit handling
+artifacts/six_rul/             Trained models and their test metrics
+tests/                         Automated tests
+requirements.txt               Deployed app dependencies
+requirements-dev.txt           Adds test dependencies
 ```
+
+Research code from earlier versions (public-data benchmarks, the first GRU demonstration) remains in
+`caplife/` and `artifacts/` for reference; the app no longer shows it.
