@@ -827,14 +827,13 @@ if workflow == MEASUREMENT_WORKFLOW:
                     if present.empty:
                         st.caption("Insufficient adjacent comparable measurements.")
                     else:
-                        st.scatter_chart(
-                            present[["Midpoint_Hour", "Rate_per_hour"]],
-                            x="Midpoint_Hour", y="Rate_per_hour", height=220,
-                        )
+                        from caplife.rate_charts import rate_trend
+                        st.altair_chart(rate_trend(present, "Midpoint_Hour", "Rate_per_hour",
+                                                   "Interval midpoint (h)", f"Rate ({unit}/h)"), width="stretch")
             st.caption(
-                "Dots represent rates between adjacent recorded timestamps, plotted at "
-                "interval midpoints. They are NOT continuously measured rates. "
-                "Each graph uses its own units and scale."
+                "Each point is the rate between two adjacent readings, plotted at the interval's "
+                "midpoint and joined in time order; the dashed line is zero (above: rising, below: "
+                "falling). They are NOT continuously measured rates. Each graph uses its own units and scale."
             )
             table(rate_rows.round(10), hide_index=True, width="stretch")
         with st.expander("Inspect rate acceleration calculations", expanded=False):
@@ -856,10 +855,9 @@ if workflow == MEASUREMENT_WORKFLOW:
                     key="caplife_v09_accel_indicator",
                 )
                 accel_subset = accel_rows.loc[accel_rows["Indicator"] == chosen_indicator]
-                st.scatter_chart(
-                    accel_subset[["At_Hours", "Acceleration_per_hour2"]],
-                    x="At_Hours", y="Acceleration_per_hour2", height=250,
-                )
+                from caplife.rate_charts import rate_trend
+                st.altair_chart(rate_trend(accel_subset, "At_Hours", "Acceleration_per_hour2", "Hours",
+                                           "Rate acceleration (per h²)", height=250), width="stretch")
                 table(accel_rows.round(12), hide_index=True, width="stretch")
         st.download_button(
             "Download observed interval-rate table (CSV)",
