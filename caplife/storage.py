@@ -7,6 +7,7 @@ example Neon or Supabase) in production, SQLite for local development and tests.
 """
 from __future__ import annotations
 
+from base64 import b64decode, b64encode
 from datetime import datetime, timezone
 import gzip
 import json
@@ -35,6 +36,19 @@ datasets = Table(
 )
 
 
+def _encode(content: bytes) -> str | dict[str, str]:
+    """UTF-8 text is kept as text (as datasets were always stored); anything else, such as an Excel
+    workbook or a CSV in a Windows encoding, is kept byte for byte."""
+    try:
+        return content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return {"base64": b64encode(content).decode("ascii")}
+
+
+def _decode(value: str | dict[str, str]) -> bytes:
+    return b64decode(value["base64"]) if isinstance(value, dict) else value.encode("utf-8")
+
+
 class StorageError(ValueError):
     """A request the store refuses, with a message suitable for the user."""
 
@@ -54,11 +68,7 @@ class DatasetStore:
             raise StorageError("Give the dataset a name.")
         if not files or any(len(content) > MAX_FILE_BYTES for content in files.values()):
             raise StorageError("Each saved file must be between 1 byte and 8 MB.")
-        try:
-            text = {label: content.decode("utf-8-sig") for label, content in files.items()}
-        except UnicodeDecodeError as error:
-            raise StorageError("Only UTF-8 CSV files can be saved.") from error
-        payload = gzip.compress(json.dumps(text).encode("utf-8"))
+        payload = gzip.compress(json.dumps({label: _encode(content) for label, content in files.items()}).encode())
         with self.engine.begin() as connection:
             count = connection.execute(
                 select(func.count()).select_from(datasets).where(datasets.c.owner == owner)).scalar_one()
@@ -85,7 +95,7 @@ class DatasetStore:
                 datasets.c.owner == owner, datasets.c.id == int(dataset_id))).scalar_one_or_none()
         if payload is None:
             raise StorageError("That dataset does not exist or belongs to another account.")
-        return {label: text.encode("utf-8") for label, text in json.loads(gzip.decompress(payload)).items()}
+        return {label: _decode(value) for label, value in json.loads(gzip.decompress(payload)).items()}
 
     def delete(self, owner: str, dataset_id: int) -> bool:
         with self.engine.begin() as connection:

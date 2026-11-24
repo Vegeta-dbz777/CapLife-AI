@@ -238,6 +238,38 @@ def _upload_dataset(user: dict, data_store: DatasetStore) -> None:
             st.success(note)
 
 
+FILE_LABELS = {"measurements": "Measurements", "outcomes": "Outcomes"}
+
+
+def _delete_dataset(owner: str, dataset_id: int) -> None:
+    store().delete(owner, dataset_id)
+    _load_cached.clear()
+
+
+def _dataset_row(user: dict, row, timezone) -> None:
+    """One saved dataset: its name and details, a download button per file and a delete button."""
+    dataset_id = int(row.id)
+    files = _load_cached(storage_url(), user["id"], dataset_id)
+    with st.container(border=True, horizontal=True, vertical_alignment="center", gap="small",
+                      key=f"caplife_mydata_row_{dataset_id}"):
+        with st.container(gap=None):
+            st.markdown(f"**{row.name}**")
+            st.caption(f"For {KINDS[row.kind]} · saved {local_time(row.created_at, timezone)} · "
+                       f"{row.size_bytes / 1024:,.1f} KB")
+        for label, content in files.items():
+            extension = "xlsx" if content[:4] == b"PK\x03\x04" else "csv"
+            shown = FILE_LABELS.get(label, label.title()) if len(files) > 1 else "Download"
+            st.download_button(shown, content, f"{row.name} - {label}.{extension}", icon=":material/download:",
+                               key=f"caplife_mydata_dl_{dataset_id}_{label}", width="content",
+                               help=f"Download the {label} file of “{row.name}” as you saved it "
+                                    f"({extension.upper()}).")
+        with st.popover("", icon=":material/delete:", help=f"Delete “{row.name}”", width="content",
+                        key=f"caplife_mydata_del_menu_{dataset_id}"):
+            st.write(f"Delete **{row.name}**? This cannot be undone.")
+            st.button("Delete", type="primary", icon=":material/delete:", key=f"caplife_mydata_remove_{dataset_id}",
+                      on_click=_delete_dataset, args=(user["id"], dataset_id))
+
+
 def render_my_data() -> None:
     """The My Data page: list, open and delete the signed-in user's datasets."""
     st.header("My Data")
@@ -253,25 +285,9 @@ def render_my_data() -> None:
     if saved.empty:
         st.info("Nothing saved yet. Upload a dataset below to keep it for later.")
     else:
-        listing = pd.DataFrame({
-            "Name": saved["name"], "For": saved["kind"].map(KINDS),
-            "Saved": [local_time(value, viewer_timezone()) for value in saved["created_at"]],
-            "Size (KB)": (saved["size_bytes"] / 1024).round(1),
-        })
-        table(listing, hide_index=True, width="stretch")
-        labels = {int(row.id): f"{row.name} · {KINDS[row.kind]}" for row in saved.itertuples(index=False)}
-        chosen = st.selectbox("Dataset", list(labels), format_func=labels.get, key="caplife_mydata_pick",
-                              persist_state="session")
-        files = data_store.load(user["id"], chosen)
-        cols = st.columns(len(files) + 1)
-        for column, (label, content) in zip(cols, files.items()):
-            extension = "xlsx" if content[:4] == b"PK\x03\x04" else "csv"
-            column.download_button(f"Download {label} ({extension.upper()})", content, f"{label}.{extension}",
-                                   key=f"caplife_mydata_dl_{label}")
-        if cols[-1].button("Delete this dataset", key="caplife_mydata_delete"):
-            data_store.delete(user["id"], chosen)
-            _load_cached.clear()
-            st.rerun()
+        timezone = viewer_timezone()
+        for row in saved.itertuples(index=False):
+            _dataset_row(user, row, timezone)
     _upload_dataset(user, data_store)
     with st.expander("Delete everything"):
         st.write("Permanently remove every dataset saved to your account.")

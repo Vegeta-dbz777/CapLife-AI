@@ -57,9 +57,14 @@ def test_invalid_saves_are_refused_with_clear_messages(store):
         store.save("alice", "six_parameter", "   ", {"measurements": CSV})
     with pytest.raises(StorageError, match="kind"):
         store.save("alice", "other", "x", {"measurements": CSV})
-    with pytest.raises(StorageError, match="UTF-8"):
-        store.save("alice", "six_parameter", "x", {"measurements": b"\xff\xfe\x00bad"})
     for index in range(MAX_DATASETS_PER_USER):
         store.save("alice", "six_parameter", f"n{index}", {"measurements": CSV})
     with pytest.raises(StorageError, match=f"up to {MAX_DATASETS_PER_USER}"):
         store.save("alice", "six_parameter", "one too many", {"measurements": CSV})
+
+
+def test_excel_and_windows_encoded_files_are_kept_byte_for_byte(store):
+    workbook = b"PK\x03\x04" + bytes(range(256))
+    windows_csv = "Cap_ID,Hours,Température\nA,0,85\n".encode("cp1252")
+    dataset = store.save("alice", "train_rul", "Mixed", {"measurements": workbook, "outcomes": windows_csv})
+    assert store.load("alice", dataset) == {"measurements": workbook, "outcomes": windows_csv}
