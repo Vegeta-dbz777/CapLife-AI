@@ -80,7 +80,8 @@ def test_monitor_runs_with_only_three_parameters():
     app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
     app.checkbox(key="caplife_six_three_only").check().run()
     assert not app.exception, app.exception
-    assert any("Using 3 of 6 parameters" in i.value for i in app.info)
+    assert any("Using 3 of 6 parameters" in c.value for c in app.caption)
+    assert not app.info
     assert metric(app, "Remaining useful life").endswith(" h")
 
 
@@ -155,6 +156,7 @@ def test_brand_returns_home_from_any_page_and_keeps_the_work():
     assert app.radio(key="caplife_six_source").value == "Use simulated example capacitors"  # still chosen
 
 
-def test_monitor_page_keeps_its_columns_help_and_upload():
-    app = open_workspace("Monitor and Predict")
-    assert any(e.label == "Columns and units" for e in app.expander)
+def test_upload_pages_have_no_column_guides():
+    for label in ("Monitor and Predict", "Train The AI"):
+        app = open_workspace(label)
+        assert not any(e.label in ("Columns and units", "What goes in each file") for e in app.expander)

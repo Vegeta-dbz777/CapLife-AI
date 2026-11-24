@@ -148,19 +148,6 @@ def _inputs() -> tuple[bytes, bytes] | None:
         outcomes = st.file_uploader("Outcomes (CSV or Excel)", type=UPLOAD_TYPES, key="caplife_rul_outcomes")
         st.download_button("Download outcome template", outcome_template_csv(),
                            "caplife_rul_outcomes_template.csv", mime="text/csv")
-    with st.expander("What goes in each file"):
-        st.markdown(
-            "**Measurement history** — one row per reading: `Cap_ID`, `Hours` and any of the six indicators "
-            "(capacitance µF, ESR Ω, leakage µA, case expansion µm, cumulative H₂ mL at 0 °C and 1 atm, "
-            "absolute internal pressure kPa). The model uses the parameters that every capacitor with an outcome "
-            "has measured at least three times. Add `ESR_Test_Hz` and `ESR_Test_Temp_C` when known.\n\n"
-            "**Outcomes** — one row per capacitor that finished testing: `Cap_ID`, `Experiment_ID`, "
-            "`Endpoint` (the same failure definition for every row), `Last_alive_h` (last age it was seen "
-            "working) and `Failure_by_h` (age by which it was found failed). Leave `Failure_by_h` blank if "
-            "the capacitor was still working when testing stopped.\n\n"
-            "**Capacitors to forecast** — include their readings in the measurement file but give them no "
-            "outcome row."
-        )
     st.caption("Uploads are processed on the app server and are not stored unless you sign in and save them.")
     if measurements is None or outcomes is None:
         return None

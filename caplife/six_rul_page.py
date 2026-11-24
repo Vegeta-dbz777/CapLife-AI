@@ -152,18 +152,7 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
         return _parse(files["measurements"], name, save=False, settings=file_settings("caplife_six_saved_file"))
     upload = st.file_uploader("Measurement file (CSV or Excel)", type=UPLOAD_TYPES, key="caplife_six_upload")
     settings = file_settings("caplife_six_file")
-    left, right = st.columns([1, 2])
-    left.download_button("Download CSV template", template, "caplife_six_parameter_template.csv", mime="text/csv")
-    with right.expander("Columns and units"):
-        st.markdown(
-            "One row per reading: `Cap_ID`, `Hours`, and any of `Capacitance_uF`, `ESR_ohm`, `Leakage_uA`, "
-            "`Case_Expansion_um`, `H2_Generated_mL_STP` (cumulative, at 0 °C and 1 atm) and `Pressure_Abs_kPa` "
-            "(absolute). You don't need all six; more parameters give a more precise prediction. The first "
-            f"reading of each capacitor is its baseline. Remaining life needs at least {MIN_READINGS} readings.\n\n"
-            "Operating conditions (optional, recommended): `Ambient_C`, `Core_C`, `Voltage_V` (applied), `Rated_V`, "
-            "`Ripple_A`, `Rated_Ripple_A` and `Ripple_Hz` (the operating frequency). Record the conditions in "
-            "effect at each reading; the model uses them, and the latest ones are taken to continue."
-        )
+    st.download_button("Download CSV template", template, "caplife_six_parameter_template.csv", mime="text/csv")
     st.caption("Uploads are processed on the app server and are not stored unless you sign in and save them.")
     if upload is None:
         return None
@@ -181,7 +170,6 @@ def _parse(payload: bytes, label: str, save: bool,
     except INPUT_ERRORS as error:
         st.error(f"The file could not be used: {error}")
         return None
-    show_notes(notes)
     if save:
         save_controls("six_parameter", {"measurements": payload}, label.rsplit(".", 1)[0], "caplife_six")
     present = [signal for signal in SIGNALS if signal in readings and readings[signal].notna().any()]
@@ -209,14 +197,15 @@ def _parse(payload: bytes, label: str, save: bool,
         kept.append(complete)
     shown = lambda names: ", ".join(names[:5]) + (" …" if len(names) > 5 else "")
     if dropped_readings:
-        st.warning("Left out readings missing one of their capacitor's parameters (no values were filled in): "
-                   + shown([f"{device} ({count})" for device, count in dropped_readings.items()]) + ".")
+        notes.append("Left out readings missing one of their capacitor's parameters (no values were filled in): "
+                     + shown([f"{device} ({count})" for device, count in dropped_readings.items()]) + ".")
     if empty:
-        st.warning(f"Left out {len(empty)} capacitor(s) with no parameter in at least half of their readings: "
-                   f"{shown(empty)}.")
+        notes.append(f"Left out {len(empty)} capacitor(s) with no parameter in at least half of their readings: "
+                     f"{shown(empty)}.")
     if unusable:
-        st.warning(f"Left out {len(unusable)} capacitor(s) whose first reading has zero capacitance, ESR or leakage "
-                   f"current, which cannot serve as a baseline: {shown(unusable)}.")
+        notes.append(f"Left out {len(unusable)} capacitor(s) whose first reading has zero capacitance, ESR or "
+                     f"leakage current, which cannot serve as a baseline: {shown(unusable)}.")
+    show_notes(notes)
     if not kept:
         st.error("No capacitor has enough complete readings to assess.")
         return None
@@ -934,12 +923,12 @@ def _model_card(measured: tuple[str, ...]) -> None:
                "`python -m caplife.six_rul`.")
 
 
-def _parameter_note(measured: tuple[str, ...], device: str | None = None) -> None:
+def _parameter_note(measured: tuple[str, ...]) -> None:
     accuracy = _model().metrics_for(measured)
     missing = [signal for signal in SIGNALS if signal not in measured]
-    st.info(f"**Using {len(measured)} of 6 parameters{f' for {device}' if device else ''}:** {_names(measured)} "
-            f"(not in the data: {_names(missing)}). Typical error with these on simulated capacitors: "
-            f"{accuracy['median_absolute_error_h']:,.0f} h ({accuracy['median_relative_error']:.0%}).")
+    st.caption(f"Using {len(measured)} of 6 parameters: {_names(measured)} "
+               f"(not in the data: {_names(missing)}). Typical error with these on simulated capacitors: "
+               f"{accuracy['median_absolute_error_h']:,.0f} h ({accuracy['median_relative_error']:.0%}).")
 
 
 def _report(label, fleet, device, readings, assessment, measured, limits, all_limits, recorded, changed, forecast,
@@ -1035,14 +1024,6 @@ def render() -> None:
     planned = _device_conditions(devices)
     results = _assess(measurements, all_limits, planned)
     fleet = _fleet_table(results, truth, all_limits)
-    sets = {device: _measured(readings) for device, (readings, _) in results.items()}
-    if len(set(sets.values())) > 1:
-        counts = pd.Series([len(found) for found in sets.values()]).value_counts().sort_index(ascending=False)
-        st.info("**Parameters differ between capacitors:** "
-                + ", ".join(f"{n} with {k} of 6" for k, n in counts.items())
-                + ". Each is assessed with its own; fewer parameters give a wider 80% range.")
-    elif len(next(iter(sets.values()))) < len(SIGNALS):
-        _parameter_note(next(iter(sets.values())))
 
     custom = [device for device in devices if all_limits[device] != full_limits()]
     st.subheader("Fleet overview",
@@ -1075,8 +1056,8 @@ def render() -> None:
     readings, assessment = results[device]
     original = measurements.loc[measurements["Cap_ID"].astype(str).eq(str(device))].sort_values("Hours")
     measured = _measured(readings)
-    if len(set(sets.values())) > 1 and len(measured) < len(SIGNALS):
-        _parameter_note(measured, device)
+    if len(measured) < len(SIGNALS):
+        _parameter_note(measured)
     with st.container(border=True):
         limits = _limit_inputs(str(device), measured)
     with st.container(border=True):
