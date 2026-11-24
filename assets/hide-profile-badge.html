@@ -1,0 +1,19 @@
+<script>
+(() => {
+    // On Streamlit Community Cloud the app runs in a same-origin frame. The page around it shows the
+    // "Hosted with Streamlit" badge and, next to it, the creator's profile picture, which links to their
+    // Streamlit profile. Hide only the profile picture (and its pop-up card); keep the Streamlit badge.
+    let outer;
+    try { outer = window.parent.document; } catch (error) { return; }  // not reachable: nothing to do
+    if (!outer || outer === document || outer.__caplifeProfileBadge) return;
+    outer.__caplifeProfileBadge = true;
+    const update = () => {
+        for (const link of outer.querySelectorAll('a[href*="share.streamlit.io/user/"]')) {
+            const box = link.closest('[class*="profileContainer"]') || link.parentElement;
+            if (box && box.style.display !== "none") box.style.display = "none";
+        }
+    };
+    new MutationObserver(update).observe(outer.body, { childList: true, subtree: true });
+    update();
+})();
+</script>
