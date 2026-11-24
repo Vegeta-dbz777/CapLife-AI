@@ -150,3 +150,39 @@ def test_account_menu_opens_my_data(database, monkeypatch):
     assert not app.exception, app.exception
     assert app.header[0].value == "My Data"
     assert app.sidebar.radio(key=WORKSPACE_KEY).value == "My saved datasets"
+
+
+PAGES = {"Six-parameter RUL prediction (demonstration model)": "caplife_six_source",
+         "Train an RUL model on uploaded outcomes": "caplife_rul_source"}
+
+
+@pytest.mark.parametrize("workspace", list(PAGES))
+def test_saved_datasets_are_offered_to_signed_out_visitors_who_are_asked_to_sign_in(database, monkeypatch, workspace):
+    monkeypatch.setattr(accounts, "current_user", lambda: None)
+    app = run_app()
+    app.sidebar.radio(key=WORKSPACE_KEY).set_value(workspace).run()
+    assert "My saved datasets" in app.radio(key=PAGES[workspace]).options
+    app.radio(key=PAGES[workspace]).set_value("My saved datasets").run()
+    assert not app.exception, app.exception
+    assert [i.value for i in app.info] == [accounts.SIGN_IN_TO_SEE]  # the same message as My Data
+    assert not app.selectbox and not app.metric
+
+
+@pytest.mark.parametrize("workspace", list(PAGES))
+def test_signed_in_user_without_saved_datasets_is_told_so(database, monkeypatch, workspace):
+    monkeypatch.setattr(accounts, "current_user", lambda: ALICE)
+    app = run_app()
+    app.sidebar.radio(key=WORKSPACE_KEY).set_value(workspace).run()
+    app.radio(key=PAGES[workspace]).set_value("My saved datasets").run()
+    assert not app.exception, app.exception
+    assert any("no saved datasets of this kind yet" in i.value for i in app.info)
+
+
+def test_saved_datasets_are_offered_even_without_sign_in_configured():
+    app = AppTest.from_file(APP, default_timeout=120)
+    app.run()
+    for workspace, key in PAGES.items():
+        app.sidebar.radio(key=WORKSPACE_KEY).set_value(workspace).run()
+        app.radio(key=key).set_value("My saved datasets").run()
+        assert not app.exception, app.exception
+        assert any("Sign in" in i.value for i in app.info)

@@ -95,6 +95,9 @@ def current_user() -> dict | None:
     return {"id": str(account), "email": email or "", "name": st.user.get("name") or email or "Signed-in user"}
 
 
+SIGN_IN_TO_SEE = "Sign in (top right) to save datasets and see them here. Only you can see your datasets."
+
+
 def saving_available() -> bool:
     return current_user() is not None and store() is not None
 
@@ -149,9 +152,16 @@ def _load_cached(url: str, owner: str, dataset_id: int) -> dict[str, bytes]:
 
 
 def saved_picker(kind: str, key: str) -> tuple[dict[str, bytes], str] | None:
-    """Choose one of the user's saved datasets of this kind; returns its files and name."""
-    user, data_store = current_user(), store()
-    if user is None or data_store is None:
+    """Choose one of the user's saved datasets of this kind; returns its files and name.
+
+    Offered to everyone: signed-out visitors are asked to sign in, as on My Data."""
+    user = current_user()
+    if user is None:
+        st.info(SIGN_IN_TO_SEE)
+        return None
+    data_store = store()
+    if data_store is None:
+        st.info("Saving is not set up on this deployment yet.")
         return None
     saved = data_store.list(user["id"], kind)
     if saved.empty:
@@ -161,7 +171,7 @@ def saved_picker(kind: str, key: str) -> tuple[dict[str, bytes], str] | None:
     names = {int(row.id): row.name for row in saved.itertuples(index=False)}
     labels = {int(row.id): f"{row.name} · {local_time(row.created_at, timezone)}"
               for row in saved.itertuples(index=False)}
-    chosen = st.selectbox("Saved dataset", list(labels), format_func=labels.get, key=f"{key}_saved")
+    chosen = st.selectbox("Saved dataset", list(labels), format_func=labels.get, key=f"{key}_saved", persist_state="session")
     try:
         return _load_cached(storage_url(), user["id"], int(chosen)), names[int(chosen)]
     except StorageError as error:
@@ -174,7 +184,7 @@ def render_my_data() -> None:
     st.header("My Data")
     user, data_store = current_user(), store()
     if user is None:
-        st.info("Sign in (top right) to save datasets and see them here. Only you can see your datasets.")
+        st.info(SIGN_IN_TO_SEE)
         return
     if data_store is None:
         st.info("Saving is not set up on this deployment yet.")
@@ -191,7 +201,7 @@ def render_my_data() -> None:
         })
         table(listing, hide_index=True, width="stretch")
         labels = {int(row.id): f"{row.name} · {KINDS[row.kind]}" for row in saved.itertuples(index=False)}
-        chosen = st.selectbox("Dataset", list(labels), format_func=labels.get, key="caplife_mydata_pick")
+        chosen = st.selectbox("Dataset", list(labels), format_func=labels.get, key="caplife_mydata_pick", persist_state="session")
         files = data_store.load(user["id"], chosen)
         cols = st.columns(len(files) + 1)
         for column, (label, content) in zip(cols, files.items()):

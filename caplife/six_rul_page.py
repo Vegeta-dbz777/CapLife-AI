@@ -15,7 +15,7 @@ from caplife.tables import table
 from caplife.chart_hover import NO_TOOLTIP, hoverable as _hoverable, hoverable_rule as _hoverable_rule
 from caplife.monitor_report import MonitorReport, pdf_bytes, xlsx_bytes
 
-from caplife.accounts import save_controls, saved_picker, saving_available
+from caplife.accounts import save_controls, saved_picker
 from caplife.file_reader import read_measurement_file
 from caplife.upload_ui import UPLOAD_TYPES, file_settings, show_notes
 from caplife.real_data import RealDataValidationError, validate_real_measurements
@@ -127,17 +127,14 @@ def _short(value: float) -> str:
 
 
 def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
-    sources = (UPLOAD, EXAMPLE, SAVED) if saving_available() else (UPLOAD, EXAMPLE)
-    if st.session_state.get("caplife_six_source") not in (None, *sources):  # e.g. My saved datasets after signing out
-        st.session_state["caplife_six_source"] = UPLOAD
-    source = st.radio("Data", sources, horizontal=True, key="caplife_six_source")
+    source = st.radio("Data", (UPLOAD, EXAMPLE, SAVED), horizontal=True, key="caplife_six_source", persist_state="session")
     template = pd.DataFrame(columns=["Cap_ID", "Hours", *SIGNALS, *CONDITION_COLUMNS]).to_csv(index=False)
     if source == EXAMPLE:
         measurements, truth = _example()
         st.caption("Twelve simulated capacitors, two for each of the six ways a capacitor can reach end of life, "
                    "observed part of the way there. Because they are simulated, their true end of life with the "
                    "default limits is known and shown for comparison.")
-        if st.checkbox("Use only capacitance, ESR and leakage current", key="caplife_six_three_only",
+        if st.checkbox("Use only capacitance, ESR and leakage current", key="caplife_six_three_only", persist_state="session",
                        help="Shows how the prediction works when the other three parameters are not measured."):
             measurements = measurements.loc[:, ["Cap_ID", "Hours", *COMMON_SUBSET,
                                                 *conditions.recorded_columns(measurements)]]
@@ -293,7 +290,7 @@ def _limit_inputs(device: str, measured: tuple[str, ...]) -> dict:
         kwargs = {} if widget(signal) in st.session_state else {"value": _shown_limit(signal, current[LIMIT_KEYS[signal]])}
         columns[index % 3].number_input(
             label, min_value=_shown_limit(signal, low), max_value=_shown_limit(signal, high), step=step,
-            key=widget(signal), on_change=changed, args=(signal,), disabled=signal not in measured,
+            key=widget(signal), persist_state="session", on_change=changed, args=(signal,), disabled=signal not in measured,
             help=("Not measured for this capacitor." if signal not in measured else
                   f"Allowed: {_shown_limit(signal, low):g} to {_shown_limit(signal, high):g}, the range the model "
                   "was trained on."), **kwargs)
@@ -990,7 +987,7 @@ def _condition_inputs(device: str, recorded: pd.Series, effective: pd.Series) ->
         kwargs = {} if widget(column) in st.session_state else {"value": float(value) if np.isfinite(value) else None}
         seen = recorded.get(column, np.nan)
         columns[index % 3].number_input(
-            f"{label} ({unit})", min_value=0.0, step=step, key=widget(column), on_change=changed, args=(column,),
+            f"{label} ({unit})", min_value=0.0, step=step, key=widget(column), persist_state="session", on_change=changed, args=(column,),
             placeholder="Not recorded",
             help=(f"Latest recorded: {seen:,.4g} {unit}." if np.isfinite(seen) else "Not recorded in the data."),
             **kwargs)
@@ -1052,7 +1049,7 @@ def render() -> None:
         st.caption(". ".join(changed_notes) + ".")
 
     st.subheader("Capacitor detail")
-    device = st.selectbox("Capacitor", list(results), key="caplife_six_device")
+    device = st.selectbox("Capacitor", list(results), key="caplife_six_device", persist_state="session")
     readings, assessment = results[device]
     original = measurements.loc[measurements["Cap_ID"].astype(str).eq(str(device))].sort_values("Hours")
     measured = _measured(readings)
@@ -1131,7 +1128,7 @@ def render() -> None:
                  f"(band). Grey line: the predicted end of life at {last['Hours'] + last['RUL_median_h']:,.0f} h, "
                  f"with its 80% range shaded grey. Orange dashed line: your limit. {_first_to_limit(forecast)} is "
                  "expected to reach its limit first.")
-        zoom = st.toggle("Zoom in on the forecast", key="caplife_six_forecast_zoom",
+        zoom = st.toggle("Zoom in on the forecast", key="caplife_six_forecast_zoom", persist_state="session",
                          help="Show the latest readings and the forecast instead of the whole history.")
         reference = None
         if recorded_last is not None:

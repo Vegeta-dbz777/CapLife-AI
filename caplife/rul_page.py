@@ -12,7 +12,7 @@ import streamlit as st
 
 from caplife.tables import table
 
-from caplife.accounts import save_controls, saved_picker, saving_available
+from caplife.accounts import save_controls, saved_picker
 from caplife.measurement_review import read_experimental_csv
 from caplife.upload_ui import UPLOAD_TYPES, file_settings, show_notes
 from caplife.real_data import RealDataValidationError
@@ -122,8 +122,7 @@ def _interval_chart(rows: pd.DataFrame, observed: bool) -> alt.Chart:
 
 
 def _inputs() -> tuple[bytes, bytes] | None:
-    sources = (UPLOAD, EXAMPLE, SAVED) if saving_available() else (UPLOAD, EXAMPLE)
-    source = st.radio("Data", sources, horizontal=True, key="caplife_rul_source")
+    source = st.radio("Data", (UPLOAD, EXAMPLE, SAVED), horizontal=True, key="caplife_rul_source", persist_state="session")
     if source == SAVED:
         picked = saved_picker("train_rul", "caplife_rul")
         return None if picked is None else (picked[0]["measurements"], picked[0]["outcomes"])
@@ -164,7 +163,7 @@ def _split_settings(experiments: list[str]) -> tuple[str, str | None, str | None
     options = {"By experiment (recommended)": SPLIT_BY_EXPERIMENT, "By capacitor": SPLIT_BY_DEVICE}
     if len(experiments) >= 3:
         choice = st.radio("Choose the capacitors held out for testing", tuple(options), horizontal=True,
-                          key="caplife_rul_split")
+                          key="caplife_rul_split", persist_state="session")
     else:
         choice = "By capacitor"
         st.caption("Splitting by experiment needs at least three experiments, so capacitors are split "
@@ -177,9 +176,9 @@ def _split_settings(experiments: list[str]) -> tuple[str, str | None, str | None
                    f"(at least {MIN_TRAINING_DEVICES}). The assignment is fixed by each capacitor ID, not by its outcome.")
         return method, None, None
     left, right = st.columns(2)
-    calibration = left.selectbox("Calibration experiment", experiments, index=0, key="caplife_rul_calibration")
+    calibration = left.selectbox("Calibration experiment", experiments, index=0, key="caplife_rul_calibration", persist_state="session")
     test = right.selectbox("Test experiment", [e for e in experiments if e != calibration], index=0,
-                           key="caplife_rul_test")
+                           key="caplife_rul_test", persist_state="session")
     st.caption("All other experiments train the model.")
     return method, calibration, test
 
@@ -268,7 +267,7 @@ def _show_results(result: dict, attempts: int) -> None:
             if history is not None and len(history):
                 from caplife.six_rul_page import _rul_chart
                 st.markdown("##### Remaining-life prediction over time")
-                device = st.selectbox("Capacitor", list(forecasts["Capacitor"]), key="caplife_rul_forecast_device")
+                device = st.selectbox("Capacitor", list(forecasts["Capacitor"]), key="caplife_rul_forecast_device", persist_state="session")
                 st.altair_chart(_rul_chart(history.loc[history["Capacitor"].eq(device)], None), width="stretch")
                 st.caption("Each point is the forecast the trained model would have made at that reading, using "
                            "only the readings up to it. Shaded band: the calibrated 80% range.")
