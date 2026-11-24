@@ -22,7 +22,7 @@ MEASUREMENTS = {
 }
 OPTIONAL_COLUMNS = (
     "Capacitance_uF", "ESR_ohm", "Leakage_uA", "Ambient_C",
-    "Core_C", "Voltage_V", "Rated_V", "Ripple_A", "Ripple_Hz",
+    "Core_C", "Voltage_V", "Rated_V", "Ripple_A", "Rated_Ripple_A", "Ripple_Hz",
     "ESR_Test_Hz", "ESR_Test_Temp_C", "Case_Expansion_um",
     "H2_Generated_mL_STP", "Pressure_Abs_kPa",
 )
@@ -139,7 +139,8 @@ def validate_real_measurements(raw: pd.DataFrame) -> pd.DataFrame:
     if df["Hours"].isna().any() or (df["Hours"] < 0).any():
         raise RealDataValidationError("Hours must be present and nonnegative for every row.")
 
-    positive = ("Capacitance_uF", "ESR_ohm", "Rated_V", "ESR_Test_Hz", "Ripple_Hz", "Pressure_Abs_kPa")
+    positive = ("Capacitance_uF", "ESR_ohm", "Rated_V", "Rated_Ripple_A", "ESR_Test_Hz", "Ripple_Hz",
+                "Pressure_Abs_kPa")
     nonnegative = ("Leakage_uA", "Ripple_A", "Voltage_V", "H2_Generated_mL_STP")
     for col in positive:
         if col in df and df[col].notna().any() and (df[col].dropna() <= 0).any():

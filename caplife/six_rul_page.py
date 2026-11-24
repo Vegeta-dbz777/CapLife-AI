@@ -21,7 +21,8 @@ from caplife.six_rul import (
     COMMON_SUBSET, INDICATOR_LABELS, LIMIT_KEYS, MIN_READINGS, SixRULModel, current_limit_used,
     example_fleet, full_limits, limit_used, subset_key, value_at_fraction,
 )
-from caplife.six_sim import ATMOSPHERE_KPA, EOL_LIMITS, LIMIT_RANGES, SIGNALS
+from caplife import operating_conditions as conditions
+from caplife.six_sim import ATMOSPHERE_KPA, CONDITION_COLUMNS, EOL_LIMITS, LIMIT_RANGES, SIGNALS
 from caplife.versioning import code_version
 
 ARTIFACT_DIR = Path(__file__).resolve().parents[1] / "artifacts" / "six_rul"
@@ -131,7 +132,7 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
         payload, name = handoff
         st.caption(f"The readings from Analyze measurements ({name}), already converted to hours.")
         return _parse(payload, name, save=False)
-    template = pd.DataFrame(columns=["Cap_ID", "Hours", *SIGNALS]).to_csv(index=False)
+    template = pd.DataFrame(columns=["Cap_ID", "Hours", *SIGNALS, *CONDITION_COLUMNS]).to_csv(index=False)
     if source == EXAMPLE:
         measurements, truth = _example()
         st.caption("Twelve simulated capacitors, two for each of the six ways a capacitor can reach end of life, "
@@ -139,7 +140,8 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
                    "default limits is known and shown for comparison.")
         if st.checkbox("Use only capacitance, ESR and leakage current", key="caplife_six_three_only",
                        help="Shows how the prediction works when the other three parameters are not measured."):
-            measurements = measurements.loc[:, ["Cap_ID", "Hours", *COMMON_SUBSET]]
+            measurements = measurements.loc[:, ["Cap_ID", "Hours", *COMMON_SUBSET,
+                                                *conditions.recorded_columns(measurements)]]
         st.download_button("Download example CSV", measurements.to_csv(index=False),
                            "caplife_six_parameter_example.csv", mime="text/csv")
         return measurements, truth, "Simulated example"
@@ -158,7 +160,10 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
             "One row per reading: `Cap_ID`, `Hours`, and any of `Capacitance_uF`, `ESR_ohm`, `Leakage_uA`, "
             "`Case_Expansion_um`, `H2_Generated_mL_STP` (cumulative, at 0 °C and 1 atm) and `Pressure_Abs_kPa` "
             "(absolute). You don't need all six; more parameters give a more precise prediction. The first "
-            f"reading of each capacitor is its baseline. Remaining life needs at least {MIN_READINGS} readings."
+            f"reading of each capacitor is its baseline. Remaining life needs at least {MIN_READINGS} readings.\n\n"
+            "Operating conditions (optional, recommended): `Ambient_C`, `Core_C`, `Voltage_V` (applied), `Rated_V`, "
+            "`Ripple_A`, `Rated_Ripple_A` and `Ripple_Hz` (the operating frequency). Record the conditions in "
+            "effect at each reading; the model uses them, and the latest ones are taken to continue."
         )
     st.caption("Uploads are processed on the app server and are not stored unless you sign in and save them.")
     if upload is None:
@@ -216,7 +221,9 @@ def _parse(payload: bytes, label: str, save: bool,
     if not kept:
         st.error("No capacitor has enough complete readings to assess.")
         return None
-    return pd.concat(kept, ignore_index=True).loc[:, ["Cap_ID", "Hours", *present]], None, label
+    combined = pd.concat(kept, ignore_index=True)
+    recorded = conditions.recorded_columns(combined)  # operating conditions go to the model as well
+    return combined.loc[:, ["Cap_ID", "Hours", *present, *recorded]], None, label
 
 
 @st.cache_data(show_spinner="Assessing capacitors…", max_entries=8)
@@ -307,12 +314,16 @@ def _fleet_table(results: dict, truth: dict | None, limits: dict | None = None) 
                                               if has_rul else f"Needs {MIN_READINGS} readings"),
             "Predicted end-of-life age (h)": last["Hours"] + last["RUL_median_h"] if has_rul else np.nan,
         }
+        row.update(conditions.summary_columns(results[device][0]))
         if truth:
             # The simulated truth uses the default limits; it does not apply once a user changes them.
             default = limits is None or limits.get(str(device)) == full_limits()
             row["Simulated true end of life (h)"] = truth[device]["eol_h"] if default else np.nan
         rows.append(row)
-    return pd.DataFrame(rows)
+    frame = pd.DataFrame(rows)
+    # Condition columns only when some capacitor has them.
+    return frame.drop(columns=[column for column in ("Temperature (°C)", "Voltage / rated", "Ripple / rated")
+                               if frame[column].isna().all()])
 
 
 # Mid-tone status colours that read on both the light and the dark theme.
@@ -573,12 +584,18 @@ def _model_card(measured: tuple[str, ...]) -> None:
     st.markdown(
         f"- **Network:** a GRU (recurrent neural network) reads up to the last {meta['window']} readings. Each "
         "indicator enters as the fraction of its limit already used, with a flag saying whether it was measured "
-        "and the limit it is measured against, plus the capacitor's age and the time between readings. During training, indicators were hidden at "
-        "random, so the same network predicts from any combination of them. It outputs the 10th, 50th and 90th "
-        "percentiles of remaining life.\n"
+        "and the limit it is measured against, plus the capacitor's age and the time between readings, and the "
+        "operating conditions recorded with each reading: core and ambient temperature, applied over rated "
+        "voltage, ripple over rated ripple current and operating frequency (the latest ones are taken to "
+        "continue). During training, indicators and conditions were hidden at random, so the same network "
+        "predicts from any combination of them. It outputs the 10th, 50th and 90th percentiles of remaining "
+        "life.\n"
         f"- **Training data:** {fleets['train']['capacitors']:,} simulated capacitors "
         f"({fleets['train']['predictions']:,} prediction points) from a physics-inspired simulator: "
-        "temperature-accelerated electrolyte loss lowers capacitance and raises ESR; leakage current generates "
+        "electrolyte loss, which speeds up about 2× for every 10 °C of core temperature and with the cube of "
+        "applied over rated voltage, lowers capacitance and raises ESR; ripple current heats the core (less at "
+        "higher operating frequencies, where ESR is lower), and 40% of the capacitors change operating conditions "
+        "part-way through life; leakage current generates "
         "hydrogen by Faraday's law; retained hydrogen raises internal pressure and bulges the case. "
         "Coefficients are illustrative, not fitted to a real capacitor series.\n"
         "- **End of life:** the first parameter to reach the limit you set. Defaults: capacitance loss "
@@ -606,7 +623,10 @@ def _model_card(measured: tuple[str, ...]) -> None:
                 "True RUL inside 80% range": metrics.get("interval_coverage"),
                 "Typical 80% range width (h)": metrics.get("median_interval_width_h")}
 
-    rows = [row("Neural network (GRU), these parameters", neural)]
+    rows = [row("Neural network (GRU), these parameters, with operating conditions", neural)]
+    bare = meta.get("test_metrics_by_subset_without_conditions", {}).get(key)
+    if bare:
+        rows.append(row("Neural network (GRU), these parameters, without operating conditions", bare))
     custom = meta.get("test_metrics_by_subset_custom_limits", {}).get(key)
     if custom:
         rows.append(row("Neural network (GRU), these parameters, random limits", custom))
@@ -635,6 +655,59 @@ def _parameter_note(measured: tuple[str, ...], device: str | None = None) -> Non
             f"Not in this data: {_names(missing)}. With these parameters, the model's typical error on simulated "
             f"test capacitors is {accuracy['median_absolute_error_h']:,.0f} h "
             f"({accuracy['median_relative_error']:.0%} of remaining life), and its 80% range is wider to match.")
+
+
+def _show_notes(notes) -> None:
+    for level, message in notes:
+        {"error": st.error, "warning": st.warning}.get(level, st.caption)(message)
+
+
+def _operating_conditions(device: str, readings: pd.DataFrame, measured: tuple[str, ...], limits: dict,
+                          last: pd.Series) -> None:
+    """Recorded conditions, a judgement of how stressful they are, and planned conditions to try."""
+    st.markdown(f"**Operating conditions for {device}**")
+    recorded = conditions.latest(readings)
+    columns = conditions.recorded_columns(readings)
+    if columns:
+        changes = [column for column in columns if readings[column].dropna().nunique() > 1]
+        st.caption(f"Latest recorded: {conditions.describe(recorded)}."
+                   + (" They changed during the history; the model reads them at every reading."
+                      if changes else "") + " The model takes the latest conditions to continue.")
+        _show_notes(conditions.stress_notes(recorded))
+    else:
+        st.caption("No operating conditions in this data, so the model predicts from the parameters alone. Add "
+                   "`Ambient_C`, `Core_C`, `Voltage_V`, `Rated_V`, `Ripple_A`, `Rated_Ripple_A` and `Ripple_Hz` "
+                   "columns, or try planned conditions below.")
+    has_rul = "RUL_median_h" in last and pd.notna(last.get("RUL_median_h")) and not bool(last["End_of_life_reached"])
+    if not has_rul:
+        return
+    with st.expander("Try different operating conditions from now on"):
+        st.caption("Enter the conditions you plan to run this capacitor at. The model predicts remaining life as if "
+                   "they apply from the latest reading on; the history is unchanged."
+                   + (" The core temperature is moved with the ambient temperature and ripple heating."
+                      if np.isfinite(recorded.get("Core_C", np.nan)) else ""))
+        boxes = st.columns(3)
+        planned = {}
+        for index, (column, label, unit, step) in enumerate(conditions.PLANNED_INPUTS):
+            value = recorded.get(column, np.nan)
+            planned[column] = boxes[index % 3].number_input(
+                f"{label} ({unit})", min_value=0.0, step=step, key=f"caplife_six_plan_{device}_{column}",
+                value=float(value) if np.isfinite(value) else None, placeholder="Not recorded")
+        given = {column: value for column, value in planned.items() if value is not None}
+        same = all(np.isclose(given.get(column, np.nan), recorded.get(column, np.nan), equal_nan=True)
+                   for column in CONDITION_COLUMNS if column != "Core_C")
+        if not given or same:
+            st.caption("Change a value to see its effect on remaining life.")
+            return
+        changed = conditions.with_planned(readings, given)
+        planned_last = _model().assess(changed, measured, limits).iloc[-1]
+        cards = st.columns(3)
+        delta = planned_last["RUL_median_h"] - last["RUL_median_h"]
+        cards[0].metric("Remaining life with planned conditions", _hours(planned_last["RUL_median_h"]),
+                        f"{delta:+,.0f} h", delta_color="normal")
+        cards[1].metric("80% range", f"{_short(planned_last['RUL_low_h'])}–{_short(planned_last['RUL_high_h'])} h")
+        cards[2].metric("With recorded conditions", _hours(last["RUL_median_h"]))
+        _show_notes(conditions.stress_notes(conditions.latest(changed)))
 
 
 def render() -> None:
@@ -674,7 +747,11 @@ def render() -> None:
               "Remaining life, median (h)": st.column_config.NumberColumn(format="%.0f"),
               "Predicted end-of-life age (h)": st.column_config.NumberColumn(format="%.0f"),
               "Latest reading (h)": st.column_config.NumberColumn(format="%.0f"),
-              "Overall health (%)": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%d%%")}
+              "Overall health (%)": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%d%%"),
+              "Temperature (°C)": st.column_config.NumberColumn(format="%.0f", help="Latest core temperature, or "
+                                                                "ambient where core was not recorded."),
+              "Voltage / rated": st.column_config.NumberColumn(format="percent"),
+              "Ripple / rated": st.column_config.NumberColumn(format="percent")}
     if truth:
         config["Simulated true end of life (h)"] = st.column_config.NumberColumn(format="%.0f")
     table(fleet, hide_index=True, width="stretch", column_config=config)
@@ -690,6 +767,7 @@ def render() -> None:
         _parameter_note(measured, device)
     limits = _limit_inputs(str(device), measured, devices)
     last = assessment.iloc[-1]
+    _operating_conditions(str(device), readings, measured, limits, last)
     default_limits = limits == full_limits()
     if bool(last["End_of_life_reached"]):
         st.error(_end_of_life_message(assessment))

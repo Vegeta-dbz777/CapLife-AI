@@ -5,7 +5,15 @@ mechanisms described in the AEC literature, but every coefficient is chosen for
 illustration and none is calibrated against a real capacitor series:
 
 - Aging rate doubles for every 10 °C of core temperature (Arrhenius rule of
-  thumb) and rises with applied voltage. Ripple current heats the core.
+  thumb, for a 105 °C series) and rises with the cube of applied voltage over
+  rated voltage. Ripple current heats the core by about 12 K at the rated ripple
+  current; at higher operating frequencies ESR is lower, so the same current
+  heats less (up to 1.4 times the rated current for the same heating at
+  10 kHz and above).
+- Each capacitor has its own rated voltage, rated ripple current, operating
+  frequency, ambient temperature, applied voltage and ripple current, and 40%
+  of capacitors move to new operating conditions part-way through life. Every
+  inspection records the conditions in effect at that time.
 - Electrolyte loss lowers capacitance and raises ESR.
 - Leakage current grows with aging. A fraction of it electrolyses water and
   generates hydrogen (Faraday's law: 0.116 mL of H₂ at STP per ampere-second).
@@ -70,16 +78,51 @@ EXPANSION_NOISE_UM = 0.25  # standard deviation of a precise laser displacement 
 NOISE = {"Capacitance_uF": 0.003, "ESR_ohm": 0.015, "Leakage_uA": 0.03, "H2_Generated_mL_STP": 0.02}
 
 
+CONDITION_COLUMNS = ("Ambient_C", "Core_C", "Voltage_V", "Rated_V", "Ripple_A", "Rated_Ripple_A", "Ripple_Hz")
+RATED_VOLTAGES = (16.0, 25.0, 35.0, 50.0, 63.0, 100.0, 160.0, 250.0, 400.0, 450.0)
+RATED_TEMP_C = 105.0
+CHANGE_SHARE = 0.4  # share of capacitors whose operating conditions change part-way through life
+
+
+def frequency_multiplier(hz):
+    """Allowed ripple current relative to the rated (120 Hz) value: 1 at 120 Hz, 1.4 from 10 kHz."""
+    return 1 + 0.4 * np.clip(np.log10(np.asarray(hz, dtype=float) / 120) / 2, 0, 1)
+
+
+def operating_stress(ambient_c, voltage_ratio, ripple_ratio, hz):
+    """Core temperature and aging acceleration (1 at rated conditions without ripple heating)."""
+    core = np.asarray(ambient_c, dtype=float) + 12 * (np.asarray(ripple_ratio, dtype=float)
+                                                     / frequency_multiplier(hz)) ** 2
+    return core, 2 ** ((core - RATED_TEMP_C) / 10) * np.asarray(voltage_ratio, dtype=float) ** 3
+
+
+def _operating(rng: np.random.Generator) -> tuple[float, float, float]:
+    """Ambient temperature, applied/rated voltage and ripple/rated ripple current."""
+    return rng.uniform(60, 105), rng.uniform(0.5, 1.0), rng.uniform(0.2, 1.3)
+
+
 def _device(rng: np.random.Generator) -> dict:
-    ambient = rng.uniform(70, 105)
-    ripple = rng.uniform(0.2, 1.2)  # ratio of rated ripple current
-    voltage = rng.uniform(0.6, 1.0)  # ratio of rated voltage
-    core = ambient + 12 * ripple ** 2
-    acceleration = 2 ** ((core - 105) / 10) * voltage ** 3
-    return {
+    ambient, voltage, ripple = _operating(rng)
+    hz = 120.0 if rng.random() < 0.45 else float(np.exp(rng.uniform(np.log(1e3), np.log(1e5))))
+    core, acceleration = (float(v) for v in operating_stress(ambient, voltage, ripple, hz))
+    # Hours for the electrolyte-loss coordinate to reach 1 at rated conditions.
+    tau_rated = 4000 * rng.lognormal(0, 0.25)
+    device = {
         "ambient_C": ambient, "ripple_ratio": ripple, "voltage_ratio": voltage, "core_C": core,
-        # Hours for the electrolyte-loss coordinate to reach 1 at rated conditions.
-        "tau_h": 4000 * rng.lognormal(0, 0.25) / acceleration,
+        "ripple_Hz": hz, "rated_V": float(rng.choice(RATED_VOLTAGES)),
+        "rated_ripple_A": float(rng.lognormal(np.log(1.5), 0.5)),
+        "tau_h": tau_rated / acceleration, "change_h": np.inf,
+    }
+    if rng.random() < CHANGE_SHARE:
+        ambient2, voltage2, ripple2 = _operating(rng)
+        core2, acceleration2 = (float(v) for v in operating_stress(ambient2, voltage2, ripple2, hz))
+        device.update(change_h=float(rng.uniform(0.15, 0.7) * device["tau_h"]), ambient2_C=ambient2,
+                      voltage2_ratio=voltage2, ripple2_ratio=ripple2, core2_C=core2, tau2_h=tau_rated / acceleration2)
+    else:
+        device.update(ambient2_C=ambient, voltage2_ratio=voltage, ripple2_ratio=ripple, core2_C=core,
+                      tau2_h=device["tau_h"])
+    return {
+        **device,
         "capacitance_uF": 1000 * rng.normal(1, 0.05),
         "esr_ohm": 0.08 * rng.normal(1, 0.08),
         "leakage_uA": 8 * rng.lognormal(0, 0.2),
@@ -94,14 +137,28 @@ def _device(rng: np.random.Generator) -> dict:
     }
 
 
+def conditions_at(device: dict, hours: np.ndarray) -> dict[str, np.ndarray]:
+    """Operating conditions in effect at each age (the second set from ``change_h`` on)."""
+    later = np.asarray(hours, dtype=float) >= device["change_h"]
+    pick = lambda first, second: np.where(later, device[second], device[first])
+    voltage, ripple = pick("voltage_ratio", "voltage2_ratio"), pick("ripple_ratio", "ripple2_ratio")
+    return {"Ambient_C": pick("ambient_C", "ambient2_C"), "Core_C": pick("core_C", "core2_C"),
+            "Voltage_V": voltage * device["rated_V"], "Rated_V": np.full(later.shape, device["rated_V"]),
+            "Ripple_A": ripple * device["rated_ripple_A"],
+            "Rated_Ripple_A": np.full(later.shape, device["rated_ripple_A"]),
+            "Ripple_Hz": np.full(later.shape, device["ripple_Hz"]), "voltage_ratio": voltage}
+
+
 def _state(device: dict, hours: np.ndarray) -> dict[str, np.ndarray]:
     """Noise-free indicators at the given ages, plus cumulative H2 by trapezoids."""
-    loss = hours / device["tau_h"]
+    before = np.minimum(hours, device["change_h"])
+    loss = before / device["tau_h"] + (hours - before) / device["tau2_h"]
+    conditions = conditions_at(device, hours)
     capacitance = device["capacitance_uF"] * (1 - 0.2 * (device["c_rate"] * loss) ** device["c_shape"])
     esr = device["esr_ohm"] * (1 + device["esr_gain"] * loss ** 2 / (1 - 0.3 * np.minimum(loss, 2.5)))
     leakage = device["leakage_uA"] * (1 + 3 * device["leak_gain"] * loss ** 2)
     # Leakage at the operating core temperature drives gas generation.
-    operating_leakage_a = leakage * 1e-6 * 2 ** ((device["core_C"] - 25) / 20) * device["voltage_ratio"]
+    operating_leakage_a = leakage * 1e-6 * 2 ** ((conditions["Core_C"] - 25) / 20) * conditions["voltage_ratio"]
     rate_ml_per_h = FARADAY_ML_PER_AS * operating_leakage_a * 3600 * device["h2_efficiency"]
     h2 = np.concatenate([[0.0], np.cumsum(np.diff(hours) * (rate_ml_per_h[1:] + rate_ml_per_h[:-1]) / 2)])
     retained = h2 * device["retained_fraction"]
@@ -146,7 +203,7 @@ def simulate_device(rng: np.random.Generator, cap_id: str, fine_step_h: float = 
     while True:
         device = _device(rng)
         # Long enough for the loosest limits; coarser steps for very slow capacitors keep it small.
-        horizon = 12 * device["tau_h"]
+        horizon = 12 * max(device["tau_h"], device["tau2_h"])
         step = max(fine_step_h, horizon / 40000)
         fine = np.arange(0, horizon + step, step)
         truth = _state(device, fine)
@@ -183,6 +240,14 @@ def simulate_device(rng: np.random.Generator, cap_id: str, fine_step_h: float = 
         else:
             values += rng.normal(0, 0.4, len(values))
         frame[name] = values
+    conditions = conditions_at(device, times)
+    frame["Ambient_C"] = np.round(conditions["Ambient_C"] + rng.normal(0, 0.3, len(times)), 1)
+    frame["Core_C"] = np.round(conditions["Core_C"] + rng.normal(0, 0.5, len(times)), 1)
+    frame["Voltage_V"] = np.round(conditions["Voltage_V"], 2)
+    frame["Rated_V"] = conditions["Rated_V"]
+    frame["Ripple_A"] = np.round(conditions["Ripple_A"] * (1 + rng.normal(0, 0.01, len(times))), 3)
+    frame["Rated_Ripple_A"] = np.round(conditions["Rated_Ripple_A"], 3)
+    frame["Ripple_Hz"] = np.round(conditions["Ripple_Hz"], 0)
     frame.loc[0, "H2_Generated_mL_STP"] = 0.0
     frame.loc[0, "Case_Expansion_um"] = 0.0
     frame["H2_Generated_mL_STP"] = frame["H2_Generated_mL_STP"].clip(lower=0).cummax()

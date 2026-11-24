@@ -16,7 +16,11 @@ landmarks train the models, weighted so every capacitor counts equally.
 Calibration and testing use one landmark per capacitor, chosen from its ID and
 not its outcome, so their checks stay independent. Forecasts are made at each
 capacitor's latest reading. The parameters used are those every capacitor with
-an outcome has measured at least three times, from one to all six.
+an outcome has measured at least three times, from one to all six. Operating
+conditions (core and ambient temperature, applied over rated voltage, ripple
+over rated ripple current, operating frequency) join the features when every
+capacitor with an outcome has them recorded, at the value in effect at each
+landmark.
 """
 from __future__ import annotations
 
@@ -34,6 +38,7 @@ from caplife.six_indicator_validation import (
 )
 from caplife.remaining_time_validation import QUANTILES, duration_scores
 from caplife.survival import fit_duration
+from caplife.six_rul import CONDITION_LABELS, CONDITIONS, condition_values
 
 SPLIT_BY_EXPERIMENT = "experiment"
 SPLIT_BY_DEVICE = "device"
@@ -66,13 +71,29 @@ FEATURE_LABELS = {
     **{f"{signal}_change": f"{_name(signal)} change" for signal in SIGNALS},
     **{f"{signal}_rate_per_h": f"{_name(signal)} rate" for signal in SIGNALS},
     "age_since_first_h": "time since the first reading",
+    **{condition: CONDITION_LABELS[condition].lower() for condition in CONDITIONS},
 }
 MIN_READINGS = 3  # a landmark needs the first reading and two more
 
 
-def features_for(signals: tuple[str, ...]) -> tuple[str, ...]:
+def features_for(signals: tuple[str, ...], conditions: tuple[str, ...] = ()) -> tuple[str, ...]:
     return (*(f"{signal}_change" for signal in signals), *(f"{signal}_rate_per_h" for signal in signals),
-            "age_since_first_h")
+            "age_since_first_h", *conditions)
+
+
+def _condition_inputs(history: pd.DataFrame) -> pd.DataFrame:
+    """Operating conditions at every reading as model inputs (frequency on a log scale)."""
+    values = condition_values(history)
+    return values.assign(frequency=np.log10(values["frequency"]))
+
+
+def conditions_for(readings: pd.DataFrame, devices) -> tuple[str, ...]:
+    """Operating conditions recorded for every one of these capacitors (carried forward between readings)."""
+    groups = [readings.loc[readings["Cap_ID"].eq(device)] for device in devices]
+    if not groups:
+        return ()
+    found = [condition_values(group) for group in groups]
+    return tuple(condition for condition in CONDITIONS if all(values[condition].notna().all() for values in found))
 
 
 def signals_for(readings: pd.DataFrame, devices) -> tuple[str, ...]:
@@ -88,7 +109,8 @@ def signals_for(readings: pd.DataFrame, devices) -> tuple[str, ...]:
     return tuple(chosen)
 
 
-def landmarks(history: pd.DataFrame, signals: tuple[str, ...]) -> list[tuple[float, np.ndarray]] | str:
+def landmarks(history: pd.DataFrame, signals: tuple[str, ...],
+              conditions: tuple[str, ...] = ()) -> list[tuple[float, np.ndarray]] | str:
     """Features at every reading from the third onward, each from readings up to it; or why there are none.
 
     Changes are measured from the first reading with every parameter (capacitance as % loss, ESR as % rise,
@@ -110,6 +132,10 @@ def landmarks(history: pd.DataFrame, signals: tuple[str, ...]) -> list[tuple[flo
         if len(hours) < MIN_READINGS:
             return "Recorded ESR test conditions change before the third reading"
     measured = complete.loc[:, list(signals)].to_numpy(dtype=float)[:len(hours)]
+    operating = _condition_inputs(complete).loc[:, list(conditions)].to_numpy(dtype=float)[:len(hours)]
+    if conditions and not np.isfinite(operating).all():
+        return "Operating conditions are not recorded: " + ", ".join(
+            FEATURE_LABELS[condition] for condition, ok in zip(conditions, np.isfinite(operating).all(axis=0)) if not ok)
     change = measured - measured[0]
     for index, signal in enumerate(signals):
         if signal == "Capacitance_uF":
@@ -120,7 +146,8 @@ def landmarks(history: pd.DataFrame, signals: tuple[str, ...]) -> list[tuple[flo
     for k in range(MIN_READINGS - 1, len(hours)):
         recent = slice(k - 2, k + 1)
         rate = np.polyfit(hours[recent] - hours[k], change[recent], 1)[0]
-        found.append((float(hours[k]), np.concatenate([change[k], np.atleast_1d(rate), [hours[k] - hours[0]]])))
+        found.append((float(hours[k]), np.concatenate([change[k], np.atleast_1d(rate), [hours[k] - hours[0]],
+                                                       operating[k]])))
     return found
 
 
@@ -152,13 +179,14 @@ def _labels(outcomes: pd.DataFrame) -> pd.DataFrame:
     return labels
 
 
-def all_landmarks(readings: pd.DataFrame, labels: pd.DataFrame, signals: tuple[str, ...]) -> tuple[pd.DataFrame, dict]:
+def all_landmarks(readings: pd.DataFrame, labels: pd.DataFrame, signals: tuple[str, ...],
+                  conditions: tuple[str, ...] = ()) -> tuple[pd.DataFrame, dict]:
     """Every usable landmark of every capacitor with an outcome, with its remaining-time bounds."""
-    features = features_for(signals)
+    features = features_for(signals, conditions)
     by_device = {device: group for device, group in readings.groupby("Cap_ID", sort=False)}
     rows, dropped = [], {}
     for label in labels.itertuples(index=False):
-        found = landmarks(by_device[label.Cap_ID], signals)
+        found = landmarks(by_device[label.Cap_ID], signals, conditions)
         if isinstance(found, str):
             dropped[label.Cap_ID] = found
             continue
@@ -185,6 +213,7 @@ def all_landmarks(readings: pd.DataFrame, labels: pd.DataFrame, signals: tuple[s
         "devices_excluded": dropped,
         "experiments": sorted(str(value) for value in labels["Experiment_ID"].unique()),
         "parameters": list(signals),
+        "operating_conditions": list(conditions),
     }
 
 
@@ -208,7 +237,8 @@ def fit_candidates(train: pd.DataFrame, calibration: pd.DataFrame, test: pd.Data
         }
     return fitted
 
-MEASUREMENT_TEMPLATE_COLUMNS = ("Cap_ID", "Hours", *SIGNALS, "ESR_Test_Hz", "ESR_Test_Temp_C")
+MEASUREMENT_TEMPLATE_COLUMNS = ("Cap_ID", "Hours", *SIGNALS, "ESR_Test_Hz", "ESR_Test_Temp_C", "Ambient_C", "Core_C",
+                                "Voltage_V", "Rated_V", "Ripple_A", "Rated_Ripple_A", "Ripple_Hz")
 
 
 def measurement_template_csv() -> str:
@@ -336,8 +366,8 @@ def _test_table(test: pd.DataFrame, neural: dict) -> pd.DataFrame:
     })
 
 
-def _forecasts(raw: pd.DataFrame, neural: dict, train: pd.DataFrame,
-               signals: tuple[str, ...]) -> tuple[pd.DataFrame, dict, pd.DataFrame]:
+def _forecasts(raw: pd.DataFrame, neural: dict, train: pd.DataFrame, signals: tuple[str, ...],
+               conditions: tuple[str, ...] = ()) -> tuple[pd.DataFrame, dict, pd.DataFrame]:
     """Forecasts at each capacitor's latest reading, why any were withheld, and the forecast at every reading."""
     readings = validate_real_measurements(raw)
     features = neural["features"]
@@ -350,7 +380,7 @@ def _forecasts(raw: pd.DataFrame, neural: dict, train: pd.DataFrame,
         if lacking:
             withheld[device] = f"Fewer than {MIN_READINGS} readings of " + ", ".join(lacking)
             continue
-        found = landmarks(history, signals)
+        found = landmarks(history, signals, conditions)
         if isinstance(found, str):
             withheld[device] = found
             continue
@@ -435,9 +465,10 @@ def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method:
         raise RealDataValidationError(
             f"No parameter has at least {MIN_READINGS} readings for every capacitor with an outcome. Each of the six "
             "can be used, but every capacitor with an outcome needs the same parameters.")
-    features = features_for(signals)
+    conditions = conditions_for(readings, labels["Cap_ID"])
+    features = features_for(signals, conditions)
 
-    frame, audit = all_landmarks(readings, labels, signals)
+    frame, audit = all_landmarks(readings, labels, signals, conditions)
     if frame.empty:
         raise ValueError("No capacitor has the readings and follow-up needed to train a model.")
     devices = frame.loc[frame["evaluation"], ["device", "experiment"]]
@@ -462,7 +493,8 @@ def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method:
     forecasts, withheld, forecast_history = None, {}, None
     if not reasons and forecast_devices:
         unlabelled = readings.loc[~readings["Cap_ID"].isin(labelled_ids)].reset_index(drop=True)
-        forecasts, withheld, forecast_history = _forecasts(unlabelled, fitted["neural"], parts["training"], signals)
+        forecasts, withheld, forecast_history = _forecasts(unlabelled, fitted["neural"], parts["training"], signals,
+                                                           conditions)
     parts = {role: part.loc[part["evaluation"]] for role, part in parts.items()}
 
     report = {
@@ -482,6 +514,7 @@ def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method:
         "forecasts": [] if forecasts is None else forecasts.to_dict(orient="records"),
         "forecasts_withheld": withheld,
         "parameters": list(signals),
+        "operating_conditions": list(conditions),
         "training_landmarks": int(len(frame.loc[frame["role"].eq("training")])),
     }
     return {
@@ -498,5 +531,6 @@ def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method:
         "forecasts_withheld": withheld,
         "forecast_history": forecast_history,
         "parameters": signals,
+        "operating_conditions": conditions,
         "training_landmarks": report["training_landmarks"],
     }

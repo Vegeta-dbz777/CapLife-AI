@@ -3,12 +3,17 @@
 A GRU reads up to the last ``WINDOW`` readings of one capacitor. Each indicator
 is expressed as the fraction of its end-of-life limit already used, so the
 network sees how quickly health is being consumed, and carries a flag saying
-whether it was measured at all and the limit it is measured against. Limits
+whether it was measured at all and the limit it is measured against. Each
+reading also carries the operating conditions recorded with it (core and
+ambient temperature, applied over rated voltage, ripple over rated ripple
+current, operating frequency), each with a flag saying whether it was recorded.
+The conditions at the newest reading are taken to hold from then on, so a user
+can ask what happens under different planned conditions. Limits
 are the user's own (a capacitor series' tolerance): training capacitors get
 limits drawn at random from ``LIMIT_RANGES``, so the network predicts the time
 to whatever limits a user sets inside those ranges. During training, indicators
-are also hidden at random, so the network predicts from any combination of
-them. It outputs the 10th, 50th and 90th percentiles of log remaining life.
+are also hidden at random, and so are the operating conditions, so the network
+predicts from any combination of them. It outputs the 10th, 50th and 90th percentiles of log remaining life.
 
 A second GRU forecasts each indicator's path from the latest reading to end of
 life: the fraction of its limit used at 10%, 20%, ..., 100% of the remaining
@@ -48,11 +53,24 @@ EOL_CAUSES = ("capacitance", "ESR", "leakage", "expansion", "H2", "pressure")
 LIMIT_KEYS = {"Capacitance_uF": "capacitance_loss_pct", "ESR_ohm": "esr_ratio", "Leakage_uA": "leakage_ratio",
               "Case_Expansion_um": "expansion_um", "H2_Generated_mL_STP": "h2_ml",
               "Pressure_Abs_kPa": "pressure_abs_kpa"}
+# Operating conditions the networks read with every reading, and the columns each needs.
+CONDITIONS = ("core_temperature", "ambient_temperature", "voltage_ratio", "ripple_ratio", "frequency")
+CONDITION_SOURCES = {"core_temperature": ("Core_C",), "ambient_temperature": ("Ambient_C",),
+                     "voltage_ratio": ("Voltage_V", "Rated_V"), "ripple_ratio": ("Ripple_A", "Rated_Ripple_A"),
+                     "frequency": ("Ripple_Hz",)}
+CONDITION_LABELS = {"core_temperature": "Core temperature", "ambient_temperature": "Ambient temperature",
+                    "voltage_ratio": "Applied / rated voltage", "ripple_ratio": "Ripple / rated ripple current",
+                    "frequency": "Operating frequency"}
+# The ranges the simulated training capacitors cover, in the units shown to users.
+CONDITION_TRAINING_RANGES = {"core_temperature": (60.0, 125.0), "ambient_temperature": (60.0, 105.0),
+                             "voltage_ratio": (0.5, 1.0), "ripple_ratio": (0.2, 1.3), "frequency": (100.0, 100_000.0)}
 STEP_FEATURES = ("log_age", "log_gap", *(f"{signal}_used" for signal in SIGNALS),
                  *(f"{signal}_measured" for signal in SIGNALS), *(f"{signal}_limit" for signal in SIGNALS),
-                 "padding")
+                 *CONDITIONS, *(f"{condition}_recorded" for condition in CONDITIONS), "padding")
 N = len(SIGNALS)
+K = len(CONDITIONS)
 USED, MEASURED, LIMIT = slice(2, 2 + N), slice(2 + N, 2 + 2 * N), slice(2 + 2 * N, 2 + 3 * N)
+COND, COND_KNOWN = slice(2 + 3 * N, 2 + 3 * N + K), slice(2 + 3 * N + K, 2 + 3 * N + 2 * K)
 # The trend forecast gives each indicator at 10%, 20%, ..., 100% of the remaining life.
 HORIZON_POINTS = 10
 HORIZON_FRACTIONS = np.arange(1, HORIZON_POINTS + 1) / HORIZON_POINTS
@@ -175,6 +193,40 @@ def current_limit_used(readings: pd.DataFrame, limits: dict | None = None) -> pd
     }, index=readings.index)
 
 
+def condition_values(readings: pd.DataFrame) -> pd.DataFrame:
+    """Each operating condition at every reading in user units (NaN where it cannot be worked out).
+
+    A condition recorded at some readings carries forward (and back to the first reading), since
+    operating conditions hold until they are changed.
+    """
+    column = lambda name: (pd.to_numeric(readings[name], errors="coerce") if name in readings
+                           else pd.Series(np.nan, index=readings.index))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        values = pd.DataFrame({
+            "core_temperature": column("Core_C"), "ambient_temperature": column("Ambient_C"),
+            "voltage_ratio": column("Voltage_V") / column("Rated_V"),
+            "ripple_ratio": column("Ripple_A") / column("Rated_Ripple_A"), "frequency": column("Ripple_Hz"),
+        }, index=readings.index)
+    values = values.where(np.isfinite(values))
+    values.loc[:, "frequency"] = values["frequency"].where(values["frequency"] > 0)
+    return values.ffill().bfill()
+
+
+def condition_features(values: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    """Network inputs for ``condition_values``: scaled values (0 where unknown) and recorded flags."""
+    scaled = np.column_stack([(values["core_temperature"] - 85) / 20, (values["ambient_temperature"] - 85) / 20,
+                              values["voltage_ratio"] - 0.75, values["ripple_ratio"] - 0.75,
+                              np.log10(values["frequency"] / 120) / 3])
+    known = np.isfinite(scaled)
+    return np.where(known, scaled, 0.0), known.astype(float)
+
+
+def conditions_outside_training(values: pd.Series) -> list[str]:
+    """Recorded conditions outside the ranges the model was trained on (labels)."""
+    return [CONDITION_LABELS[name] for name, (low, high) in CONDITION_TRAINING_RANGES.items()
+            if np.isfinite(values.get(name, np.nan)) and not low * 0.98 <= values[name] <= high * 1.02]
+
+
 def sequences(readings: pd.DataFrame, measured: tuple[str, ...] | None = None,
               limits: dict | None = None) -> np.ndarray:
     """One ``WINDOW`` × features array per reading from the third onward, using only past readings.
@@ -187,9 +239,10 @@ def sequences(readings: pd.DataFrame, measured: tuple[str, ...] | None = None,
     age = (readings["Hours"] - readings["Hours"].iloc[0]).to_numpy(dtype=float)
     gap = np.concatenate([[0.0], np.diff(age)])
     past, newest = (np.nan_to_num(values) * mask for values in _network_inputs(readings, limits))
+    conditions, recorded = condition_features(condition_values(readings))
     steps = np.column_stack([np.log1p(age / 1000), np.log1p(gap / 1000), past,
                              np.tile(mask, (len(age), 1)), np.tile(limit_features(limits) * mask, (len(age), 1)),
-                             np.zeros(len(age))])
+                             conditions, recorded, np.zeros(len(age))])
     windows = []
     for end in range(MIN_READINGS - 1, len(steps)):
         window = steps[max(0, end - WINDOW + 1):end + 1].copy()
@@ -202,10 +255,11 @@ def sequences(readings: pd.DataFrame, measured: tuple[str, ...] | None = None,
     return np.asarray(windows, dtype=np.float32).reshape(-1, WINDOW, len(STEP_FEATURES))
 
 
-def hide_indicators(x: np.ndarray, keep: np.ndarray) -> np.ndarray:
+def hide_indicators(x: np.ndarray, keep: np.ndarray, keep_conditions: np.ndarray | None = None) -> np.ndarray:
     """Copy of full-indicator sequences with unkept indicators zeroed and flagged as not measured.
 
-    ``keep`` is (n, len(SIGNALS)) booleans, one row per sequence.
+    ``keep`` is (n, len(SIGNALS)) booleans, one row per sequence; ``keep_conditions`` (n, len(CONDITIONS))
+    likewise hides operating conditions (default: all kept).
     """
     hidden = x.copy()
     real = hidden[:, :, -1:] == 0  # padding rows stay all zero
@@ -213,7 +267,24 @@ def hide_indicators(x: np.ndarray, keep: np.ndarray) -> np.ndarray:
     hidden[:, :, USED] *= keep
     hidden[:, :, LIMIT] *= keep
     hidden[:, :, MEASURED] = keep * real
+    if keep_conditions is not None:
+        keep_conditions = keep_conditions[:, None, :].astype(hidden.dtype)
+        hidden[:, :, COND] *= keep_conditions
+        hidden[:, :, COND_KNOWN] *= keep_conditions
     return hidden
+
+
+def no_conditions(n: int) -> np.ndarray:
+    return np.zeros((n, K), dtype=bool)
+
+
+def _random_condition_masks(rng: np.random.Generator, n: int) -> np.ndarray:
+    """Training mix: 35% every condition recorded, 30% none, 35% each recorded with probability 1/2."""
+    masks = rng.random((n, K)) < 0.5
+    choice = rng.random(n)
+    masks[choice < 0.35] = True
+    masks[(choice >= 0.35) & (choice < 0.65)] = False
+    return masks
 
 
 def _subset_mask(subset) -> np.ndarray:
@@ -357,7 +428,7 @@ def _to_hours(values: np.ndarray) -> np.ndarray:
 def _fit(net: nn.Module, loss_fn, x_train, target_train, x_val, target_val, rng, epochs: int):
     """Adam with plateau learning-rate decay and early stopping on a fixed validation mix."""
     keep_val = _random_masks(rng, len(x_val))
-    x_v = torch.from_numpy(hide_indicators(x_val, keep_val))
+    x_v = torch.from_numpy(hide_indicators(x_val, keep_val, _random_condition_masks(rng, len(x_val))))
     t_v, k_v = torch.from_numpy(target_val), torch.from_numpy(keep_val)
     t_t = torch.from_numpy(target_train)
     optimizer = torch.optim.Adam(net.parameters(), lr=3e-3)
@@ -365,8 +436,9 @@ def _fit(net: nn.Module, loss_fn, x_train, target_train, x_val, target_val, rng,
     best, best_state, stale, best_epoch = math.inf, None, 0, 0
     for epoch in range(epochs):
         net.train()
-        keep = _random_masks(rng, len(x_train))  # new hidden indicators every epoch
-        x_t, k_t = torch.from_numpy(hide_indicators(x_train, keep)), torch.from_numpy(keep)
+        keep = _random_masks(rng, len(x_train))  # new hidden indicators and conditions every epoch
+        x_t = torch.from_numpy(hide_indicators(x_train, keep, _random_condition_masks(rng, len(x_train))))
+        k_t = torch.from_numpy(keep)
         for batch in torch.from_numpy(rng.permutation(len(x_t))).split(512):
             optimizer.zero_grad()
             loss = loss_fn(net(x_t[batch]), t_t[batch], k_t[batch])
@@ -430,21 +502,29 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
     # calibration capacitor keeps the scores independent; near a limit every such reading is used.
     cal = data["calibration"]
     pick = np.array([rng.choice(np.flatnonzero(cal["devices"] == device)) for device in np.unique(cal["devices"])])
-    adjustments, near_adjustments, by_subset, custom_by_subset = {}, {}, {}, {}
+    # Each capacitor is scored twice, with all operating conditions recorded and with none, so the
+    # ranges hold whether or not a user records them.
+    adjustments, near_adjustments, by_subset, custom_by_subset, bare_by_subset = {}, {}, {}, {}, {}
+    n_cal = len(cal["x"])
     for subset in SUBSETS:
-        keep = _subset_mask(subset)
-        x_cal = hide_indicators(cal["x"], np.tile(keep, (len(cal["x"]), 1)))
+        keep = np.tile(_subset_mask(subset), (n_cal, 1))
+        x_cal = np.concatenate([hide_indicators(cal["x"], keep), hide_indicators(cal["x"], keep, no_conditions(n_cal))])
         q_cal = _predict(net, x_cal)
-        scores = np.maximum(q_cal[:, 0] - cal["y"], cal["y"] - q_cal[:, 2])
+        y_cal = np.concatenate([cal["y"], cal["y"]])
+        scores = np.maximum(q_cal[:, 0] - y_cal, y_cal - q_cal[:, 2])
         near = x_cal[:, -1, USED].max(axis=1) >= NEAR_LIMIT
-        far_rows = pick[~near[pick]]
+        both = np.concatenate([pick, pick + n_cal])
+        far_rows = both[~near[both]]
         adjustment = _conformal(scores[far_rows])
         near_adjustment = _conformal(scores[near]) if near.sum() >= 30 else adjustment
         key = subset_key(subset)
         adjustments[key], near_adjustments[key] = round(adjustment, 6), round(near_adjustment, 6)
-        for name, store in (("test", by_subset), ("test_custom", custom_by_subset)):
+        for name, store, conditions in (("test", by_subset, True), ("test_custom", custom_by_subset, True),
+                                        ("test", bare_by_subset, False)):
             test = data[name]
-            x_test = hide_indicators(test["x"], np.tile(keep, (len(test["x"]), 1)))
+            n_test = len(test["x"])
+            x_test = hide_indicators(test["x"], np.tile(_subset_mask(subset), (n_test, 1)),
+                                     None if conditions else no_conditions(n_test))
             q = _predict(net, x_test)
             pad = np.where(x_test[:, -1, USED].max(axis=1) >= NEAR_LIMIT, near_adjustment, adjustment)
             store[key] = _metrics(np.exp(test["y"]) - RUL_OFFSET_H, _to_hours(q[:, 0] - pad),
@@ -453,7 +533,7 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
     # Path ranges: one additive adjustment per forecast point and indicator, from calibration
     # capacitors with the training mix of measured indicators.
     keep_cal = _random_masks(rng, len(pick))
-    p_cal = _predict(path_net, hide_indicators(cal["x"][pick], keep_cal))
+    p_cal = _predict(path_net, hide_indicators(cal["x"][pick], keep_cal, _random_condition_masks(rng, len(pick))))
     target = cal["path"][pick]
     path_adjust = np.zeros((HORIZON_POINTS, N))
     for index in range(N):
@@ -467,10 +547,11 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
         test = data[name]
         for label, subset in (("all six", SIGNALS), ("capacitance, ESR, leakage", COMMON_SUBSET)):
             keep = np.tile(_subset_mask(subset), (len(test["x"]), 1))
-            p = _predict(path_net, hide_indicators(test["x"], keep))
-            p[..., 0] -= path_adjust
-            p[..., 2] += path_adjust
-            path_metrics[f"{name}, {label}"] = _path_metrics(p, test["path"], _subset_mask(subset))
+            for suffix, conditions in (("", None), (", no operating conditions", no_conditions(len(test["x"])))):
+                p = _predict(path_net, hide_indicators(test["x"], keep, conditions))
+                p[..., 0] -= path_adjust
+                p[..., 2] += path_adjust
+                path_metrics[f"{name}, {label}{suffix}"] = _path_metrics(p, test["path"], _subset_mask(subset))
 
     # Accuracy by how close the nearest parameter already is to its limit (random-limit test capacitors).
     custom = data["test_custom"]
@@ -500,7 +581,8 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
     metadata = {
         "hidden": hidden,
         "model": f"SixRULNet GRU, hidden {hidden}, quantile outputs (10th, 50th, 90th percentile of log RUL), "
-                 "trained with randomly hidden indicators and random end-of-life limits",
+                 "trained with randomly hidden indicators and operating conditions and random end-of-life limits",
+        "conditions": list(CONDITIONS), "condition_training_ranges": CONDITION_TRAINING_RANGES,
         "trajectory_model": f"TrajectoryNet GRU, hidden {hidden}: 10th, 50th and 90th percentiles of each "
                             f"indicator's fraction of its limit at {HORIZON_POINTS} points to end of life",
         "training_data": "Simulated capacitors from caplife.six_sim; not real measurements",
@@ -522,8 +604,10 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
             "max": [round(float(v), 4) for v in train_used.max(axis=0)],
         },
         "test_metrics": {"neural_calibrated": by_subset[full], "trend_baseline": baselines[full],
-                         "neural_calibrated_custom_limits": custom_by_subset[full]},
+                         "neural_calibrated_custom_limits": custom_by_subset[full],
+                         "neural_calibrated_without_conditions": bare_by_subset[full]},
         "test_metrics_by_subset": by_subset,
+        "test_metrics_by_subset_without_conditions": bare_by_subset,
         "test_metrics_by_subset_custom_limits": custom_by_subset,
         "trend_baseline_by_subset": baselines,
         "trajectory_test_metrics": path_metrics,
@@ -557,9 +641,10 @@ class SixRULModel:
         self.near_limit = self.metadata.get("near_limit_fraction", NEAR_LIMIT)
         self.train_max = np.asarray(self.metadata["limit_used_training_range"]["max"])
 
-    def metrics_for(self, measured) -> dict:
-        """Test-fleet accuracy for this combination of measured indicators."""
-        return self.metadata["test_metrics_by_subset"][subset_key(measured)]
+    def metrics_for(self, measured, with_conditions: bool = True) -> dict:
+        """Test-fleet accuracy for this combination of measured indicators, with or without conditions."""
+        key = "test_metrics_by_subset" if with_conditions else "test_metrics_by_subset_without_conditions"
+        return self.metadata.get(key, self.metadata["test_metrics_by_subset"])[subset_key(measured)]
 
     @staticmethod
     def _prepare(readings: pd.DataFrame, measured) -> tuple[pd.DataFrame, tuple[str, ...]]:
