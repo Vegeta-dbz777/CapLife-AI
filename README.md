@@ -342,6 +342,9 @@ GRU, LSTM, and physics-aware hybrid methods on the same validated real dataset.
 3. Select entry point `app.py`, choose compatible Python version, and deploy.
 4. Share the resulting `*.streamlit.app` address with others.
 
+Optional second copy: a Hugging Face Space mirror that updates from `main` after
+every merge. Setup: [docs/huggingface-space.md](docs/huggingface-space.md).
+
 This ZIP does not deploy itself. Uploaded data are processed on the remote host;
 review data ownership, storage, provider policies, and security before asking
 external researchers to upload sensitive measurements. Streamlit Community
