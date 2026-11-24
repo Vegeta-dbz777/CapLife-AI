@@ -186,3 +186,53 @@ def test_saved_datasets_are_offered_even_without_sign_in_configured():
         app.radio(key=key).set_value("My saved datasets").run()
         assert not app.exception, app.exception
         assert any("Sign in" in i.value for i in app.info)
+
+
+def open_my_data(user=ALICE, monkeypatch=None) -> AppTest:
+    monkeypatch.setattr(accounts, "current_user", lambda: user)
+    app = run_app()
+    app.sidebar.radio(key=WORKSPACE_KEY).set_value("My saved datasets").run()
+    assert not app.exception, app.exception
+    return app
+
+
+def test_my_data_uploads_and_saves_a_monitor_dataset_without_visiting_the_page(database, monkeypatch):
+    app = open_my_data(monkeypatch=monkeypatch)
+    assert any("Nothing saved yet" in i.value for i in app.info)
+    assert app.button(key="caplife_mydata_upload_save").disabled  # nothing uploaded yet
+    measurements, _ = example_fleet()
+    app.get("file_uploader")[0].upload("bench.csv", measurements.to_csv(index=False).encode(), "text/csv").run()
+    assert app.text_input[0].value == "bench"
+    app.button(key="caplife_mydata_upload_save").click().run()
+    assert not app.exception, app.exception
+    assert any("Saved “bench” for Monitor and Predict" in s.value for s in app.success)
+    saved = database.list(ALICE["id"])
+    assert saved[["name", "kind"]].values.tolist() == [["bench", "six_parameter"]]
+    assert len(app.selectbox(key="caplife_mydata_pick").options) == 1
+    # It opens from My saved datasets on Monitor and Predict.
+    app.sidebar.radio(key=WORKSPACE_KEY).set_value("Six-parameter RUL prediction (demonstration model)").run()
+    app.radio(key="caplife_six_source").set_value("My saved datasets").run()
+    assert next(m.value for m in app.metric if m.label == "Capacitors") == "12"
+
+
+def test_my_data_saves_a_training_dataset_with_both_files(database, monkeypatch):
+    app = open_my_data(monkeypatch=monkeypatch)
+    app.radio(key="caplife_mydata_kind").set_value("train_rul").run()
+    measurements, outcomes = example_dataset()
+    uploaders = app.get("file_uploader")
+    assert len(uploaders) == 2
+    uploaders[0].upload("lab.csv", measurements.to_csv(index=False).encode(), "text/csv").run()
+    assert app.button(key="caplife_mydata_upload_save").disabled  # outcomes still missing
+    app.get("file_uploader")[1].upload("lab_outcomes.csv", outcomes.to_csv(index=False).encode(), "text/csv").run()
+    app.button(key="caplife_mydata_upload_save").click().run()
+    assert not app.exception, app.exception
+    assert database.list(ALICE["id"])["kind"].tolist() == ["train_rul"]
+
+
+def test_my_data_refuses_a_file_its_page_cannot_read(database, monkeypatch):
+    app = open_my_data(monkeypatch=monkeypatch)
+    app.get("file_uploader")[0].upload("notes.csv", b"hello,world\n1,2\n", "text/csv").run()
+    app.button(key="caplife_mydata_upload_save").click().run()
+    assert not app.exception, app.exception
+    assert any("could not be used" in e.value for e in app.error)
+    assert database.list(ALICE["id"]).empty

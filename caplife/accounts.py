@@ -179,6 +179,65 @@ def saved_picker(kind: str, key: str) -> tuple[dict[str, bytes], str] | None:
         return None
 
 
+def _check_files(kind: str, files: dict[str, bytes], name: str) -> str | None:
+    """Read the files the way their page will; returns why they cannot be used, or None."""
+    from caplife.file_reader import read_measurement_file
+    from caplife.measurement_review import read_experimental_csv
+    from caplife.real_data import RealDataValidationError, validate_real_measurements
+    from caplife.rul_workflow import read_outcomes
+    try:
+        if kind == "six_parameter":
+            validate_real_measurements(read_measurement_file(files["measurements"], name)[0])
+        else:
+            read_experimental_csv(files["measurements"])
+            read_outcomes(files["outcomes"], "hours")
+    except (RealDataValidationError, ValueError, pd.errors.ParserError, pd.errors.EmptyDataError,
+            UnicodeError) as error:
+        return str(error)
+    return None
+
+
+def _upload_dataset(user: dict, data_store: DatasetStore) -> None:
+    """Upload CSV or Excel files on My Data and save them, without going through a workspace."""
+    round_ = st.session_state.setdefault("caplife_mydata_upload_round", 0)  # a new round empties the uploaders
+    with st.container(border=True):
+        st.subheader("Upload a dataset", help="Files are checked the way their page reads them, then saved to your "
+                                              "account. Open them later from **My saved datasets** on that page.")
+        kind = st.radio("For", list(KINDS), format_func=KINDS.get, horizontal=True, key="caplife_mydata_kind",
+                        persist_state="session")
+        types = ["csv", "xlsx"]
+        if kind == "six_parameter":
+            uploads = {"measurements": st.file_uploader("Measurement file (CSV or Excel)", type=types,
+                                                        key=f"caplife_mydata_up_six_{round_}")}
+        else:
+            left, right = st.columns(2)
+            uploads = {"measurements": left.file_uploader("Measurement history (CSV or Excel)", type=types,
+                                                          key=f"caplife_mydata_up_meas_{round_}"),
+                       "outcomes": right.file_uploader("Outcomes (CSV or Excel)", type=types,
+                                                       key=f"caplife_mydata_up_out_{round_}")}
+        first = uploads["measurements"]
+        name = st.text_input("Name", value=first.name.rsplit(".", 1)[0][:80] if first else "", max_chars=80,
+                             key=f"caplife_mydata_up_name_{round_}_{first.name if first else ''}")
+        ready = all(uploads.values()) and bool(name.strip())
+        if st.button("Save dataset", type="primary", disabled=not ready, key="caplife_mydata_upload_save"):
+            files = {label: upload.getvalue() for label, upload in uploads.items()}
+            problem = _check_files(kind, files, first.name)
+            if problem:
+                st.error(f"The file could not be used: {problem}")
+                return
+            try:
+                data_store.save(user["id"], kind, name, files)
+            except StorageError as error:
+                st.error(str(error))
+                return
+            st.session_state["caplife_mydata_upload_round"] = round_ + 1
+            st.session_state["caplife_mydata_saved_note"] = f"Saved “{' '.join(name.split())}” for {KINDS[kind]}."
+            st.rerun()
+        note = st.session_state.pop("caplife_mydata_saved_note", None)
+        if note:
+            st.success(note)
+
+
 def render_my_data() -> None:
     """The My Data page: list, open and delete the signed-in user's datasets."""
     st.header("My Data")
@@ -192,25 +251,28 @@ def render_my_data() -> None:
     st.write(f"Datasets saved by **{user['email'] or user['name']}**. Only you can see them.")
     saved = data_store.list(user["id"])
     if saved.empty:
-        st.info("Nothing saved yet. Upload a dataset on **Monitor and Predict** or **Train The AI** and save it.")
+        st.info("Nothing saved yet. Upload a dataset below to keep it for later.")
     else:
         listing = pd.DataFrame({
-            "Name": saved["name"], "Type": saved["kind"].map(KINDS),
+            "Name": saved["name"], "For": saved["kind"].map(KINDS),
             "Saved": [local_time(value, viewer_timezone()) for value in saved["created_at"]],
             "Size (KB)": (saved["size_bytes"] / 1024).round(1),
         })
         table(listing, hide_index=True, width="stretch")
         labels = {int(row.id): f"{row.name} · {KINDS[row.kind]}" for row in saved.itertuples(index=False)}
-        chosen = st.selectbox("Dataset", list(labels), format_func=labels.get, key="caplife_mydata_pick", persist_state="session")
+        chosen = st.selectbox("Dataset", list(labels), format_func=labels.get, key="caplife_mydata_pick",
+                              persist_state="session")
         files = data_store.load(user["id"], chosen)
         cols = st.columns(len(files) + 1)
         for column, (label, content) in zip(cols, files.items()):
-            column.download_button(f"Download {label} CSV", content, f"{label}.csv", mime="text/csv",
+            extension = "xlsx" if content[:4] == b"PK\x03\x04" else "csv"
+            column.download_button(f"Download {label} ({extension.upper()})", content, f"{label}.{extension}",
                                    key=f"caplife_mydata_dl_{label}")
         if cols[-1].button("Delete this dataset", key="caplife_mydata_delete"):
             data_store.delete(user["id"], chosen)
             _load_cached.clear()
             st.rerun()
+    _upload_dataset(user, data_store)
     with st.expander("Delete everything"):
         st.write("Permanently remove every dataset saved to your account.")
         confirm = st.checkbox("I understand this cannot be undone", key="caplife_mydata_confirm")

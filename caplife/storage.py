@@ -20,7 +20,7 @@ from sqlalchemy import (
 MAX_DATASETS_PER_USER = 25
 MAX_FILE_BYTES = 8 * 1024 * 1024
 MAX_NAME_LENGTH = 80
-KINDS = {"six_parameter": "Six-parameter measurements", "train_rul": "Measurements and outcomes"}
+KINDS = {"six_parameter": "Monitor and Predict", "train_rul": "Train The AI"}  # the page each kind opens on
 
 _metadata = MetaData()
 datasets = Table(
