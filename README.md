@@ -155,11 +155,11 @@ the decimal commas European Excel writes, in UTF-8 or Windows encoding. Common
 column-name variations (`cap_id`, `Time (h)`, `Capacitance (uF)`, `ESR`,
 `Pressure`...) are recognised, `n/a` and `-` count as missing, and rows without
 a capacitor ID or time, with negative time, or repeating a reading are left out
-with a note rather than rejecting the file. Under **File settings**, choose the
-time unit (hours, days, weeks, months; a `Days` column converts automatically)
-and whether pressure is absolute or gauge (detected automatically when a
-capacitor's first reading is below 80 kPa). The page lists every adjustment;
-no reading is invented.
+with a note rather than rejecting the file. Time is read in hours unless the
+column name says otherwise (a `Days` or `Weeks` column converts automatically),
+and pressure is taken as absolute unless a capacitor's first reading is below
+80 kPa, which is read as gauge pressure and converted. The page lists every
+adjustment; no reading is invented.
 
 ## Run the app locally (Windows / macOS / Linux)
 

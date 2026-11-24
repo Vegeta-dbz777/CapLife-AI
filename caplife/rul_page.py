@@ -14,7 +14,7 @@ from caplife.tables import table
 
 from caplife.accounts import save_controls, saved_picker
 from caplife.measurement_review import read_experimental_csv
-from caplife.upload_ui import UPLOAD_TYPES, file_settings, show_notes
+from caplife.upload_ui import UPLOAD_TYPES, show_notes
 from caplife.real_data import RealDataValidationError
 from caplife.rul_example import example_dataset
 from caplife.versioning import code_version
@@ -315,10 +315,7 @@ def render() -> None:
     if payload is None:
         return
     measurements, outcomes = payload
-    settings = ("hours", "auto")
-    if st.session_state.get("caplife_rul_source") != EXAMPLE:
-        settings = file_settings("caplife_rul_file", time_help="The unit of the time in both files: the measurement "
-                                                               "time column and the outcome ages.")
+    settings = ("hours", "auto")  # hours unless a column says Days or Weeks; gauge pressure is detected
     try:
         outcome_frame = read_outcomes(outcomes, settings[0])
         measurement_frame = read_experimental_csv(measurements, time_unit=settings[0], pressure=settings[1])

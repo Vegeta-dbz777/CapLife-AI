@@ -237,8 +237,7 @@ def read_measurement_file(payload: bytes, filename: str | None = None, time_unit
             else:
                 shown = ", ".join(gauge[:5]) + (" …" if len(gauge) > 5 else "")
                 notes.append(f"Pressure for {len(gauge)} capacitor(s) starts far below atmospheric (101.3 kPa), so it "
-                             f"looks like gauge pressure; added 101.3 kPa to make it absolute ({shown}). Choose "
-                             "'Absolute' under File settings if that is wrong.")
+                             f"looks like gauge pressure; added 101.3 kPa to make it absolute ({shown}).")
     if frame.empty:
         raise RealDataValidationError("No usable rows: every row lacks a capacitor ID or a valid time.")
     return frame, notes
