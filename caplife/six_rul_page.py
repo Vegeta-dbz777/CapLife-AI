@@ -70,7 +70,7 @@ def _limit_text(signal: str, limits: dict | None = None) -> str:
 TEAL, ORANGE, GREY = "#2f9e8f", "#d9822b", "#8a9a9a"
 DIVIDER = "#9fb0bd"  # the latest reading: measured to the left, forecast to the right
 PURPLE = "#8e6bd8"
-RECORDED = "#4f8fe0"  # the recorded-conditions forecast (blue), next to a changed-conditions one (purple)  # forecasts: distinct from measured readings (teal) and limits (orange) in both themes
+RECORDED = "#d9a514"  # the recorded-conditions forecast (gold, opposite purple), next to a changed-conditions one  # forecasts: distinct from measured readings (teal) and limits (orange) in both themes
 INPUT_ERRORS = (RealDataValidationError, ValueError, pd.errors.ParserError,
                 pd.errors.EmptyDataError, UnicodeError)
 
@@ -517,7 +517,7 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
             bottom -= 0.12 * (top - bottom)
         scale = alt.Scale(domain=[bottom, top], zero=False, nice=False)
         number = f",.{DIGITS[signal]}f"
-        # With changed conditions, their end of life is purple and the recorded one blue.
+        # With changed conditions, their end of life is purple and the recorded one gold.
         eol_color = PURPLE if reference is not None else GREY
         window = alt.Chart(eol_range).mark_rect(color=eol_color, opacity=.14 if reference is not None else .16).encode(
             x=alt.X("from:Q", scale=hours_scale), x2="to:Q",
@@ -558,7 +558,7 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
             layers = [
                 # Each end of life's 80% range shaded in its colour (they blend where they overlap).
                 *(alt.Chart(pd.DataFrame({"from": [low], "to": [high]})).mark_rect(
-                    color=PURPLE if name == "Changed" else RECORDED, opacity=.16).encode(
+                    color=PURPLE if name == "Changed" else RECORDED, opacity=.2 if name == "Changed" else .17).encode(
                     x=alt.X("from:Q", scale=hours_scale), x2="to:Q") for name, (low, _, high) in ranges.items()),
                 now, now_label, band, history,
                 *_range_hover(ranges, hours_scale),  # above the band, below the lines and their points
@@ -971,7 +971,8 @@ def render() -> None:
             reference = (_forecast_cached(original, float(recorded_last["RUL_median_h"]),
                                           json.dumps(limits, sort_keys=True), code_version()), recorded_last)
             st.caption("Purple: forecast and end of life (shaded 80% range) with your changed operating "
-                       "conditions. Blue dotted: with the recorded conditions. Hover a shaded range for its hours.")
+                       "conditions. Gold dotted: with the recorded conditions, and its shaded range. Hover a shaded range "
+                       "for its hours.")
         _forecast_charts(readings, forecast, last, limits, zoom, reference)
     if assessment["RUL_median_h"].notna().any() if "RUL_median_h" in assessment else False:
         true_eol = truth[device]["eol_h"] if truth and default_limits and not planned.get(str(device)) else None
