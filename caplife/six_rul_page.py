@@ -69,7 +69,8 @@ def _limit_text(signal: str, limits: dict | None = None) -> str:
     return f"{value:g} kPa vent"
 TEAL, ORANGE, GREY = "#2f9e8f", "#d9822b", "#8a9a9a"
 DIVIDER = "#9fb0bd"  # the latest reading: measured to the left, forecast to the right
-PURPLE = "#8e6bd8"  # forecasts: distinct from measured readings (teal) and limits (orange) in both themes
+PURPLE = "#8e6bd8"
+RECORDED = "#6fbf73"  # the recorded-conditions forecast, next to a changed-conditions one (purple)  # forecasts: distinct from measured readings (teal) and limits (orange) in both themes
 INPUT_ERRORS = (RealDataValidationError, ValueError, pd.errors.ParserError,
                 pd.errors.EmptyDataError, UnicodeError)
 
@@ -512,9 +513,11 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
                            + ([reference[0].loc[reference[0]["signal"].eq(signal), "median"]] if reference is not None
                               else []))
         bottom, top, off_chart = _chart_domain(values, limit, DIGITS[signal])
+        if reference is not None:  # room along the bottom for the two end-of-life bars
+            bottom -= 0.25 * (top - bottom)
         scale = alt.Scale(domain=[bottom, top], zero=False, nice=False)
         number = f",.{DIGITS[signal]}f"
-        # With changed conditions, their end of life is purple and the recorded one grey.
+        # With changed conditions, their end of life is purple and the recorded one green.
         eol_color = PURPLE if reference is not None else GREY
         window = alt.Chart(eol_range).mark_rect(color=eol_color, opacity=.14 if reference is not None else .16).encode(
             x=alt.X("from:Q", scale=hours_scale), x2="to:Q",
@@ -548,31 +551,45 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
             before = reference[0].loc[reference[0]["signal"].eq(signal)]
             recorded = reference[1]
             recorded_end = latest + float(recorded["RUL_median_h"])
-            recorded_range = pd.DataFrame({"from": [latest + float(recorded["RUL_low_h"])],
-                                           "to": [latest + float(recorded["RUL_high_h"])]})
-            ends = pd.DataFrame({"Hours": [end, recorded_end], "value": [bottom, bottom],
-                                 "label": ["End of life", "Recorded"], "color": [PURPLE, GREY]})
+            height = top - bottom
+            # Each end of life's 80% range as its own bar, in its own row along the bottom, so they stay
+            # apart when they overlap in time; the vertical lines mark the medians.
+            bars = pd.DataFrame({
+                "from": [latest + float(last["RUL_low_h"]), latest + float(recorded["RUL_low_h"])],
+                "median": [end, recorded_end],
+                "to": [latest + float(last["RUL_high_h"]), latest + float(recorded["RUL_high_h"])],
+                "value": [bottom + 0.15 * height, bottom + 0.06 * height],
+                "label": ["Changed", "Recorded"],
+                "which": ["Your changed conditions", "Recorded conditions"],
+                "color": [PURPLE, RECORDED],
+            })
+            bar_tooltip = [alt.Tooltip("which:N", title="End of life with"),
+                           alt.Tooltip("median:Q", title="Median (h)", format=",.0f"),
+                           alt.Tooltip("from:Q", title="80% range from (h)", format=",.0f"),
+                           alt.Tooltip("to:Q", title="80% range to (h)", format=",.0f")]
+            color = alt.Color("color:N", scale=None)
+            y_bar = alt.Y("value:Q", scale=scale)
             layers = [
-                alt.Chart(recorded_range).mark_rect(color=GREY, opacity=.13).encode(
-                    x=alt.X("from:Q", scale=hours_scale), x2="to:Q",
-                    tooltip=[alt.Tooltip("from:Q", title="Recorded conditions: end of life from (h)", format=",.0f"),
-                             alt.Tooltip("to:Q", title="to (h)", format=",.0f")]),
-                *layers,
+                now, now_label, band, history, path, eol,
                 # Points make the thin dotted line easy to hover.
-                alt.Chart(before).mark_line(color=GREY, strokeWidth=2, strokeDash=[2, 3], clip=True,
-                                            point=alt.OverlayMarkDef(color=GREY, size=26, filled=True)).encode(
+                alt.Chart(before).mark_line(color=RECORDED, strokeWidth=2.2, strokeDash=[2, 3], clip=True,
+                                            point=alt.OverlayMarkDef(color=RECORDED, size=26, filled=True)).encode(
                     x=x, y=alt.Y("median:Q", scale=scale),
                     tooltip=[alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
                              alt.Tooltip("median:Q", title=f"{INDICATOR_LABELS[signal]}, recorded conditions",
                                          format=number)]),
                 alt.Chart(pd.DataFrame({"Hours": [recorded_end]})).mark_rule(
-                    color=GREY, strokeWidth=2.5, strokeDash=[4, 3]).encode(
+                    color=RECORDED, strokeWidth=2.5, strokeDash=[4, 3]).encode(
                     x=alt.X("Hours:Q", scale=hours_scale),
                     tooltip=[alt.Tooltip("Hours:Q", title="End of life, recorded conditions (h)", format=",.0f")]),
-                alt.Chart(ends).mark_text(align="right", baseline="bottom", dx=-4, dy=-4, fontSize=11,
+                alt.Chart(bars).mark_rule(strokeWidth=9, opacity=.75, strokeCap="round", clip=True).encode(
+                    x=alt.X("from:Q", scale=hours_scale), x2="to:Q", y=y_bar, color=color, tooltip=bar_tooltip),
+                alt.Chart(bars).mark_point(shape="diamond", filled=True, size=70, opacity=1, stroke="white",
+                                           strokeWidth=1).encode(
+                    x=alt.X("median:Q", scale=hours_scale), y=y_bar, color=color, tooltip=bar_tooltip),
+                alt.Chart(bars).mark_text(align="right", baseline="middle", dx=-8, fontSize=11,
                                           fontWeight="bold").encode(
-                    x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale), text="label:N",
-                    color=alt.Color("color:N", scale=None)),
+                    x=alt.X("from:Q", scale=hours_scale), y=y_bar, text="label:N", color=color),
             ]
         if off_chart is None:
             layers.append(alt.Chart(pd.DataFrame({"limit": [limit]})).mark_rule(color=ORANGE, strokeDash=[5, 4])
@@ -926,8 +943,9 @@ def render() -> None:
         if recorded_last is not None:
             reference = (_forecast_cached(original, float(recorded_last["RUL_median_h"]),
                                           json.dumps(limits, sort_keys=True), code_version()), recorded_last)
-            st.caption("Purple: with your changed operating conditions, and their end of life with its 80% range. "
-                       "Grey dotted: with the recorded conditions, and theirs.")
+            st.caption("Purple: forecast with your changed operating conditions. Green dotted: with the recorded "
+                       "conditions. The bars along the bottom are each one's end-of-life 80% range (◆ median); "
+                       "hover for the hours.")
         _forecast_charts(readings, forecast, last, limits, zoom, reference)
     if assessment["RUL_median_h"].notna().any() if "RUL_median_h" in assessment else False:
         true_eol = truth[device]["eol_h"] if truth and default_limits and not planned.get(str(device)) else None
