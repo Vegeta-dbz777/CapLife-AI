@@ -85,9 +85,13 @@ def test_my_data_lists_and_deletes_only_the_users_datasets(database, monkeypatch
     app = run_app()
     app.sidebar.radio(key=WORKSPACE_KEY).set_value("My saved datasets").run()
     assert not app.exception, app.exception
-    assert len(app.selectbox(key="caplife_mydata_pick").options) == 2
-    next(b for b in app.button if b.key == "caplife_mydata_delete").click().run()
+    rows = [b.key for b in app.button if b.key and b.key.startswith("caplife_mydata_remove_")]
+    assert len(rows) == 2  # one row, with its own delete button, per dataset of Alice's
+    second = int(database.list(ALICE["id"]).query("name == 'Second'")["id"].iloc[0])
+    app.button(key=f"caplife_mydata_remove_{second}").click().run()
+    assert not app.exception, app.exception
     assert database.list(ALICE["id"])["name"].tolist() == ["First"]
+    assert len([b for b in app.button if b.key and b.key.startswith("caplife_mydata_remove_")]) == 1
     app.checkbox(key="caplife_mydata_confirm").check().run()
     next(b for b in app.button if b.key == "caplife_mydata_delete_all").click().run()
     assert database.list(ALICE["id"]).empty
@@ -208,7 +212,9 @@ def test_my_data_uploads_and_saves_a_monitor_dataset_without_visiting_the_page(d
     assert any("Saved “bench” for Monitor and Predict" in s.value for s in app.success)
     saved = database.list(ALICE["id"])
     assert saved[["name", "kind"]].values.tolist() == [["bench", "six_parameter"]]
-    assert len(app.selectbox(key="caplife_mydata_pick").options) == 1
+    dataset = int(saved["id"].iloc[0])
+    assert [b.label for b in app.get("download_button") if b.key.startswith(f"caplife_mydata_dl_{dataset}_")] == \
+        ["Download"]
     # It opens from My saved datasets on Monitor and Predict.
     app.sidebar.radio(key=WORKSPACE_KEY).set_value("Six-parameter RUL prediction (demonstration model)").run()
     app.radio(key="caplife_six_source").set_value("My saved datasets").run()
@@ -227,6 +233,23 @@ def test_my_data_saves_a_training_dataset_with_both_files(database, monkeypatch)
     app.button(key="caplife_mydata_upload_save").click().run()
     assert not app.exception, app.exception
     assert database.list(ALICE["id"])["kind"].tolist() == ["train_rul"]
+    assert [b.label for b in app.get("download_button") if b.key.startswith("caplife_mydata_dl_")] == \
+        ["Measurements", "Outcomes"]  # one button per file, on the dataset's own row
+
+
+def test_my_data_saves_an_excel_workbook(database, monkeypatch):
+    import io
+    app = open_my_data(monkeypatch=monkeypatch)
+    measurements, _ = example_fleet()
+    workbook = io.BytesIO()
+    measurements.to_excel(workbook, index=False)
+    app.get("file_uploader")[0].upload("bench.xlsx", workbook.getvalue(),
+                                       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet").run()
+    app.button(key="caplife_mydata_upload_save").click().run()
+    assert not app.exception, app.exception
+    assert not app.error
+    dataset = int(database.list(ALICE["id"])["id"].iloc[0])
+    assert database.load(ALICE["id"], dataset)["measurements"] == workbook.getvalue()
 
 
 def test_my_data_refuses_a_file_its_page_cannot_read(database, monkeypatch):
