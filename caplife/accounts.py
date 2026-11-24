@@ -102,7 +102,7 @@ def saving_available() -> bool:
 def account_bar(open_my_data=None) -> None:
     """Sign-in controls in the top-right corner of every page, shown only when sign-in is configured.
 
-    Signed out: a Sign in button. Signed in: an account menu with the email, My data and Sign out.
+    Signed out: a Sign in button. Signed in: an account menu with the email, My Data and Sign out.
     """
     if not auth_configured():
         return
@@ -120,7 +120,7 @@ def account_bar(open_my_data=None) -> None:
         with st.popover(who, icon=":material/account_circle:", key="caplife_account_menu"):
             st.caption(f"Signed in as **{who}**")
             if open_my_data is not None:
-                st.button("My data", key="caplife_account_my_data", icon=":material/folder_open:",
+                st.button("My Data", key="caplife_account_my_data", icon=":material/folder_open:",
                           on_click=open_my_data, width="stretch")
             st.button("Sign out", key="caplife_sign_out", icon=":material/logout:", on_click=st.logout,
                       width="stretch")
@@ -140,7 +140,7 @@ def save_controls(kind: str, files: dict[str, bytes], default_name: str, key: st
             except StorageError as error:
                 st.error(str(error))
             else:
-                st.success(f"Saved “{name.strip()}”. Open it any time from **My data** or this page.")
+                st.success(f"Saved “{name.strip()}”. Open it any time from **My Data** or this page.")
 
 
 @st.cache_data(show_spinner=False, ttl=600, max_entries=16)
@@ -170,11 +170,11 @@ def saved_picker(kind: str, key: str) -> tuple[dict[str, bytes], str] | None:
 
 
 def render_my_data() -> None:
-    """The My data page: list, open and delete the signed-in user's datasets."""
-    st.header("My data")
+    """The My Data page: list, open and delete the signed-in user's datasets."""
+    st.header("My Data")
     user, data_store = current_user(), store()
     if user is None:
-        st.info("Sign in from the sidebar to see your saved datasets.")
+        st.info("Sign in (top right) to save datasets and see them here. Only you can see your datasets.")
         return
     if data_store is None:
         st.info("Saving is not set up on this deployment yet.")
@@ -182,7 +182,7 @@ def render_my_data() -> None:
     st.write(f"Datasets saved by **{user['email'] or user['name']}**. Only you can see them.")
     saved = data_store.list(user["id"])
     if saved.empty:
-        st.info("Nothing saved yet. Upload a dataset on **RUL prediction** or **Train RUL model** and save it.")
+        st.info("Nothing saved yet. Upload a dataset on **Monitor and Predict** or **Train The AI** and save it.")
     else:
         listing = pd.DataFrame({
             "Name": saved["name"], "Type": saved["kind"].map(KINDS),

@@ -85,14 +85,3 @@ def test_outcomes_accept_semicolons_decimal_commas_and_days():
     payload = "Cap_ID;Experiment_ID;Endpoint;Last_alive_h;Failure_by_h\nA;E1;C loss 20%;100,5;120\nB;E1;C loss 20%;90;\n"
     frame = read_outcomes(payload.encode(), time_unit="days")
     assert frame["Last_alive_h"].tolist() == ["2412", "2160"] and frame["Failure_by_h"].tolist() == ["2880", ""]
-
-
-def test_summary_withholds_esr_change_when_test_conditions_change():
-    from caplife.measurement_summary import capacitor_summary
-    from caplife.real_data import assess_real_measurements
-    rows = ROWS.assign(ESR_Test_Hz=100.0, ESR_Test_Temp_C=25.0)
-    rows.loc[(rows["Cap_ID"] == "B") & (rows["Hours"] >= 100), "ESR_Test_Hz"] = 10_000.0
-    report = assess_real_measurements(read_measurement_file(rows.to_csv(index=False).encode())[0])
-    summary = capacitor_summary(report["measurements"], report["warnings"]).set_index("Capacitor")
-    assert pd.isna(summary.loc["B", "ESR change (%)"]) and pd.notna(summary.loc["A", "ESR change (%)"])
-    assert not summary.loc["B", "Closest to its default limit"].startswith("ESR")

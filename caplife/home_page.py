@@ -8,18 +8,19 @@ from typing import Callable
 import streamlit as st
 
 CARDS = (
-    ("analyze", "📊", "Analyze measurements",
-     "Check and explore your capacitors' measurement histories: how much each health parameter changed, data "
-     "quality, degradation rates and downloadable reports.",
-     "Needs: a measurement file (CSV or Excel)."),
-    ("predict", "⏳", "RUL prediction",
-     "Health of up to six parameters against your own failure limits, and a neural network's remaining useful "
-     "life with an 80% range, plus the predicted trend of every parameter.",
+    ("monitor", "⏳", "Monitor and Predict",
+     "Health of up to six parameters against your own failure limits and operating conditions, a neural "
+     "network's remaining useful life with an 80% range, the predicted trend of every parameter, and a "
+     "downloadable report.",
      "Needs: a measurement file, or try the built-in example."),
-    ("train", "🧠", "Train RUL model",
+    ("train", "🧠", "Train The AI",
      "Train a neural network on your own tested capacitors, check it on capacitors it never saw, and forecast "
      "the rest only if it passes.",
      "Needs: a measurement file and an outcome file."),
+    ("data", "🗂️", "My Data",
+     "The datasets you saved: open them again in Monitor and Predict or Train The AI, download or delete them. "
+     "Only you can see them.",
+     "Needs: signing in (top right)."),
 )
 
 
@@ -44,6 +45,6 @@ def render(hero_image: Path, open_workspace: Callable[[str], None], workspaces: 
             st.caption(needs)
             st.button(f"Open {title} →", key=f"caplife_home_open_{key}", type="primary", width="stretch",
                       on_click=open_workspace, args=(workspaces[key],))
-    st.caption("New here? Open **Analyze measurements** and load the NASA example, or open **RUL prediction** and "
-               "choose the simulated example capacitors. The neural networks learned from simulated capacitors; "
-               "their accuracy on real capacitors has not been tested. Not a maintenance or safety tool.")
+    st.caption("New here? Open **Monitor and Predict** and choose the simulated example capacitors. The neural "
+               "networks learned from simulated capacitors; their accuracy on real capacitors has not been tested. "
+               "Not a maintenance or safety tool.")
