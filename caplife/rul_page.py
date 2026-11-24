@@ -102,7 +102,7 @@ def _interval_chart(rows: pd.DataFrame, observed: bool) -> alt.Chart:
             tooltip=[alt.Tooltip("lower:Q", title="Last seen working (h)", format=",.0f"),
                      alt.Tooltip("upper:Q", title="Found failed by (h)", format=",.0f")]))
         layers.append(alt.Chart(failed).mark_tick(thickness=3, size=14, color=OBSERVED_COLOR).encode(
-            y=y, x="upper:Q"))
+            y=y, x="upper:Q", tooltip=[alt.Tooltip("upper:Q", title="Found failed by (h)", format=",.0f")]))
         running = seen.loc[seen["upper"].isna()]
         if len(running):
             layers.append(alt.Chart(running).mark_point(shape="triangle-right", filled=True, size=70,
