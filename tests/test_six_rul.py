@@ -183,8 +183,11 @@ def test_every_parameter_combination_is_calibrated_and_tested():
     by_subset = metadata["test_metrics_by_subset"]
     assert len(by_subset) == 63 == len(metadata["conformal_adjustment_log_by_subset"])
     # Ranges are calibrated on capacitors with a mix of user limits; with the default limits they come
-    # out slightly cautious (wider), never narrow.
-    assert all(0.78 <= metrics["interval_coverage"] <= 0.93 for metrics in by_subset.values())
+    # out slightly cautious (wider), never clearly narrow. 500 calibration capacitors leave about
+    # ±1.8 points of sampling error around the 80% target.
+    assert all(0.77 <= metrics["interval_coverage"] <= 0.93 for metrics in by_subset.values())
+    bare = metadata["test_metrics_by_subset_without_conditions"]
+    assert len(bare) == 63 and all(0.77 <= m["interval_coverage"] <= 0.93 for m in bare.values())
     custom = metadata["test_metrics_by_subset_custom_limits"]
     assert len(custom) == 63 and all(0.74 <= m["interval_coverage"] <= 0.88 for m in custom.values())
     # Fewer parameters must not look more precise than all six.

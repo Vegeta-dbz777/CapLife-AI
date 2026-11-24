@@ -80,3 +80,10 @@ def test_model_predicts_shorter_life_under_harsher_planned_conditions():
                                                  "Voltage_V": recorded["Rated_V"]})
         shorter += model.assess(hot).iloc[-1]["RUL_median_h"] < base
     assert shorter >= 5
+
+
+def test_aging_rule_factor_follows_ten_degree_and_voltage_rules():
+    recorded = pd.Series({"Ambient_C": 80.0, "Core_C": 90.0, "Voltage_V": 40.0, "Rated_V": 50.0})
+    assert np.isclose(conditions.aging_rule_factor(recorded, {"Ambient_C": 70.0}), 2.0)  # 10 °C cooler: twice
+    assert np.isclose(conditions.aging_rule_factor(recorded, {"Voltage_V": 20.0}), 8.0)  # half the voltage: 2³
+    assert conditions.aging_rule_factor(pd.Series({"Voltage_V": 40.0, "Rated_V": 50.0}), {"Voltage_V": 20.0}) is None

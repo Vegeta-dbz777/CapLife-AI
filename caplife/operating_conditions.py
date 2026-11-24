@@ -62,6 +62,40 @@ def planned_core(recorded: pd.Series, planned: dict) -> float:
     return float(core)
 
 
+def _core_estimate(values: pd.Series | dict) -> float:
+    """Recorded core temperature, else ambient plus ripple heating (or ambient alone)."""
+    core = values.get("Core_C", np.nan)
+    if np.isfinite(core):
+        return float(core)
+    ambient = values.get("Ambient_C", np.nan)
+    heating = _heating(values.get("Ripple_A", np.nan), values.get("Rated_Ripple_A", np.nan),
+                       values.get("Ripple_Hz", np.nan))
+    return float(ambient + (heating if np.isfinite(heating) else 0.0))
+
+
+def aging_rule_factor(recorded: pd.Series, planned: dict) -> float | None:
+    """How much longer remaining life is under planned conditions by the standard aging rule.
+
+    Electrolyte-loss aging doubles for every 10 °C of core temperature and grows with the cube of
+    applied over rated voltage (the voltage term is used only when both are known before and after).
+    None when no temperature is known.
+    """
+    after = {**recorded.to_dict(), **{key: value for key, value in planned.items() if value is not None}}
+    core_after = planned_core(recorded, planned)
+    if np.isfinite(core_after):
+        after["Core_C"] = core_after
+    before_c, after_c = _core_estimate(recorded), _core_estimate(after)
+    if not (np.isfinite(before_c) and np.isfinite(after_c)):
+        return None
+    factor = 2 ** ((before_c - after_c) / 10)
+    ratio = lambda values: values.get("Voltage_V", np.nan) / values.get("Rated_V", np.nan)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        v_before, v_after = ratio(recorded), ratio(after)
+    if np.isfinite(v_before) and np.isfinite(v_after) and v_before > 0 and v_after > 0:
+        factor *= (v_before / v_after) ** 3
+    return float(factor)
+
+
 def with_planned(readings: pd.DataFrame, planned: dict) -> pd.DataFrame:
     """The readings with the newest reading's conditions replaced by the planned ones."""
     changed = readings.copy()
@@ -147,5 +181,5 @@ def describe(values: pd.Series) -> str:
     return ", ".join(parts)
 
 
-__all__ = ["CONDITION_LABELS", "PLANNED_INPUTS", "describe", "latest", "planned_core", "recorded_columns",
-           "stress_notes", "summary_columns", "with_planned"]
+__all__ = ["CONDITION_LABELS", "PLANNED_INPUTS", "aging_rule_factor", "describe", "latest", "planned_core",
+           "recorded_columns", "stress_notes", "summary_columns", "with_planned"]

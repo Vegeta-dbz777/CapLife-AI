@@ -701,12 +701,25 @@ def _operating_conditions(device: str, readings: pd.DataFrame, measured: tuple[s
             return
         changed = conditions.with_planned(readings, given)
         planned_last = _model().assess(changed, measured, limits).iloc[-1]
+        factor = conditions.aging_rule_factor(recorded, given)
         cards = st.columns(3)
         delta = planned_last["RUL_median_h"] - last["RUL_median_h"]
-        cards[0].metric("Remaining life with planned conditions", _hours(planned_last["RUL_median_h"]),
-                        f"{delta:+,.0f} h", delta_color="normal")
-        cards[1].metric("80% range", f"{_short(planned_last['RUL_low_h'])}–{_short(planned_last['RUL_high_h'])} h")
+        cards[0].metric("Neural network, planned conditions", _hours(planned_last["RUL_median_h"]),
+                        f"{delta:+,.0f} h", delta_color="normal",
+                        help=f"80% range {_short(planned_last['RUL_low_h'])}–{_short(planned_last['RUL_high_h'])} h")
+        if factor is not None:
+            rule = last["RUL_median_h"] * factor
+            cards[1].metric("Standard aging rule", _hours(rule), f"{rule - last['RUL_median_h']:+,.0f} h",
+                            delta_color="normal", help="The recorded-conditions prediction × "
+                            f"{factor:.2f}: aging doubles for every 10 °C of core temperature and grows with the "
+                            "cube of applied over rated voltage.")
         cards[2].metric("With recorded conditions", _hours(last["RUL_median_h"]))
+        st.caption("Two estimates. The neural network learned from simulated capacitors that changed conditions; "
+                   "it gets the direction right but understates large changes (on simulated capacitors it caught "
+                   "about two thirds of the effect, typical error 32%). The standard aging rule scales the current "
+                   "prediction by the 10 °C rule and the voltage law (typical error 20% on the same capacitors, "
+                   "which follow those laws by construction; real capacitors follow them only approximately, and "
+                   "gas-driven end of life responds less to temperature).")
         _show_notes(conditions.stress_notes(conditions.latest(changed)))
 
 

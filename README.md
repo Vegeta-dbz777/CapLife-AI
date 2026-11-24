@@ -32,50 +32,75 @@ subsequent below-threshold reading where available.
 Choose **RUL prediction** in the sidebar and upload a CSV with `Cap_ID`, `Hours`
 and any of `Capacitance_uF`, `ESR_ohm`, `Leakage_uA`, `Case_Expansion_um`,
 `H2_Generated_mL_STP` and `Pressure_Abs_kPa`, or load the simulated example
-(optionally with only capacitance, ESR and leakage). The page scores each
-measured parameter's health against its limit, and a GRU neural network
-predicts remaining useful life with a calibrated 80% range at every reading,
-using only the readings available at that time.
+(optionally with only capacitance, ESR and leakage). Operating conditions are
+optional and recommended: `Ambient_C`, `Core_C`, `Voltage_V` (applied),
+`Rated_V`, `Ripple_A`, `Rated_Ripple_A` and `Ripple_Hz` (the operating
+frequency), recorded at each reading. The page scores each measured parameter's
+health against its limit, and a GRU neural network predicts remaining useful
+life with a calibrated 80% range at every reading, using only the readings
+available at that time.
 
-The network was trained with parameters hidden at random, and each parameter
-carries a "measured" flag, so one model predicts from any combination. The 80%
-range is calibrated separately for each of the 63 combinations, so it widens
-when fewer parameters are available, and the page reports the test accuracy for
-the combination in use.
+The network reads, with every reading, core and ambient temperature, applied
+over rated voltage, ripple over rated ripple current and operating frequency,
+each with a "recorded" flag. The latest conditions are taken to continue, so
+the page can show remaining life under planned conditions ("Try different
+operating conditions from now on"), next to the standard aging rule (2× per
+10 °C of core temperature, cube of the voltage ratio) applied to the current
+prediction. The page also judges the conditions: voltage above or near rating,
+ripple above or near rating, high temperature, and conditions outside the
+training range.
+
+The network was trained with parameters and conditions hidden at random, and
+each parameter carries a "measured" flag, so one model predicts from any
+combination. The 80% range is calibrated separately for each of the 63
+parameter combinations, on capacitors scored both with and without conditions,
+so it widens when fewer parameters are available, and the page reports the test
+accuracy for the combination in use.
 
 The network was trained on 2,400 capacitors from a physics-inspired simulator
-(`caplife/six_sim.py`): temperature-accelerated electrolyte loss lowers
-capacitance and raises ESR, leakage current generates hydrogen by Faraday's
-law, and retained hydrogen raises internal pressure and bulges the case. End of
-life is the first parameter to reach its limit. Users set the six limits for
-each capacitor (a series' own tolerance); the defaults are capacitance loss of
-20%, ESR at 2× initial, leakage at 5× initial, case expansion of 52 µm, 6 mL of
+(`caplife/six_sim.py`): electrolyte loss, which speeds up 2× for every 10 °C of
+core temperature and with the cube of applied over rated voltage, lowers
+capacitance and raises ESR; ripple current heats the core (less at higher
+operating frequencies); half of the capacitors change operating conditions
+part-way through life; leakage current generates hydrogen by Faraday's law, and
+retained hydrogen raises internal pressure and bulges the case. End of life is
+the first parameter to reach its limit. Users set the six limits for each
+capacitor (a series' own tolerance); the defaults are capacitance loss of 20%,
+ESR at 2× initial, leakage at 5× initial, case expansion of 52 µm, 6 mL of
 generated H₂ and internal pressure at 250 kPa. Each training capacitor had
 limits drawn at random from the ranges the app allows (30% kept the defaults),
 and every limit is an input to the network, so it predicts the time to the
 limits a user sets. On 400 further simulated capacitors with the default limits:
 
-| Parameters | Typical error | True RUL inside 80% range | Trend line |
-|---|---|---|---|
-| All six | 536 h (11%) | 86% | 1,572 h |
-| Capacitance, ESR, leakage | 660 h (13%) | 90% | 2,122 h |
-| Capacitance, ESR | 768 h (15%) | 88% | 2,315 h |
-| Capacitance only | 1,402 h (24%) | 83% | 3,561 h |
+| Parameters | Typical error, with conditions | Without conditions | True RUL inside 80% range | Trend line |
+|---|---|---|---|---|
+| All six | 1,340 h (15%) | 1,411 h (16%) | 83% | 3,348 h |
+| Capacitance, ESR, leakage | 2,269 h (22%) | 2,403 h (23%) | 83% | 6,677 h |
+| Capacitance, ESR | 2,442 h (23%) | 2,516 h (24%) | 83% | 7,270 h |
+| Capacitance only | 3,048 h (29%) | 3,102 h (30%) | 78% | 9,874 h |
+
+Conditions help most early in a history (first three predictions per capacitor:
+19% vs 23% typical error) and under steady conditions (11% vs 13%). For
+capacitors whose conditions changed later in life, readings before the change
+cannot foresee it, so accuracy is the same either way (18%). Under a planned
+change, entered on the page, the network gets the
+direction right but understates large changes (about two thirds of the effect,
+typical error 32% on simulated capacitors); the standard aging rule had 20% on
+the same capacitors, which follow that rule by construction.
 
 On 400 more with random limits (half of them inspected again in the last 3% of
-their life), the typical error with all six is 366 h and the 80% range held the
-true value 80–87% of the time across all 63 combinations. The ranges are
-calibrated on capacitors with mixed limits, so with the default limits they are
-cautious (83–92%). Within 5% of a limit the network tends to overestimate the
-short remaining life, so the range there is calibrated separately (Mondrian
-conformal prediction): it held the true value 78% of the time, with a typical
-error of 127 h, and the page says when a parameter is that close.
+their life), the typical error with all six is 833 h and the 80% range held the
+true value 77–84% of the time across all 63 combinations. Within 5% of a limit
+the range is calibrated separately (Mondrian conformal prediction): it held the
+true value 82% of the time, with a typical error of 260 h, and the page says
+when a parameter is that close. A looser limit never shortens the predicted
+remaining life.
 
 A second network forecasts each parameter's path from the latest reading to the
 predicted end of life, at 10% steps of the remaining life, as a median that never
 improves and a calibrated 80% range. On the test capacitors its median is
-typically within 1–3% of the limit halfway there and 2–9% at end of life, and
-the range held the true path 82–88% of the time. The trend charts start at the
+typically within 2–3% of the limit halfway there and 4–7% at end of life, and
+the range held the true path 80–82% of the time. The trend charts start at the
 first reading: measured readings, then the forecast.
 
 Aging damage is treated as lasting: health and end of life use the worst level a
@@ -280,7 +305,7 @@ Required columns:
 | `Core_C` | Estimated/measured core temperature, degrees C |
 | `Voltage_ratio` | Applied voltage / rated voltage |
 | `Ripple_A` | RMS ripple current, amperes |
-| `Ripple_Hz` | Ripple frequency, Hz |
+| `Ripple_Hz` | Ripple (operating) frequency, Hz |
 | `C_ratio` | Capacitance divided by *initial* capacitance |
 | `ESR_ratio` | ESR divided by *initial* ESR, measured at consistent frequency/temperature |
 | `Leakage_ratio` | Leakage current divided by an initial reference, under controlled test conditions |
