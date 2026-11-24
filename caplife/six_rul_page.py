@@ -421,11 +421,14 @@ def _chart_domain(values: pd.Series, limit: float, digits: int) -> tuple[float, 
     return min(low, limit) - pad, max(high, limit) + pad, None
 
 
-def signal_charts(readings: pd.DataFrame, limits: dict | None = None, reference: bool = False) -> None:
+def signal_charts(readings: pd.DataFrame, limits: dict | None = None, reference: bool = False,
+                  alternative: pd.DataFrame | None = None) -> None:
     """Each parameter's readings joined in time order, two charts per row, with its end-of-life limit.
 
     Parameters with fewer than two readings are skipped, and blank readings are left out of the
     line. ``reference`` labels the limit as the default reference limit (Analyze measurements).
+    ``alternative`` is the estimated history had the capacitor always run at other conditions,
+    drawn purple and dashed next to the measured readings.
     """
     readings = readings.sort_values("Hours")
     baseline = readings.bfill().iloc[0]  # each parameter's first available reading
@@ -433,8 +436,12 @@ def signal_charts(readings: pd.DataFrame, limits: dict | None = None, reference:
     columns = st.columns(2)
     for index, signal in enumerate(signals):
         data = readings[["Hours", signal]].dropna().rename(columns={signal: "value"}).reset_index(drop=True)
+        other = None
+        if alternative is not None and signal in alternative:
+            other = alternative[["Hours", signal]].dropna().rename(columns={signal: "value"})
         limit = _limit_value(signal, baseline, limits)
-        bottom, top, off_chart = _chart_domain(data["value"], limit, DIGITS[signal])
+        bottom, top, off_chart = _chart_domain(pd.concat([data["value"], *([other["value"]] if other is not None
+                                                                           else [])]), limit, DIGITS[signal])
         scale = alt.Scale(domain=[bottom, top], zero=False, nice=False)
         line = alt.Chart(data).mark_line(color=TEAL, strokeWidth=1.8, point=alt.OverlayMarkDef(
             color=TEAL, size=30, filled=True)).encode(
@@ -458,7 +465,16 @@ def signal_charts(readings: pd.DataFrame, limits: dict | None = None, reference:
         with columns[index % 2]:
             kind = "default reference limit" if reference else "limit"
             st.caption(f"**{INDICATOR_LABELS[signal]}** · {kind}: {_limit_text(signal, limits)}")
-            st.altair_chart((line + marker).properties(height=260), width="stretch")
+            layers = [line, marker]
+            if other is not None:
+                layers.append(alt.Chart(other).mark_line(
+                    color=PURPLE, strokeWidth=2.2, strokeDash=[6, 3],
+                    point=alt.OverlayMarkDef(color=PURPLE, size=22, filled=True)).encode(
+                    x="Hours:Q", y=alt.Y("value:Q", scale=scale),
+                    tooltip=[alt.Tooltip("Hours:Q", format=",.0f"),
+                             alt.Tooltip("value:Q", title="Had it always run at your conditions",
+                                         format=f",.{DIGITS[signal]}f")]))
+            st.altair_chart(alt.layer(*layers).properties(height=260), width="stretch")
 
 
 _signal_charts = signal_charts
@@ -859,9 +875,18 @@ def render() -> None:
 
     st.markdown("##### Parameter history" if len(measured) < len(SIGNALS) else "##### Six-parameter history",
                 help="Each dot is one measured reading, joined in time order. Orange dashed line: your limit. "
-                     "Measurements are what happened, so they do not change with the operating conditions you "
-                     "enter; the forecasts below do.")
-    _signal_charts(readings, limits)
+                     "With changed operating conditions, the purple dashed line estimates the history had the "
+                     "capacitor always run at them: each measured state moves to the hour it would have been "
+                     "reached by the standard aging rules (electrolyte aging 2× per 10 °C of core temperature and "
+                     "with the cube of the voltage ratio; gas from leakage current, 2× per 20 °C), and gas, "
+                     "pressure and expansion gains scale with how much faster gas forms per unit of aging. Real "
+                     "capacitors follow these rules only approximately.")
+    alternative = conditions.alternative_history(original, planned[str(device)]) if planned.get(str(device)) else None
+    if planned.get(str(device)):
+        st.caption("Teal: measured. Purple dashed: estimated history had it always run at your conditions."
+                   if alternative is not None else
+                   "An estimated history at your conditions needs a recorded core or ambient temperature.")
+    _signal_charts(readings, limits, alternative=alternative)
     has_rul = "RUL_median_h" in assessment and pd.notna(last.get("RUL_median_h"))
     if has_rul and not bool(last["End_of_life_reached"]):
         forecast = _forecast_cached(readings, float(last["RUL_median_h"]), json.dumps(limits, sort_keys=True),
