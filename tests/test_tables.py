@@ -37,3 +37,24 @@ def test_rendered_tables_carry_centred_columns():
     columns = json.loads(app.dataframe[0].proto.columns)
     assert columns["Capacitor"]["alignment"] == "center" and columns["Capacitor"]["pinned"] is True
     assert columns["Remaining life, median (h)"]["alignment"] == "center"
+
+
+def test_sentence_length_text_wraps_instead_of_being_cut():
+    from caplife.tables import LONG_TEXT, WRAP_WIDTH, long_text_lengths, wrapped_row_height
+    sentence = "Document absolute-vs-gauge pressure, ambient reference, sensor calibration and probe geometry."
+    frame = pd.DataFrame({"Cap_ID": ["A", "B"], "Recommendation": [sentence, None], "Short": ["ok", "fine"]})
+    assert len(sentence) > LONG_TEXT and set(long_text_lengths(frame)) == {"Recommendation"}
+    config = centered_config(frame, {"Cap_ID": st.column_config.TextColumn(pinned=True)}, show_index=False)
+    assert config["Recommendation"]["alignment"] == "left" and config["Recommendation"]["width"] == WRAP_WIDTH
+    assert config["Short"]["alignment"] == "center" and config["Cap_ID"]["alignment"] == "center"
+    height = wrapped_row_height(long_text_lengths(frame))
+    assert height is not None and height >= 2 * 20  # room for at least two lines
+    # A width chosen by the caller is kept.
+    kept = centered_config(frame, {"Recommendation": st.column_config.TextColumn(width="small")}, show_index=False)
+    assert kept["Recommendation"]["width"] == "small"
+    # Text just past LONG_TEXT fits on one wider line: it stays centred and rows keep their height.
+    medium = pd.DataFrame({"Status": ["x" * (LONG_TEXT + 2)]})
+    assert centered_config(medium, None, show_index=False)["Status"]["alignment"] == "center"
+    assert wrapped_row_height(long_text_lengths(medium)) is None
+    # Short text only: one-line rows, Streamlit's default height.
+    assert wrapped_row_height(long_text_lengths(frame[["Cap_ID", "Short"]])) is None
