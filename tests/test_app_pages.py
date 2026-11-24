@@ -49,11 +49,13 @@ def test_monitor_example_shows_fleet_and_capacitor_detail():
     assert metric(app, "Overall health") == f"{expected['Overall_health_pct']:.0f}%"
 
 
-def test_monitor_offers_pdf_and_excel_reports_and_csv_files():
+def test_monitor_pdf_report_is_the_page_as_shown():
+    """The PDF follows the page: the limit and condition boxes as shown, and the page's own charts."""
     import io
     import json
 
     import openpyxl
+    from pypdf import PdfReader
 
     from caplife import operating_conditions as conditions
     from caplife import six_rul_page as page
@@ -62,17 +64,38 @@ def test_monitor_offers_pdf_and_excel_reports_and_csv_files():
 
     app = open_workspace("Monitor and Predict")
     app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
-    assert not app.exception
+    device = app.selectbox(key="caplife_six_device").value
+    app.number_input(key=f"caplife_six_limit_{device}_ESR_ohm").set_value(150.0).run()
+    recorded = app.number_input(key=f"caplife_six_condition_{device}_Ambient_C").value
+    app.number_input(key=f"caplife_six_condition_{device}_Ambient_C").set_value(recorded + 15).run()
+    assert not app.exception, app.exception
+    view = app.session_state[page.REPORT_VIEW]
+    assert ("ESR rise (%)", "150.00", True) in view.limits
+    ambient = next(box for box in view.conditions if box[0].startswith("Ambient"))
+    assert ambient[1] == f"{recorded + 15:,.2f}" and ambient[2] == f"{recorded:,.2f}"
+    assert ("violet", "Changed conditions in use") in view.badges
+    titles = [section.title for section in view.sections]
+    assert titles == ["Six-parameter history", "Predicted parameter trends to end of life",
+                      "Remaining-life prediction over time"]
+    assert len(view.sections[0].charts) == 6 and len(view.sections[1].charts) == 6
+
     measurements, _ = example_fleet()
-    limits = {device: full_limits() for device in measurements["Cap_ID"].unique()}
+    limits = {d: full_limits() for d in measurements["Cap_ID"].unique()}
     results = page._assess_cached(measurements, json.dumps(limits, sort_keys=True), json.dumps({}), "test")
-    fleet = page._fleet_table(results, None, limits)
-    readings, assessment = results["DEMO_01"]
-    report = page._report("Simulated example", fleet, "DEMO_01", readings, assessment, page._measured(readings),
-                          limits["DEMO_01"], limits, conditions.latest(readings), {}, None, measurements)
-    assert pdf_bytes(report)[:4] == b"%PDF"
-    sheets = openpyxl.load_workbook(io.BytesIO(xlsx_bytes(report))).sheetnames
-    assert {"Overview", "Fleet", "DEMO_01 history", "Limits", "Measurements"} <= set(sheets)
+    readings, assessment = results[device]
+    report = page._report("Simulated example", view.fleet, device, readings, assessment, page._measured(readings),
+                          limits[device], limits, conditions.latest(readings), {}, None, measurements, view)
+    pdf = pdf_bytes(report)
+    assert pdf[:4] == b"%PDF"
+    text = " ".join(p.extract_text() for p in PdfReader(io.BytesIO(pdf)).pages)
+    for words in ("Fleet overview", f"End-of-life limits for {device}", "ESR rise (%)", "150.00",
+                  f"Operating conditions for {device}", f"Recorded: {recorded:,.2f}", "Changed conditions in use",
+                  "Six-parameter history", "Predicted parameter trends to end of life",
+                  "Remaining-life prediction over time"):
+        assert words in text, words
+    sheets = openpyxl.load_workbook(io.BytesIO(xlsx_bytes(report)))
+    assert {"Overview", "Fleet", f"{device} history", "Limits", "Measurements"} <= set(sheets.sheetnames)
+    assert "ESR rise (%)" in [cell.value for cell in sheets["Limits"][1]]
 
 
 def test_monitor_runs_with_only_three_parameters():

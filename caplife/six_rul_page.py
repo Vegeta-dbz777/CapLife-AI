@@ -13,7 +13,7 @@ import streamlit as st
 
 from caplife.tables import table
 from caplife.chart_hover import NO_TOOLTIP, hoverable as _hoverable, hoverable_rule as _hoverable_rule
-from caplife.monitor_report import MonitorReport, pdf_bytes, xlsx_bytes
+from caplife.monitor_report import ChartSection, MonitorReport, PageView, pdf_bytes, xlsx_bytes
 
 from caplife.accounts import save_controls, saved_picker
 from caplife.file_reader import read_measurement_file
@@ -46,7 +46,8 @@ LIMIT_INPUTS = {
     "Pressure_Abs_kPa": ("Internal pressure (kPa, absolute)", 5.0),
 }
 LIMITS_STATE = "caplife_six_limits"
-CONDITIONS_STATE = "caplife_six_conditions"  # per capacitor: operating conditions the user changed
+CONDITIONS_STATE = "caplife_six_conditions"
+REPORT_VIEW = "caplife_six_report_view"  # per capacitor: operating conditions the user changed
 BADGE_COLORS = {"error": "red", "warning": "orange", "info": "green"}
 
 
@@ -297,6 +298,12 @@ def _limit_inputs(device: str, measured: tuple[str, ...]) -> dict:
     return full_limits(stored.get(device))
 
 
+def _limit_boxes(limits: dict, measured: tuple[str, ...]) -> list[tuple[str, str, bool]]:
+    """The six limit boxes as shown: label, value, and whether the parameter is measured."""
+    return [(LIMIT_INPUTS[signal][0], f"{_shown_limit(signal, limits[LIMIT_KEYS[signal]]):,.2f}", signal in measured)
+            for signal in SIGNALS]
+
+
 def _fleet_table(results: dict, truth: dict | None, limits: dict | None = None) -> pd.DataFrame:
     rows = []
     for device, (_, assessment) in results.items():
@@ -358,13 +365,13 @@ def _sparkline(hours: pd.Series, values: pd.Series, label: str, status: str = "g
             f'alt="{escape(label)} trend over {len(x)} readings">')
 
 
-def _health_cards(readings: pd.DataFrame, assessment: pd.DataFrame, limits: dict | None = None) -> None:
+def _health_card_data(readings: pd.DataFrame, assessment: pd.DataFrame, limits: dict | None = None) -> list[dict]:
+    """One card per measured parameter: its latest value, change, health and limit (page and PDF report)."""
     baseline, latest, last = readings.iloc[0], readings.iloc[-1], assessment.iloc[-1]
     cards = []
     for signal in _measured(readings):
-        health = last[f"{signal}_health_pct"]
+        health = float(last[f"{signal}_health_pct"])
         status = _status(health, health <= 0)
-        status_key = status.lower().replace(" ", "-")
         value = latest[signal]
         if signal == "Pressure_Abs_kPa":
             change = f"{value - ATMOSPHERE_KPA:+,.1f} kPa above atmospheric"
@@ -377,19 +384,30 @@ def _health_cards(readings: pd.DataFrame, assessment: pd.DataFrame, limits: dict
         if held_used > float(current_limit_used(readings, limits)[signal].iloc[-1]) + 0.05:
             worst = _value_at(signal, baseline, held_used, limits)
             change += f" · worst held {worst:,.{DIGITS[signal]}f} {UNITS[signal]}"
-        cards.append(
-            f'<div class="caplife-health-card" data-status="{escape(status_key)}">'
-            f'<div class="caplife-health-top"><span>{escape(INDICATOR_LABELS[signal])}</span>'
-            f'<span class="caplife-health-chip">{escape(status)}</span></div>'
-            f'<div class="caplife-health-value">{value:,.{DIGITS[signal]}f} <small>{UNITS[signal]}</small></div>'
-            f'<div class="caplife-health-change">{escape(change)}</div>'
-            f'{_sparkline(readings["Hours"], readings[signal], INDICATOR_LABELS[signal], status_key)}'
-            f'<div class="caplife-health-bar" role="img" aria-label="{health:.0f}% health remaining">'
-            f'<span style="width:{health:.1f}%"></span></div>'
-            f'<div class="caplife-health-foot"><span>{health:.0f}% health</span>'
-            f'<span>Limit: {escape(_limit_text(signal, limits))}</span></div></div>'
+        cards.append({"label": INDICATOR_LABELS[signal], "status": status, "status_key": status.lower().replace(" ", "-"),
+                      "value": f"{value:,.{DIGITS[signal]}f}", "unit": UNITS[signal], "change": change,
+                      "health": health, "limit": _limit_text(signal, limits),
+                      "hours": readings["Hours"].to_numpy(dtype=float),
+                      "values": readings[signal].to_numpy(dtype=float)})
+    return cards
+
+
+def _health_cards(cards: list[dict]) -> None:
+    html = []
+    for card in cards:
+        html.append(
+            f'<div class="caplife-health-card" data-status="{escape(card["status_key"])}">'
+            f'<div class="caplife-health-top"><span>{escape(card["label"])}</span>'
+            f'<span class="caplife-health-chip">{escape(card["status"])}</span></div>'
+            f'<div class="caplife-health-value">{card["value"]} <small>{card["unit"]}</small></div>'
+            f'<div class="caplife-health-change">{escape(card["change"])}</div>'
+            f'{_sparkline(pd.Series(card["hours"]), pd.Series(card["values"]), card["label"], card["status_key"])}'
+            f'<div class="caplife-health-bar" role="img" aria-label="{card["health"]:.0f}% health remaining">'
+            f'<span style="width:{card["health"]:.1f}%"></span></div>'
+            f'<div class="caplife-health-foot"><span>{card["health"]:.0f}% health</span>'
+            f'<span>Limit: {escape(card["limit"])}</span></div></div>'
         )
-    st.html('<div class="caplife-health-grid">' + "".join(cards) + "</div>")
+    st.html('<div class="caplife-health-grid">' + "".join(html) + "</div>")
 
 
 def _chart_domain(values: pd.Series, limit: float, digits: int) -> tuple[float, float, str | None]:
@@ -408,8 +426,24 @@ def _chart_domain(values: pd.Series, limit: float, digits: int) -> tuple[float, 
     return min(low, limit) - pad, max(high, limit) + pad, None
 
 
+def _show_charts(charts: list[tuple[str, alt.Chart]]) -> None:
+    """Charts two per row, each under its caption, as the page shows them."""
+    columns = st.columns(2)
+    for index, (caption, chart) in enumerate(charts):
+        with columns[index % 2]:
+            st.caption(caption)
+            st.altair_chart(chart, width="stretch")
+
+
 def signal_charts(readings: pd.DataFrame, limits: dict | None = None, reference: bool = False,
-                  alternative: pd.DataFrame | None = None) -> None:
+                  alternative: pd.DataFrame | None = None) -> list[tuple[str, alt.Chart]]:
+    charts = signal_chart_specs(readings, limits, reference, alternative)
+    _show_charts(charts)
+    return charts
+
+
+def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, reference: bool = False,
+                       alternative: pd.DataFrame | None = None) -> list[tuple[str, alt.Chart]]:
     """Each parameter's readings joined in time order, two charts per row, with its end-of-life limit.
 
     Parameters with fewer than two readings are skipped, and blank readings are left out of the
@@ -420,8 +454,8 @@ def signal_charts(readings: pd.DataFrame, limits: dict | None = None, reference:
     readings = readings.sort_values("Hours")
     baseline = readings.bfill().iloc[0]  # each parameter's first available reading
     signals = [signal for signal in SIGNALS if signal in readings and readings[signal].notna().sum() >= 2]
-    columns = st.columns(2)
-    for index, signal in enumerate(signals):
+    charts = []
+    for signal in signals:
         data = readings[["Hours", signal]].dropna().rename(columns={signal: "value"}).reset_index(drop=True)
         other = None
         if alternative is not None and signal in alternative:
@@ -451,21 +485,21 @@ def signal_charts(readings: pd.DataFrame, limits: dict | None = None, reference:
                                            dy=4 if off_chart == "above" else -4, color=ORANGE, fontSize=11).encode(
                 x="Hours:Q", y=alt.Y("value:Q", scale=alt.Scale(domain=[bottom, top], nice=False)), text="label:N",
                 tooltip=NO_TOOLTIP)
-        with columns[index % 2]:
-            kind = "default reference limit" if reference else "limit"
-            st.caption(f"**{INDICATOR_LABELS[signal]}** · {kind}: {_limit_text(signal, limits)}")
-            layers = [line, marker]
-            hovers = _hoverable(data, "Hours:Q", alt.Y("value:Q", scale=scale), measured_tip, TEAL)
-            if other is not None:
-                other_tip = [alt.Tooltip("Hours:Q", format=",.0f"),
-                             alt.Tooltip("value:Q", title="Had it always run at your conditions",
-                                         format=HOVER_FORMAT[signal])]
-                layers.append(alt.Chart(other).mark_line(
-                    color=GOLD, strokeWidth=2.2, strokeDash=[6, 3],
-                    point=alt.OverlayMarkDef(color=GOLD, size=22, filled=True)).encode(
-                    x="Hours:Q", y=alt.Y("value:Q", scale=scale), tooltip=other_tip))
-                hovers += _hoverable(other, "Hours:Q", alt.Y("value:Q", scale=scale), other_tip, GOLD)
-            st.altair_chart(alt.layer(*layers, *hovers).properties(height=260), width="stretch")
+        kind = "default reference limit" if reference else "limit"
+        layers = [line, marker]
+        hovers = _hoverable(data, "Hours:Q", alt.Y("value:Q", scale=scale), measured_tip, TEAL)
+        if other is not None:
+            other_tip = [alt.Tooltip("Hours:Q", format=",.0f"),
+                         alt.Tooltip("value:Q", title="Had it always run at your conditions",
+                                     format=HOVER_FORMAT[signal])]
+            layers.append(alt.Chart(other).mark_line(
+                color=GOLD, strokeWidth=2.2, strokeDash=[6, 3],
+                point=alt.OverlayMarkDef(color=GOLD, size=22, filled=True)).encode(
+                x="Hours:Q", y=alt.Y("value:Q", scale=scale), tooltip=other_tip))
+            hovers += _hoverable(other, "Hours:Q", alt.Y("value:Q", scale=scale), other_tip, GOLD)
+        charts.append((f"**{INDICATOR_LABELS[signal]}** · {kind}: {_limit_text(signal, limits)}",
+                       alt.layer(*layers, *hovers).properties(height=260)))
+    return charts
 
 
 _signal_charts = signal_charts
@@ -473,7 +507,15 @@ _signal_charts = signal_charts
 
 def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Series,
                      limits: dict | None = None, zoom: bool = False,
-                     reference: tuple[pd.DataFrame, pd.Series] | None = None) -> None:
+                     reference: tuple[pd.DataFrame, pd.Series] | None = None) -> list[tuple[str, alt.Chart]]:
+    charts = _forecast_chart_specs(readings, forecast, last, limits, zoom, reference)
+    _show_charts(charts)
+    return charts
+
+
+def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Series,
+                          limits: dict | None = None, zoom: bool = False,
+                          reference: tuple[pd.DataFrame, pd.Series] | None = None) -> list[tuple[str, alt.Chart]]:
     """Each measured parameter from the first reading to the predicted end of life: the measured
     readings (solid) followed by the forecast path from the latest reading (dashed, with its range).
 
@@ -491,8 +533,8 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
     left = max(first, latest - 0.25 * (right - latest)) if zoom else first
     hours_scale = alt.Scale(domain=[left, right], nice=False)
     x = alt.X("Hours:Q", title="Hours", scale=hours_scale)
-    columns = st.columns(2)
-    for index, signal in enumerate(_measured(readings)):
+    charts = []
+    for signal in _measured(readings):
         data = forecast.loc[forecast["signal"].eq(signal)].reset_index(drop=True)
         measured = readings[["Hours", signal]].rename(columns={signal: "value"}).reset_index(drop=True)
         if zoom:  # keep one reading before the window so the line enters from the edge
@@ -618,9 +660,9 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
                                      dy=4 if off_chart == "above" else -4, color=ORANGE, fontSize=11)
                           .encode(x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale),
                                   text="label:N", tooltip=NO_TOOLTIP))
-        with columns[index % 2]:
-            st.caption(f"**{INDICATOR_LABELS[signal]}** · limit: {_limit_text(signal, limits)}")
-            st.altair_chart(alt.layer(*layers, *hovers).properties(height=260), width="stretch")
+        charts.append((f"**{INDICATOR_LABELS[signal]}** · limit: {_limit_text(signal, limits)}",
+                       alt.layer(*layers, *hovers).properties(height=260)))
+    return charts
 
 
 def _range_hover(ranges: dict, hours_scale: alt.Scale) -> list:
@@ -919,16 +961,16 @@ def _model_card(measured: tuple[str, ...]) -> None:
                "`python -m caplife.six_rul`.")
 
 
-def _parameter_note(measured: tuple[str, ...]) -> None:
+def _parameter_note(measured: tuple[str, ...]) -> str:
     accuracy = _model().metrics_for(measured)
     missing = [signal for signal in SIGNALS if signal not in measured]
-    st.caption(f"Using {len(measured)} of 6 parameters: {_names(measured)} "
-               f"(not in the data: {_names(missing)}). Typical error with these on simulated capacitors: "
-               f"{accuracy['median_absolute_error_h']:,.0f} h ({accuracy['median_relative_error']:.0%}).")
+    return (f"Using {len(measured)} of 6 parameters: {_names(measured)} "
+            f"(not in the data: {_names(missing)}). Typical error with these on simulated capacitors: "
+            f"{accuracy['median_absolute_error_h']:,.0f} h ({accuracy['median_relative_error']:.0%}).")
 
 
 def _report(label, fleet, device, readings, assessment, measured, limits, all_limits, recorded, changed, forecast,
-            measurements) -> MonitorReport:
+            measurements, view: PageView | None = None) -> MonitorReport:
     """Everything the downloads need; the data check is the readiness audit of the uploaded readings."""
     check = None
     try:
@@ -940,7 +982,7 @@ def _report(label, fleet, device, readings, assessment, measured, limits, all_li
     return MonitorReport(source=label, fleet=fleet, device=device, readings=readings, assessment=assessment,
                          measured=measured, limits=limits, all_limits=all_limits, recorded_conditions=recorded,
                          changed_conditions=changed, forecast=forecast, data_check=check, measurements=measurements,
-                         accuracy=_model().metrics_for(measured))
+                         accuracy=_model().metrics_for(measured), view=view)
 
 
 def _device_conditions(devices) -> dict:
@@ -949,7 +991,8 @@ def _device_conditions(devices) -> dict:
     return {str(device): dict(stored[str(device)]) for device in devices if stored.get(str(device))}
 
 
-def _condition_inputs(device: str, recorded: pd.Series, effective: pd.Series) -> None:
+def _condition_inputs(device: str, recorded: pd.Series, effective: pd.Series
+                      ) -> tuple[list[tuple[str, str, str | None]], list[tuple[str, str]]]:
     """Six operating-condition boxes for the selected capacitor, filled with its latest recorded values."""
     stored = st.session_state.setdefault(CONDITIONS_STATE, {})
     widget = lambda column: f"caplife_six_condition_{device}_{column}"
@@ -993,15 +1036,26 @@ def _condition_inputs(device: str, recorded: pd.Series, effective: pd.Series) ->
     row = st.container(horizontal=True, vertical_alignment="center")
     row.button("Reset to recorded conditions", on_click=reset, key=f"caplife_six_condition_reset_{device}",
                disabled=not own)
+    badges = []
     if own:
         row.badge("Changed conditions in use", icon=":material/edit:", color="violet",
                   help="Every prediction on this page for this capacitor uses the conditions above.")
+        badges.append(("violet", "Changed conditions in use"))
     elif not recorded.notna().any():
         row.badge("No conditions recorded", color="gray",
                   help="The model predicts from the parameters alone. Enter conditions above, or add Ambient_C, "
                        "Core_C, Voltage_V, Rated_V, Ripple_A, Rated_Ripple_A and Ripple_Hz columns to the file.")
+        badges.append(("gray", "No conditions recorded"))
     for level, short, message in conditions.judgements(effective):
         row.badge(short, color=BADGE_COLORS[level], help=message)
+        badges.append((BADGE_COLORS[level], short))
+    shown = lambda value: "Not recorded" if value is None or not np.isfinite(value) else f"{value:,.2f}"
+    boxes = []
+    for column, label, unit, _ in conditions.PLANNED_INPUTS:
+        seen = recorded.get(column, np.nan)
+        used = own.get(column, seen)
+        boxes.append((f"{label} ({unit})", shown(used), shown(seen) if column in own else None))
+    return boxes, badges
 
 
 def render() -> None:
@@ -1025,11 +1079,13 @@ def render() -> None:
     st.subheader("Fleet overview",
                  help=f"{label}. Each capacitor is assessed against its own end-of-life limits and operating "
                       "conditions, set under Capacitor detail.")
-    cards = st.columns(3)
-    cards[0].metric("Capacitors", len(fleet))
-    cards[1].metric("Need attention", int(fleet["Status"].isin(["Watch", "Critical", "End of life"]).sum()))
     shortest = fleet["Remaining life, median (h)"].min()
-    cards[2].metric("Shortest predicted remaining life", _hours(shortest))
+    fleet_metrics = [("Capacitors", f"{len(fleet)}"),
+                     ("Need attention", f"{int(fleet['Status'].isin(['Watch', 'Critical', 'End of life']).sum())}"),
+                     ("Shortest predicted remaining life", _hours(shortest))]
+    cards = st.columns(3)
+    for card, (name, value) in zip(cards, fleet_metrics):
+        card.metric(name, value)
     config = {"Capacitor": st.column_config.TextColumn(pinned=True),  # stays visible when swiping sideways on a phone
               "Remaining life, median (h)": st.column_config.NumberColumn(format="%.0f"),
               "Predicted end-of-life age (h)": st.column_config.NumberColumn(format="%.0f"),
@@ -1044,20 +1100,30 @@ def render() -> None:
     table(fleet, hide_index=True, width="stretch", column_config=config)
     changed_notes = ([f"Custom limits: {', '.join(custom)}"] if custom else []) + \
         ([f"Changed operating conditions: {', '.join(planned)}"] if planned else [])
-    if changed_notes:
-        st.caption(". ".join(changed_notes) + ".")
+    fleet_note = ". ".join(changed_notes) + "." if changed_notes else None
+    if fleet_note:
+        st.caption(fleet_note)
 
     st.subheader("Capacitor detail")
     device = st.selectbox("Capacitor", list(results), key="caplife_six_device", persist_state="session")
     readings, assessment = results[device]
     original = measurements.loc[measurements["Cap_ID"].astype(str).eq(str(device))].sort_values("Hours")
     measured = _measured(readings)
-    if len(measured) < len(SIGNALS):
-        _parameter_note(measured)
+    parameter_note = _parameter_note(measured) if len(measured) < len(SIGNALS) else None
+    if parameter_note:
+        st.caption(parameter_note)
     with st.container(border=True):
         limits = _limit_inputs(str(device), measured)
     with st.container(border=True):
-        _condition_inputs(str(device), conditions.latest(original), conditions.latest(readings))
+        condition_boxes, badges = _condition_inputs(str(device), conditions.latest(original),
+                                                    conditions.latest(readings))
+    messages, metrics, metrics_note, sections = [], [], None, []
+
+    def say(level: str, text: str) -> None:
+        """A message on the page, kept for the PDF report too."""
+        getattr(st, level)(text)
+        messages.append((level, text))
+
     last = assessment.iloc[-1]
     default_limits = limits == full_limits()
     original = original.reset_index(drop=True)
@@ -1066,9 +1132,9 @@ def render() -> None:
     if recorded_last is not None and pd.isna(recorded_last.get("RUL_median_h")):
         recorded_last = None
     if bool(last["End_of_life_reached"]):
-        st.error(_end_of_life_message(assessment))
+        say("error", _end_of_life_message(assessment))
     elif "RUL_median_h" not in assessment or pd.isna(last.get("RUL_median_h")):
-        st.warning(f"Remaining life needs at least {MIN_READINGS} readings; this capacitor has {len(readings)}.")
+        say("warning", f"Remaining life needs at least {MIN_READINGS} readings; this capacitor has {len(readings)}.")
     else:
         detail = f"Based on {len(readings)} readings up to {last['Hours']:,.0f} h."
         delta = None
@@ -1083,25 +1149,28 @@ def render() -> None:
         if truth and default_limits and not planned.get(str(device)):
             detail += (f" Simulated true remaining life: {truth[device]['eol_h'] - last['Hours']:,.0f} h "
                        f"({truth[device]['eol_cause']}).")
-        top = st.columns(4)
-        top[0].metric("Remaining useful life", _hours(last["RUL_median_h"]), delta, delta_color="normal",
-                      help=detail)
-        top[1].metric("80% range", f"{_short(last['RUL_low_h'])}–{_short(last['RUL_high_h'])} h",
-                      help="The true remaining life falls inside this range about 80% of the time on simulated "
-                           "test capacitors.")
-        top[2].metric("Predicted end-of-life age", _hours(last["Hours"] + last["RUL_median_h"]))
-        top[3].metric("Overall health", f"{last['Overall_health_pct']:.0f}%",
-                      help=f"The lowest parameter health. Limiting indicator: {last['Limiting_indicator']}.")
+        metrics = [("Remaining useful life", _hours(last["RUL_median_h"]), delta),
+                   ("80% range", f"{_short(last['RUL_low_h'])}–{_short(last['RUL_high_h'])} h", None),
+                   ("Predicted end-of-life age", _hours(last["Hours"] + last["RUL_median_h"]), None),
+                   ("Overall health", f"{last['Overall_health_pct']:.0f}%", None)]
+        metrics_note = detail
+        helps = [detail, "The true remaining life falls inside this range about 80% of the time on simulated "
+                         "test capacitors.", None,
+                 f"The lowest parameter health. Limiting indicator: {last['Limiting_indicator']}."]
+        for column, (name, value, change), tip in zip(st.columns(4), metrics, helps):
+            column.metric(name, value, change, delta_color="normal", help=tip)
         used_now = limit_used(readings, limits)[list(measured)].iloc[-1]
         if used_now.max() >= 0.95:
-            st.info(f"**{INDICATOR_LABELS[used_now.idxmax()]} is within 5% of your limit**, so end of life is "
-                    "close and the 80% range is wider.")
+            say("info", f"**{INDICATOR_LABELS[used_now.idxmax()]} is within 5% of your limit**, so end of life is "
+                        "close and the 80% range is wider.")
         if bool(last.get("Outside_training_range")):
-            st.warning("Some readings go beyond the simulated training capacitors, so this prediction is an "
-                       "extrapolation.")
-    _health_cards(readings, assessment, limits)
+            say("warning", "Some readings go beyond the simulated training capacitors, so this prediction is an "
+                           "extrapolation.")
+    health_cards = _health_card_data(readings, assessment, limits)
+    _health_cards(health_cards)
 
-    st.markdown("##### Parameter history" if len(measured) < len(SIGNALS) else "##### Six-parameter history",
+    history_title = "Parameter history" if len(measured) < len(SIGNALS) else "Six-parameter history"
+    st.markdown(f"##### {history_title}",
                 help="Each dot is one measured reading, joined in time order. Orange dashed line: your limit. "
                      "With changed operating conditions, the gold dashed line estimates the history had the "
                      "capacitor always run at them: each measured state moves to the hour it would have been "
@@ -1110,11 +1179,13 @@ def render() -> None:
                      "pressure and expansion gains scale with how much faster gas forms per unit of aging. Real "
                      "capacitors follow these rules only approximately.")
     alternative = conditions.alternative_history(original, planned[str(device)]) if planned.get(str(device)) else None
+    notes = []
     if planned.get(str(device)):
-        st.caption("Teal: measured. Gold dashed: estimated history had it always run at your conditions."
-                   if alternative is not None else
-                   "An estimated history at your conditions needs a recorded core or ambient temperature.")
-    _signal_charts(readings, limits, alternative=alternative)
+        notes.append("Teal: measured. Gold dashed: estimated history had it always run at your conditions."
+                     if alternative is not None else
+                     "An estimated history at your conditions needs a recorded core or ambient temperature.")
+        st.caption(notes[-1])
+    sections.append(ChartSection(history_title, notes, _signal_charts(readings, limits, alternative=alternative)))
     has_rul = "RUL_median_h" in assessment and pd.notna(last.get("RUL_median_h"))
     forecast = None
     if has_rul and not bool(last["End_of_life_reached"]):
@@ -1130,13 +1201,16 @@ def render() -> None:
         zoom = st.toggle("Zoom in on the forecast", key="caplife_six_forecast_zoom", persist_state="session",
                          help="Show the latest readings and the forecast instead of the whole history.")
         reference = None
+        notes = ["Zoomed in on the forecast."] if zoom else []
         if recorded_last is not None:
             reference = (_forecast_cached(original, float(recorded_last["RUL_median_h"]),
                                           json.dumps(limits, sort_keys=True), code_version()), recorded_last)
-            st.caption("Gold: forecast and end of life (shaded 80% range) with your changed operating "
-                       "conditions. Purple dotted: with the recorded conditions, and its shaded range. Hover a shaded "
-                       "range for its hours.")
-        _forecast_charts(readings, forecast, last, limits, zoom, reference)
+            note = ("Gold: forecast and end of life (shaded 80% range) with your changed operating "
+                    "conditions. Purple dotted: with the recorded conditions, and its shaded range.")
+            st.caption(note + " Hover a shaded range for its hours.")
+            notes.append(note)
+        sections.append(ChartSection("Predicted parameter trends to end of life", notes,
+                                     _forecast_charts(readings, forecast, last, limits, zoom, reference)))
     if assessment["RUL_median_h"].notna().any() if "RUL_median_h" in assessment else False:
         true_eol = truth[device]["eol_h"] if truth and default_limits and not planned.get(str(device)) else None
         changed = recorded_assessment is not None
@@ -1149,19 +1223,24 @@ def render() -> None:
                             "line, each point is the prediction at that reading had the capacitor run at your "
                             "conditions from then on." if changed else "")
                          + (" Orange dashed: the simulated true remaining life." if true_eol else ""))
+        notes = []
         if changed:
-            st.caption("Purple: with the recorded conditions. Gold: with your changed conditions. Hover a shaded "
-                       "range for its hours.")
+            notes.append("Purple: with the recorded conditions. Gold: with your changed conditions.")
+            st.caption(notes[-1] + " Hover a shaded range for its hours.")
         if _always_at_end_of_life(assessment):
-            st.info("Every prediction is 0 h because an end-of-life limit was already met when the first "
-                    "prediction could be made, so there is no remaining-life trend to plot.")
+            notes.append("Every prediction is 0 h because an end-of-life limit was already met when the first "
+                         "prediction could be made, so there is no remaining-life trend to plot.")
+            st.info(notes[-1])
+            sections.append(ChartSection("Remaining-life prediction over time", notes, [], columns=1))
         else:
             history = None
             if changed:
                 history = _changed_history_cached(original, json.dumps(planned[str(device)], sort_keys=True),
                                                   json.dumps(limits, sort_keys=True), code_version())
-            st.altair_chart(_rul_chart(recorded_assessment if changed else assessment, true_eol,
-                                       last if changed else None, history), width="stretch")
+            chart = _rul_chart(recorded_assessment if changed else assessment, true_eol,
+                               last if changed else None, history)
+            st.altair_chart(chart, width="stretch")
+            sections.append(ChartSection("Remaining-life prediction over time", notes, [("", chart)], columns=1))
 
     with st.expander("About the model and how well it did on simulated data"):
         _model_card(measured)
@@ -1169,8 +1248,13 @@ def render() -> None:
     st.subheader("Downloads", help="The PDF and Excel reports cover the fleet, the selected capacitor (limits, "
                                    "operating conditions, health, forecasts, remaining life) and a data check. They "
                                    "are built when you click.")
+    view = PageView(source=label, fleet_metrics=fleet_metrics, fleet=fleet, fleet_note=fleet_note, device=str(device),
+                    parameter_note=parameter_note, limits=_limit_boxes(limits, measured), conditions=condition_boxes,
+                    badges=badges, messages=messages, metrics=metrics, metrics_note=metrics_note,
+                    health_cards=health_cards, sections=sections)
+    st.session_state[REPORT_VIEW] = view  # the page as last shown, for the report (and tests)
     report = lambda: _report(label, fleet, str(device), readings, assessment, measured, limits, all_limits,
-                             conditions.latest(original), planned.get(str(device), {}), forecast, measurements)
+                             conditions.latest(original), planned.get(str(device), {}), forecast, measurements, view)
     stem = f"caplife_{str(device).replace(' ', '_')}"
     row = st.container(horizontal=True)
     row.download_button("Report (PDF)", lambda: pdf_bytes(report()), f"{stem}_report.pdf", mime="application/pdf",
