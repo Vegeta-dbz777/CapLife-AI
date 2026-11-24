@@ -495,9 +495,9 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
     eol_range = pd.DataFrame({"from": [latest + float(last["RUL_low_h"])], "to": [latest + float(last["RUL_high_h"])]})
     right = latest + float(last["RUL_high_h"])
     if reference is not None:
-        right = max(right, latest + float(reference[1]["RUL_median_h"]) * 1.05)
-    # Zoomed in, the chart keeps about as much history as the forecast spans, so the forecast fills half of it.
-    left = max(first, latest - (right - latest)) if zoom else first
+        right = max(right, latest + float(reference[1]["RUL_high_h"]))
+    # Zoomed in, the chart shows the latest readings (a fifth of the width) and the forecast.
+    left = max(first, latest - 0.25 * (right - latest)) if zoom else first
     hours_scale = alt.Scale(domain=[left, right], nice=False)
     x = alt.X("Hours:Q", title="Hours", scale=hours_scale)
     columns = st.columns(2)
@@ -514,8 +514,12 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
         bottom, top, off_chart = _chart_domain(values, limit, DIGITS[signal])
         scale = alt.Scale(domain=[bottom, top], zero=False, nice=False)
         number = f",.{DIGITS[signal]}f"
-        window = alt.Chart(eol_range).mark_rect(color=GREY, opacity=.16).encode(
-            x=alt.X("from:Q", scale=hours_scale), x2="to:Q")
+        # With changed conditions, their end of life is purple and the recorded one grey.
+        eol_color = PURPLE if reference is not None else GREY
+        window = alt.Chart(eol_range).mark_rect(color=eol_color, opacity=.14 if reference is not None else .16).encode(
+            x=alt.X("from:Q", scale=hours_scale), x2="to:Q",
+            tooltip=[alt.Tooltip("from:Q", title="End of life, 80% range from (h)", format=",.0f"),
+                     alt.Tooltip("to:Q", title="to (h)", format=",.0f")])
         now = alt.Chart(pd.DataFrame({"Hours": [latest]})).mark_rule(color=DIVIDER, strokeWidth=3).encode(
             x=alt.X("Hours:Q", scale=hours_scale),
             tooltip=[alt.Tooltip("Hours:Q", title="Latest reading (h)", format=",.0f")])
@@ -536,22 +540,39 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
                      alt.Tooltip("median:Q", title=f"Predicted {INDICATOR_LABELS[signal]}", format=number),
                      alt.Tooltip("low:Q", title="80% range from", format=number),
                      alt.Tooltip("high:Q", title="80% range to", format=number)])
-        eol = alt.Chart(pd.DataFrame({"Hours": [end]})).mark_rule(color=GREY, strokeWidth=1.5).encode(
+        eol = alt.Chart(pd.DataFrame({"Hours": [end]})).mark_rule(color=eol_color, strokeWidth=2.5).encode(
             x=alt.X("Hours:Q", scale=hours_scale),
             tooltip=[alt.Tooltip("Hours:Q", title="Predicted end of life (h)", format=",.0f")])
         layers = [window, now, now_label, band, history, path, eol]
         if reference is not None:
             before = reference[0].loc[reference[0]["signal"].eq(signal)]
-            recorded_end = latest + float(reference[1]["RUL_median_h"])
-            layers += [
-                alt.Chart(before).mark_line(color=GREY, strokeWidth=2, strokeDash=[2, 3], clip=True).encode(
+            recorded = reference[1]
+            recorded_end = latest + float(recorded["RUL_median_h"])
+            recorded_range = pd.DataFrame({"from": [latest + float(recorded["RUL_low_h"])],
+                                           "to": [latest + float(recorded["RUL_high_h"])]})
+            ends = pd.DataFrame({"Hours": [end, recorded_end], "value": [bottom, bottom],
+                                 "label": ["End of life", "Recorded"], "color": [PURPLE, GREY]})
+            layers = [
+                alt.Chart(recorded_range).mark_rect(color=GREY, opacity=.13).encode(
+                    x=alt.X("from:Q", scale=hours_scale), x2="to:Q",
+                    tooltip=[alt.Tooltip("from:Q", title="Recorded conditions: end of life from (h)", format=",.0f"),
+                             alt.Tooltip("to:Q", title="to (h)", format=",.0f")]),
+                *layers,
+                # Points make the thin dotted line easy to hover.
+                alt.Chart(before).mark_line(color=GREY, strokeWidth=2, strokeDash=[2, 3], clip=True,
+                                            point=alt.OverlayMarkDef(color=GREY, size=26, filled=True)).encode(
                     x=x, y=alt.Y("median:Q", scale=scale),
                     tooltip=[alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
-                             alt.Tooltip("median:Q", title="With recorded conditions", format=number)]),
+                             alt.Tooltip("median:Q", title=f"{INDICATOR_LABELS[signal]}, recorded conditions",
+                                         format=number)]),
                 alt.Chart(pd.DataFrame({"Hours": [recorded_end]})).mark_rule(
-                    color=GREY, strokeWidth=1.2, strokeDash=[2, 3]).encode(
+                    color=GREY, strokeWidth=2.5, strokeDash=[4, 3]).encode(
                     x=alt.X("Hours:Q", scale=hours_scale),
                     tooltip=[alt.Tooltip("Hours:Q", title="End of life, recorded conditions (h)", format=",.0f")]),
+                alt.Chart(ends).mark_text(align="right", baseline="bottom", dx=-4, dy=-4, fontSize=11,
+                                          fontWeight="bold").encode(
+                    x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale), text="label:N",
+                    color=alt.Color("color:N", scale=None)),
             ]
         if off_chart is None:
             layers.append(alt.Chart(pd.DataFrame({"limit": [limit]})).mark_rule(color=ORANGE, strokeDash=[5, 4])
@@ -559,9 +580,10 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
                                   tooltip=[alt.Tooltip("limit:Q", title="Your limit", format=number)]))
         else:
             label = f"Limit {limit:{number}} {UNITS[signal]} {'↑' if off_chart == 'above' else '↓'}"
-            layers.append(alt.Chart(pd.DataFrame({"Hours": [left], "value": [top if off_chart == "above" else bottom],
+            # At the right edge: the left one holds the "Latest reading" label when zoomed in.
+            layers.append(alt.Chart(pd.DataFrame({"Hours": [right], "value": [top if off_chart == "above" else bottom],
                                                   "label": [label]}))
-                          .mark_text(align="left", dx=4, baseline="top" if off_chart == "above" else "bottom",
+                          .mark_text(align="right", dx=-4, baseline="top" if off_chart == "above" else "bottom",
                                      dy=4 if off_chart == "above" else -4, color=ORANGE, fontSize=11)
                           .encode(x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale),
                                   text="label:N"))
@@ -904,7 +926,8 @@ def render() -> None:
         if recorded_last is not None:
             reference = (_forecast_cached(original, float(recorded_last["RUL_median_h"]),
                                           json.dumps(limits, sort_keys=True), code_version()), recorded_last)
-            st.caption("Purple: with your changed operating conditions. Grey dotted: with the recorded conditions.")
+            st.caption("Purple: with your changed operating conditions, and their end of life with its 80% range. "
+                       "Grey dotted: with the recorded conditions, and theirs.")
         _forecast_charts(readings, forecast, last, limits, zoom, reference)
     if assessment["RUL_median_h"].notna().any() if "RUL_median_h" in assessment else False:
         true_eol = truth[device]["eol_h"] if truth and default_limits and not planned.get(str(device)) else None
