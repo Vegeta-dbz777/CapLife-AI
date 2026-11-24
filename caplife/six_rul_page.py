@@ -12,7 +12,7 @@ import pandas as pd
 import streamlit as st
 
 from caplife.tables import table
-from caplife.chart_hover import NO_TOOLTIP, hoverable as _hoverable
+from caplife.chart_hover import NO_TOOLTIP, hoverable as _hoverable, hoverable_rule as _hoverable_rule
 
 from caplife.accounts import save_controls, saved_picker, saving_available
 from caplife.file_reader import read_measurement_file
@@ -578,9 +578,14 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
                   *_hoverable(start, x, y_median, [age, predicted], mine),
                   *_hoverable(ahead, x, y_median, ahead_tip, mine),
                   *_hoverable(edges, x, y_value, edge_tip, mine)]
+        x_rule = alt.X("Hours:Q", scale=hours_scale)
+        eol_tip = [alt.Tooltip("Hours:Q", title="EOL for Changed Conditions (h)" if reference is not None
+                               else "Predicted end of life (h)", format=",.0f")]
+        latest_tip = [alt.Tooltip("Hours:Q", title="Latest reading (h)", format=",.0f")]
         eol = alt.Chart(pd.DataFrame({"Hours": [end]})).mark_rule(color=eol_color, strokeWidth=2.5).encode(
-            x=alt.X("Hours:Q", scale=hours_scale),
-            tooltip=[alt.Tooltip("Hours:Q", title="Predicted end of life (h)", format=",.0f")])
+            x=x_rule, tooltip=eol_tip)
+        hovers += [*_hoverable_rule(pd.DataFrame({"Hours": [latest]}), x_rule, latest_tip, DIVIDER),
+                   *_hoverable_rule(pd.DataFrame({"Hours": [end]}), x_rule, eol_tip, eol_color)]
         layers = [window, now, now_label, band, history, path, eol]
         if reference is not None:
             before = reference[0].loc[reference[0]["signal"].eq(signal)]
@@ -588,6 +593,9 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
                             alt.Tooltip("median:Q", title=f"{INDICATOR_LABELS[signal]}, recorded conditions",
                                         format=number)]
             hovers += _hoverable(before.iloc[1:], x, y_median, recorded_tip, PURPLE)
+            recorded_eol_tip = [alt.Tooltip("Hours:Q", title="EOL for Recorded Conditions (h)", format=",.0f")]
+            hovers += _hoverable_rule(pd.DataFrame({"Hours": [latest + float(reference[1]["RUL_median_h"])]}),
+                                      x_rule, recorded_eol_tip, PURPLE)
             recorded = reference[1]
             recorded_end = latest + float(recorded["RUL_median_h"])
             height = top - bottom
@@ -608,9 +616,7 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
                                             point=alt.OverlayMarkDef(color=PURPLE, size=26, filled=True)).encode(
                     x=x, y=alt.Y("median:Q", scale=scale), tooltip=recorded_tip),
                 alt.Chart(pd.DataFrame({"Hours": [recorded_end]})).mark_rule(
-                    color=PURPLE, strokeWidth=2.5, strokeDash=[4, 3]).encode(
-                    x=alt.X("Hours:Q", scale=hours_scale),
-                    tooltip=[alt.Tooltip("Hours:Q", title="End of life, recorded conditions (h)", format=",.0f")]),
+                    color=PURPLE, strokeWidth=2.5, strokeDash=[4, 3]).encode(x=x_rule, tooltip=recorded_eol_tip),
                 # Labels at the median lines, each on the outer side of its line and at its own height.
                 *(alt.Chart(pd.DataFrame({"Hours": [when], "value": [bottom + lift * height], "label": [name]}))
                   .mark_text(align="left" if outer else "right", dx=4 if outer else -4, baseline="bottom",
@@ -772,6 +778,8 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
             tooltip=NO_TOOLTIP),
     ]
     hovers += _hoverable(data, x, y, past_tip, PURPLE)
+    hovers += _hoverable_rule(pd.DataFrame({"Hours": [latest]}), alt.X("Hours:Q", scale=hours_scale),
+                              [hour("Hours", "Latest reading (h)")], DIVIDER)
     if changed_history is not None and len(changed_history):
         gold = _with_range(changed_history.dropna(subset=["RUL_median_h"])).assign(
             point="Prediction at a reading · Changed Conditions from then on")
@@ -804,6 +812,8 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
             color=colour if changed else GREY, strokeWidth=2.5, strokeDash=[4, 3] if recorded_line else [1, 0]).encode(
             x=alt.X("Hours:Q", scale=hours_scale),
             tooltip=[hour("Hours", f"EOL for {name} Conditions (h)")]))
+        hovers += _hoverable_rule(pd.DataFrame({"Hours": [end]}), alt.X("Hours:Q", scale=hours_scale),
+                                  [hour("Hours", f"EOL for {name} Conditions (h)")], colour if changed else GREY)
         # Points along the countdown, at 0%, 10%, ..., 100% of the predicted remaining life.
         mid, low, high = (float(now[k]) for k in ("RUL_median_h", "RUL_low_h", "RUL_high_h"))
         steps = mid * np.linspace(0, 1, 11)

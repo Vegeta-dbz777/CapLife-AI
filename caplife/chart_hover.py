@@ -20,3 +20,14 @@ def hoverable(data: pd.DataFrame, x, y, tooltip: list, color: str) -> list:
     ring = alt.Chart(data).mark_circle(size=170, fill=None, stroke=color, strokeWidth=2.5).encode(
         x=x, y=y, opacity=alt.condition(hovered, alt.value(1), alt.value(0)), tooltip=NO_TOOLTIP)
     return [ring, hit]
+
+
+def hoverable_rule(data: pd.DataFrame, x, tooltip: list, color: str) -> list:
+    """A vertical line made easy to hover (about 14 px wide) that glows in its colour while hovered."""
+    hovered = alt.selection_point(name=f"hover_{next(_hover_names)}", on="pointerover", clear="pointerout",
+                                  empty=False)
+    hit = alt.Chart(data).mark_rule(strokeWidth=14, opacity=0.001, cursor="pointer").encode(
+        x=x, tooltip=tooltip).add_params(hovered)
+    glow = alt.Chart(data).mark_rule(color=color, strokeWidth=9).encode(
+        x=x, opacity=alt.condition(hovered, alt.value(0.35), alt.value(0)), tooltip=NO_TOOLTIP)
+    return [glow, hit]
