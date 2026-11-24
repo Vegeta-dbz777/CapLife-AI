@@ -210,6 +210,10 @@ def test_my_data_uploads_and_saves_a_monitor_dataset_without_visiting_the_page(d
     app.button(key="caplife_mydata_upload_save").click().run()
     assert not app.exception, app.exception
     assert any("Saved “bench” for Monitor and Predict" in s.value for s in app.success)
+    app.run()
+    assert app.success  # stays until closed
+    app.button(key="caplife_mydata_saved_close").click().run()
+    assert not app.success
     saved = database.list(ALICE["id"])
     assert saved[["name", "kind"]].values.tolist() == [["bench", "six_parameter"]]
     dataset = int(saved["id"].iloc[0])
