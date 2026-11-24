@@ -233,9 +233,14 @@ def _upload_dataset(user: dict, data_store: DatasetStore) -> None:
             st.session_state["caplife_mydata_upload_round"] = round_ + 1
             st.session_state["caplife_mydata_saved_note"] = f"Saved “{' '.join(name.split())}” for {KINDS[kind]}."
             st.rerun()
-        note = st.session_state.pop("caplife_mydata_saved_note", None)
+        note = st.session_state.get("caplife_mydata_saved_note")
         if note:
-            st.success(note)
+            # The cross sits inside the green box (assets/interface.css) and closes it.
+            with st.container(key="caplife_mydata_saved_box"):
+                st.success(note, icon=":material/check_circle:")
+                st.button("", icon=":material/close:", type="tertiary", help="Close",
+                          key="caplife_mydata_saved_close", on_click=st.session_state.pop,
+                          args=("caplife_mydata_saved_note", None))
 
 
 FILE_LABELS = {"measurements": "Measurements", "outcomes": "Outcomes"}

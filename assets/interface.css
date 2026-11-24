@@ -523,3 +523,11 @@
 [data-testid="stSidebar"] hr {
     margin: 1.8rem 0 1.4rem;
 }
+
+/* My Data: the cross that closes the "Saved" message sits inside the green box, at its right. */
+.st-key-caplife_mydata_saved_box { position: relative; }
+.st-key-caplife_mydata_saved_box [data-testid="stAlert"] [data-testid="stAlertContentSuccess"] { padding-right: 2.2rem; }
+.st-key-caplife_mydata_saved_box .st-key-caplife_mydata_saved_close {
+  position: absolute; top: 50%; right: .6rem; transform: translateY(-50%); width: auto; z-index: 1;
+}
+.st-key-caplife_mydata_saved_box .st-key-caplife_mydata_saved_close button { min-height: 2rem; padding: 0 .35rem; }
