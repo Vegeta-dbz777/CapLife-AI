@@ -33,6 +33,7 @@ _forget_outdated_caplife_modules()
 from caplife.config import EOL_THRESHOLDS, FEATURES, SEQ_LEN
 from caplife.data import DataValidationError, validate_measurements
 from caplife.accounts import account_bar, current_user, render_my_data
+from caplife.tables import table
 from caplife.predict import assess_capacitor, default_prediction_hour, load_engine
 from caplife.trend import assess_trend
 from caplife.versioning import code_version
@@ -164,7 +165,7 @@ if workflow == "Public-data neural experiment":
         f"{resolved['test_devices']} test devices · {resolved['resolved']} resolved forecasts · "
         f"{resolved['unresolved']} unresolved"
     )
-    st.dataframe(summary[["method", "brier_score", "true_alerts", "false_alerts", "missed_crossings"]]
+    table(summary[["method", "brier_score", "true_alerts", "false_alerts", "missed_crossings"]]
                  .rename(columns={"method": "Method", "brier_score": "Brier score",
                                   "true_alerts": "Correct alerts", "false_alerts": "False alerts",
                                   "missed_crossings": "Missed crossings"}).round(3), hide_index=True)
@@ -214,7 +215,7 @@ if workflow == "Public-data neural experiment":
                 "The ES10 capacitance readings near 100 Hz stayed below the 20% mark. This check can reveal "
                 "false alerts. Estimating missed crossings requires a cohort with observed crossings."
             )
-            st.dataframe(es10_scores[["method", "resolved", "unresolved", "false_alerts", "brier_score"]]
+            table(es10_scores[["method", "resolved", "unresolved", "false_alerts", "brier_score"]]
                          .rename(columns={"method": "Method", "resolved": "Resolved",
                                           "unresolved": "Unresolved", "false_alerts": "False alerts",
                                           "brier_score": "Brier score"}).round(3), hide_index=True)
@@ -242,7 +243,7 @@ if workflow == "Public-data neural experiment":
              **{methods[method]: entry["brier"] for method, entry in scores["by_method"].items()}}
             for experiment, scores in outcomes.items()
         ]
-        st.dataframe(pd.DataFrame(rows).round(3), hide_index=True)
+        table(pd.DataFrame(rows).round(3), hide_index=True)
         st.caption(
             "The NASA ES10, ES12 and ES14 cohorts were held out together. Lower Brier scores "
             "mean better forecasts. Each capacitor contributes equal weight to its experiment's score."
@@ -275,7 +276,7 @@ if workflow == "Public-data neural experiment":
             "with one forecast per eligible capacitor. The nominal 80% neural bands "
             "failed the held-out condition checks."
         )
-        st.dataframe(pd.DataFrame(rows).round(3), hide_index=True)
+        table(pd.DataFrame(rows).round(3), hide_index=True)
         st.caption(
             "Possible coverage counts any overlap with the reported failure window. "
             "The third condition had insufficient pre-failure readings for a forecast."
@@ -315,7 +316,7 @@ if workflow == "Public-data forecast benchmark":
         f"Training study · {results['train_study'].iloc[0]}  |  "
         f"{observed} crossings observed  |  {censored} tests ended below the threshold"
     )
-    st.dataframe(results[[
+    table(results[[
         "model", "mean_gap_h", "point_hits", "band_overlaps", "band_contains", "median_band_width_h",
     ]].rename(columns={
         "model": "Method",
@@ -335,7 +336,7 @@ if workflow == "Public-data forecast benchmark":
     detail = predictions.loc[
         (predictions["test_study"] == test_study) & (predictions["model"] == method)
     ]
-    st.dataframe(detail[[
+    table(detail[[
         "device", "loss_at_origin_pct", "rul_lower_h", "rul_upper_h", "forecast_h",
         "band_lower_h", "band_upper_h",
     ]].rename(columns={
@@ -361,7 +362,7 @@ if workflow == "Public-data forecast benchmark":
             "Mean forecast miss in hours at six pairs of actual inspection ages. Each row uses "
             "devices that were still below the threshold at their forecast inspection."
         )
-        st.dataframe(study_ages.pivot(index=age_columns, columns="model", values="mean_gap_h")
+        table(study_ages.pivot(index=age_columns, columns="model", values="mean_gap_h")
                      .reset_index().rename(columns={
                          "eos2_age_h": "EOS-2 age (h)",
                          "pofinn_age_h": "PoFINN age (h)",
@@ -383,7 +384,7 @@ if workflow == "Public-data forecast benchmark":
             "range that ends within the span of those readings. The training-range check also requires "
             "the latest loss to fall within the range seen in the training study at the paired inspection."
         )
-        st.dataframe(study_screening[[
+        table(study_screening[[
             "policy", "eligible_origins", "shown", "devices_shown", "scored_crossings",
             "mean_gap_h", "band_overlaps", "band_contains",
         ]].rename(columns={
@@ -518,7 +519,7 @@ if workflow == MEASUREMENT_WORKFLOW:
             threshold = st.number_input("Capacitance-loss threshold (%)", min_value=0.1, max_value=99.9,
                                         value=20.0, step=0.1)
             status = observed_capacitance_threshold(capacitance_history, threshold)
-            st.dataframe(status.round(2), hide_index=True)
+            table(status.round(2), hide_index=True)
             st.caption(
                 "The last below-threshold reading and the first at or above it bracket the first recorded crossing. "
                 "Confirmation requires two consecutive available readings at or above the threshold. "
@@ -563,7 +564,7 @@ if workflow == MEASUREMENT_WORKFLOW:
                    "and which parameter has come closest to its default end-of-life limit.")
         right.button("Predict remaining life for these capacitors →", type="primary", on_click=predict_remaining_life,
                      key="caplife_analyze_to_rul", width="stretch")
-        st.dataframe(capacitor_summary(readings, warnings), hide_index=True, width="stretch", column_config={
+        table(capacitor_summary(readings, warnings), hide_index=True, width="stretch", column_config={
             "Capacitor": st.column_config.TextColumn(pinned=True),
             **{label: st.column_config.NumberColumn(format="%+.1f") for label in (
                 "Capacitance change (%)", "ESR change (%)", "Leakage change (%)", "Case expansion (µm)",
@@ -577,7 +578,7 @@ if workflow == MEASUREMENT_WORKFLOW:
     with overview:
         st.subheader("Measurement quality")
         st.caption("Zero recorded readings means 'not supplied' or 'no measurements' — not a zero sensor reading.")
-        st.dataframe(quality, hide_index=True, width="stretch", column_config={"Cap_ID": st.column_config.TextColumn(pinned=True)})
+        table(quality, hide_index=True, width="stretch", column_config={"Cap_ID": st.column_config.TextColumn(pinned=True)})
 
         st.subheader("Research-data readiness")
         audit = audit_measurement_readiness(real_report)
@@ -585,14 +586,14 @@ if workflow == MEASUREMENT_WORKFLOW:
             "This audit flags missing baselines, sparse histories, unrecorded conditions "
             "and measurement gaps. It does not certify sensor accuracy or predict RUL."
         )
-        st.dataframe(audit["summary"], hide_index=True, width="stretch", column_config={"Cap_ID": st.column_config.TextColumn(pinned=True)})
+        table(audit["summary"], hide_index=True, width="stretch", column_config={"Cap_ID": st.column_config.TextColumn(pinned=True)})
         with st.expander("Recommended measurement and documentation improvements"):
-            st.dataframe(audit["actions"], hide_index=True, width="stretch")
+            table(audit["actions"], hide_index=True, width="stretch")
         with st.expander("Recorded operating and test conditions"):
-            st.dataframe(audit["conditions"], hide_index=True, width="stretch")
+            table(audit["conditions"], hide_index=True, width="stretch")
 
         st.subheader("Observed degradation")
-        st.dataframe(changes.round(3), hide_index=True, width="stretch", column_config={"Cap_ID": st.column_config.TextColumn(pinned=True)})
+        table(changes.round(3), hide_index=True, width="stretch", column_config={"Cap_ID": st.column_config.TextColumn(pinned=True)})
         st.caption(
             "Changes are calculated only with an available hour-zero baseline; percentages "
             "refer to the observed raw measurement, not to remaining life. "
@@ -649,7 +650,7 @@ if workflow == MEASUREMENT_WORKFLOW:
         if absent:
             st.caption("Not enough readings to chart: " + ", ".join(absent) + ".")
         with st.expander("View processed measurements"):
-            st.dataframe(cap_rows, hide_index=True, width="stretch")
+            table(cap_rows, hide_index=True, width="stretch")
         gas_df = None
         scenario_params = None
         # v0.8 PREVIEW: optional assumption-based calculation; never treated as a measurement.
@@ -762,7 +763,7 @@ if workflow == MEASUREMENT_WORKFLOW:
                         height=260,
                     )
                 with st.expander("Inspect calculation table and equations"):
-                    st.dataframe(gas_df, hide_index=True, width="stretch")
+                    table(gas_df, hide_index=True, width="stretch")
                     st.latex(r"Q(t) = \int_0^t I_{\rm leakage}(\tau) \, d\tau")
                     st.latex(r"n_{H_2,\rm generated}(t) = \eta \frac{Q(t)}{2F}")
                     st.latex(r"P_{\rm abs}(t) = P_0\frac{T(t)}{T_0} + \frac{n_{H_2,\rm retained}(t) R T(t)}{V_{\rm headspace}}")
@@ -800,7 +801,7 @@ if workflow == MEASUREMENT_WORKFLOW:
             rate_summary_display[numeric_column] = rate_summary_display[numeric_column].map(
                 lambda value: "—" if pd.isna(value) else f"{value:+.5g}"
             )
-        st.dataframe(rate_summary_display, hide_index=True, width="stretch")
+        table(rate_summary_display, hide_index=True, width="stretch")
         for warning in rate_report["warnings"]:
             if str(cap_choice) in warning:
                 st.warning(warning)
@@ -832,7 +833,7 @@ if workflow == MEASUREMENT_WORKFLOW:
                 "interval midpoints. They are NOT continuously measured rates. "
                 "Each graph uses its own units and scale."
             )
-            st.dataframe(rate_rows.round(10), hide_index=True, width="stretch")
+            table(rate_rows.round(10), hide_index=True, width="stretch")
         with st.expander("Inspect rate acceleration calculations", expanded=False):
             accel_rows = rate_report["accelerations"].loc[
                 lambda df: df["Cap_ID"] == cap_choice
@@ -856,7 +857,7 @@ if workflow == MEASUREMENT_WORKFLOW:
                     accel_subset[["At_Hours", "Acceleration_per_hour2"]],
                     x="At_Hours", y="Acceleration_per_hour2", height=250,
                 )
-                st.dataframe(accel_rows.round(12), hide_index=True, width="stretch")
+                table(accel_rows.round(12), hide_index=True, width="stretch")
         st.download_button(
             "Download observed interval-rate table (CSV)",
             data=rate_report["intervals"].to_csv(index=False).encode("utf-8-sig"),
@@ -1302,7 +1303,7 @@ if result_is_current:
             }
             for name, hours in trend_result["indicator_rul_hours"].items()
         ]
-        st.dataframe(pd.DataFrame(detail_rows), hide_index=True, width="stretch")
+        table(pd.DataFrame(detail_rows), hide_index=True, width="stretch")
         st.caption(trend_result["message"])
 
     st.caption(
@@ -1373,7 +1374,7 @@ with right:
     st.line_chart(plot_df[["Case_Strain_Index"]])
 
 with st.expander("View measurements used at the selected prediction time"):
-    st.dataframe(history_to_show, width="stretch", hide_index=True)
+    table(history_to_show, width="stretch", hide_index=True)
     st.download_button(
         "Download measurements up to prediction time",
         data=history_to_show.to_csv(index=False),
@@ -1386,7 +1387,7 @@ with st.expander("View full capacitor history (reference only — includes futur
         "For retrospective research only. These later readings are NOT passed to "
         "the GRU when predicting at an earlier time."
     )
-    st.dataframe(cap_df, width="stretch", hide_index=True)
+    table(cap_df, width="stretch", hide_index=True)
     st.download_button(
         "Download full selected history",
         data=cap_df.to_csv(index=False),
@@ -1599,7 +1600,7 @@ if trajectory_is_current:
             "90% simultaneous coverage across a capacitor's history.**"
         )
     with st.expander("View time-by-time predictions"):
-        st.dataframe(trajectory, width="stretch", hide_index=True)
+        table(trajectory, width="stretch", hide_index=True)
     st.download_button(
         "Download retrospective RUL results (CSV)",
         data=trajectory.to_csv(index=False),
