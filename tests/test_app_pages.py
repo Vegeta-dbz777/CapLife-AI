@@ -47,7 +47,9 @@ def test_public_example_loads_eight_capacitors():
     assert metric(app, "Measurement rows") == "576"
     assert all(r.label != "CSV format" for r in app.radio)
     assert any("Much of the capacitance loss appeared early" in i.value for i in app.info)
-    assert sum("ESR test conditions are only partly documented" in w.value for w in app.warning) == 1
+    # Notes are listed once, in the Notes expander under the status tags (not as separate warning boxes).
+    assert sum("ESR test conditions are only partly documented" in m.value for m in app.markdown) == 1
+    assert not any("ESR test conditions are only partly documented" in w.value for w in app.warning)
 
 
 def test_rul_prediction_example_shows_fleet_and_capacitor_detail():
