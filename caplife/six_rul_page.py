@@ -70,7 +70,7 @@ def _limit_text(signal: str, limits: dict | None = None) -> str:
 TEAL, ORANGE, GREY = "#2f9e8f", "#d9822b", "#8a9a9a"
 DIVIDER = "#9fb0bd"  # the latest reading: measured to the left, forecast to the right
 PURPLE = "#8e6bd8"
-RECORDED = "#d9a514"  # the recorded-conditions forecast (gold, opposite purple), next to a changed-conditions one  # forecasts: distinct from measured readings (teal) and limits (orange) in both themes
+GOLD = "#d9a514"  # changed operating conditions (opposite purple, which is the recorded-conditions forecast)  # forecasts: distinct from measured readings (teal) and limits (orange) in both themes
 INPUT_ERRORS = (RealDataValidationError, ValueError, pd.errors.ParserError,
                 pd.errors.EmptyDataError, UnicodeError)
 
@@ -429,7 +429,7 @@ def signal_charts(readings: pd.DataFrame, limits: dict | None = None, reference:
     Parameters with fewer than two readings are skipped, and blank readings are left out of the
     line. ``reference`` labels the limit as the default reference limit (Analyze measurements).
     ``alternative`` is the estimated history had the capacitor always run at other conditions,
-    drawn purple and dashed next to the measured readings.
+    drawn gold and dashed next to the measured readings.
     """
     readings = readings.sort_values("Hours")
     baseline = readings.bfill().iloc[0]  # each parameter's first available reading
@@ -469,8 +469,8 @@ def signal_charts(readings: pd.DataFrame, limits: dict | None = None, reference:
             layers = [line, marker]
             if other is not None:
                 layers.append(alt.Chart(other).mark_line(
-                    color=PURPLE, strokeWidth=2.2, strokeDash=[6, 3],
-                    point=alt.OverlayMarkDef(color=PURPLE, size=22, filled=True)).encode(
+                    color=GOLD, strokeWidth=2.2, strokeDash=[6, 3],
+                    point=alt.OverlayMarkDef(color=GOLD, size=22, filled=True)).encode(
                     x="Hours:Q", y=alt.Y("value:Q", scale=scale),
                     tooltip=[alt.Tooltip("Hours:Q", format=",.0f"),
                              alt.Tooltip("value:Q", title="Had it always run at your conditions",
@@ -517,8 +517,9 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
             bottom -= 0.12 * (top - bottom)
         scale = alt.Scale(domain=[bottom, top], zero=False, nice=False)
         number = f",.{DIGITS[signal]}f"
-        # With changed conditions, their end of life is purple and the recorded one gold.
-        eol_color = PURPLE if reference is not None else GREY
+        # Purple is the forecast with the recorded conditions; with changed conditions, theirs is gold.
+        mine = GOLD if reference is not None else PURPLE
+        eol_color = GOLD if reference is not None else GREY
         window = alt.Chart(eol_range).mark_rect(color=eol_color, opacity=.14 if reference is not None else .16).encode(
             x=alt.X("from:Q", scale=hours_scale), x2="to:Q",
             tooltip=[alt.Tooltip("from:Q", title="End of life, 80% range from (h)", format=",.0f"),
@@ -534,10 +535,10 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
             x=x, y=alt.Y("value:Q", title=UNITS[signal], scale=scale),
             tooltip=[alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
                      alt.Tooltip("value:Q", title=f"Measured {INDICATOR_LABELS[signal]}", format=number)])
-        band = alt.Chart(data).mark_area(color=PURPLE, opacity=.28).encode(
+        band = alt.Chart(data).mark_area(color=mine, opacity=.28).encode(
             x=x, y=alt.Y("low:Q", scale=scale), y2="high:Q")
-        path = alt.Chart(data).mark_line(color=PURPLE, strokeWidth=3, strokeDash=[7, 3], point=alt.OverlayMarkDef(
-            color=PURPLE, size=34, filled=True)).encode(
+        path = alt.Chart(data).mark_line(color=mine, strokeWidth=3, strokeDash=[7, 3], point=alt.OverlayMarkDef(
+            color=mine, size=34, filled=True)).encode(
             x=x, y=alt.Y("median:Q", scale=scale),
             tooltip=[alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
                      alt.Tooltip("median:Q", title=f"Predicted {INDICATOR_LABELS[signal]}", format=number),
@@ -558,20 +559,20 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
             layers = [
                 # Each end of life's 80% range shaded in its colour (they blend where they overlap).
                 *(alt.Chart(pd.DataFrame({"from": [low], "to": [high]})).mark_rect(
-                    color=PURPLE if name == "Changed" else RECORDED, opacity=.2 if name == "Changed" else .17).encode(
+                    color=GOLD if name == "Changed" else PURPLE, opacity=.17 if name == "Changed" else .2).encode(
                     x=alt.X("from:Q", scale=hours_scale), x2="to:Q") for name, (low, _, high) in ranges.items()),
                 now, now_label, band, history,
                 *_range_hover(ranges, hours_scale),  # above the band, below the lines and their points
                 path, eol,
                 # Points make the thin dotted line easy to hover.
-                alt.Chart(before).mark_line(color=RECORDED, strokeWidth=2.2, strokeDash=[2, 3], clip=True,
-                                            point=alt.OverlayMarkDef(color=RECORDED, size=26, filled=True)).encode(
+                alt.Chart(before).mark_line(color=PURPLE, strokeWidth=2.2, strokeDash=[2, 3], clip=True,
+                                            point=alt.OverlayMarkDef(color=PURPLE, size=26, filled=True)).encode(
                     x=x, y=alt.Y("median:Q", scale=scale),
                     tooltip=[alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
                              alt.Tooltip("median:Q", title=f"{INDICATOR_LABELS[signal]}, recorded conditions",
                                          format=number)]),
                 alt.Chart(pd.DataFrame({"Hours": [recorded_end]})).mark_rule(
-                    color=RECORDED, strokeWidth=2.5, strokeDash=[4, 3]).encode(
+                    color=PURPLE, strokeWidth=2.5, strokeDash=[4, 3]).encode(
                     x=alt.X("Hours:Q", scale=hours_scale),
                     tooltip=[alt.Tooltip("Hours:Q", title="End of life, recorded conditions (h)", format=",.0f")]),
                 # Labels at the median lines, each on the outer side of its line and at its own height.
@@ -580,8 +581,8 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
                              fontSize=11, fontWeight="bold", color=colour)
                   .encode(x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale), text="label:N")
                   for when, lift, name, colour, outer in (
-                      (end, 0.02, "Changed", PURPLE, end >= recorded_end),
-                      (recorded_end, 0.08, "Recorded", RECORDED, recorded_end > end))),
+                      (end, 0.02, "Changed", GOLD, end >= recorded_end),
+                      (recorded_end, 0.08, "Recorded", PURPLE, recorded_end > end))),
             ]
         if off_chart is None:
             layers.append(alt.Chart(pd.DataFrame({"limit": [limit]})).mark_rule(color=ORANGE, strokeDash=[5, 4])
@@ -941,7 +942,7 @@ def render() -> None:
 
     st.markdown("##### Parameter history" if len(measured) < len(SIGNALS) else "##### Six-parameter history",
                 help="Each dot is one measured reading, joined in time order. Orange dashed line: your limit. "
-                     "With changed operating conditions, the purple dashed line estimates the history had the "
+                     "With changed operating conditions, the gold dashed line estimates the history had the "
                      "capacitor always run at them: each measured state moves to the hour it would have been "
                      "reached by the standard aging rules (electrolyte aging 2× per 10 °C of core temperature and "
                      "with the cube of the voltage ratio; gas from leakage current, 2× per 20 °C), and gas, "
@@ -949,7 +950,7 @@ def render() -> None:
                      "capacitors follow these rules only approximately.")
     alternative = conditions.alternative_history(original, planned[str(device)]) if planned.get(str(device)) else None
     if planned.get(str(device)):
-        st.caption("Teal: measured. Purple dashed: estimated history had it always run at your conditions."
+        st.caption("Teal: measured. Gold dashed: estimated history had it always run at your conditions."
                    if alternative is not None else
                    "An estimated history at your conditions needs a recorded core or ambient temperature.")
     _signal_charts(readings, limits, alternative=alternative)
@@ -970,9 +971,9 @@ def render() -> None:
         if recorded_last is not None:
             reference = (_forecast_cached(original, float(recorded_last["RUL_median_h"]),
                                           json.dumps(limits, sort_keys=True), code_version()), recorded_last)
-            st.caption("Purple: forecast and end of life (shaded 80% range) with your changed operating "
-                       "conditions. Gold dotted: with the recorded conditions, and its shaded range. Hover a shaded range "
-                       "for its hours.")
+            st.caption("Gold: forecast and end of life (shaded 80% range) with your changed operating "
+                       "conditions. Purple dotted: with the recorded conditions, and its shaded range. Hover a shaded "
+                       "range for its hours.")
         _forecast_charts(readings, forecast, last, limits, zoom, reference)
     if assessment["RUL_median_h"].notna().any() if "RUL_median_h" in assessment else False:
         true_eol = truth[device]["eol_h"] if truth and default_limits and not planned.get(str(device)) else None
