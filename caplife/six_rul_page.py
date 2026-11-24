@@ -272,7 +272,7 @@ def _device_limits(devices) -> dict:
     return {str(device): full_limits(stored.get(str(device))) for device in devices}
 
 
-def _limit_inputs(device: str, measured: tuple[str, ...], devices) -> dict:
+def _limit_inputs(device: str, measured: tuple[str, ...]) -> dict:
     """Six limit boxes for the selected capacitor; returns its limits."""
     stored = st.session_state.setdefault(LIMITS_STATE, {})
     current = full_limits(stored.get(device))
@@ -280,12 +280,6 @@ def _limit_inputs(device: str, measured: tuple[str, ...], devices) -> dict:
 
     def changed(signal):
         stored.setdefault(device, {})[LIMIT_KEYS[signal]] = _stored_limit(signal, st.session_state[widget(signal)])
-
-    def apply_to_all():
-        for other in devices:
-            stored[str(other)] = dict(full_limits(stored.get(device)))
-            for signal in SIGNALS:
-                st.session_state.pop(f"caplife_six_limit_{other}_{signal}", None)
 
     def reset():
         stored.pop(device, None)
@@ -308,9 +302,7 @@ def _limit_inputs(device: str, measured: tuple[str, ...], devices) -> dict:
             help=("Not measured for this capacitor." if signal not in measured else
                   f"Allowed: {_shown_limit(signal, low):g} to {_shown_limit(signal, high):g}, the range the model "
                   "was trained on."), **kwargs)
-    left, right, _ = st.columns([1.3, 1, 2])
-    left.button("Apply these limits to every capacitor", on_click=apply_to_all, key=f"caplife_six_apply_{device}")
-    right.button("Reset to defaults", on_click=reset, key=f"caplife_six_reset_{device}")
+    st.button("Reset to defaults", on_click=reset, key=f"caplife_six_reset_{device}")
     return full_limits(stored.get(device))
 
 
@@ -926,7 +918,7 @@ def render() -> None:
     if len(set(sets.values())) > 1 and len(measured) < len(SIGNALS):
         _parameter_note(measured, device)
     with st.container(border=True):
-        limits = _limit_inputs(str(device), measured, devices)
+        limits = _limit_inputs(str(device), measured)
     with st.container(border=True):
         _condition_inputs(str(device), conditions.latest(original), conditions.latest(readings))
     last = assessment.iloc[-1]
