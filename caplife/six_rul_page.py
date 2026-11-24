@@ -1024,9 +1024,8 @@ def render() -> None:
               help="Upload measurement histories of capacitance, ESR, leakage current, case expansion, generated "
                    "hydrogen and internal pressure (any of them), optionally with operating conditions. CapLife "
                    "scores each parameter's health against its limit, and a neural network predicts remaining useful "
-                   "life with an 80% range.")
-    st.info("**Demonstration model:** trained on simulated capacitors; its accuracy on real capacitors has not "
-            "been tested.")
+                   "life with an 80% range. Demonstration model: trained on simulated capacitors; its accuracy on "
+                   "real capacitors has not been tested.")
     loaded = _load()
     if loaded is None:
         return
