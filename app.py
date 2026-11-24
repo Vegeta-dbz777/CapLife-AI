@@ -463,7 +463,7 @@ if workflow == MEASUREMENT_WORKFLOW:
     upload_column, sample_column = st.columns([1.7, 1])
     with upload_column, st.container(border=True, key="caplife_upload_card"):
         st.subheader("Upload measurements")
-        from caplife.upload_ui import UPLOAD_TYPES, file_settings, show_notes
+        from caplife.upload_ui import UPLOAD_TYPES, file_settings
         upload_real = st.file_uploader(
             "Measurement file (CSV or Excel)", type=UPLOAD_TYPES, key="caplife_real_csv_v06",
             on_change=clear_public_sample,
@@ -513,8 +513,6 @@ if workflow == MEASUREMENT_WORKFLOW:
 
     st.header("Measurement results")
     st.caption("NASA ES14 example" if using_sample else upload_real.name)
-    if not using_sample:
-        show_notes(uploaded_frame.attrs.get("notes", []))
 
     def show_observed_threshold(capacitance_history: pd.DataFrame) -> None:
         with st.expander("Check an observed capacitance-loss threshold"):
@@ -543,9 +541,10 @@ if workflow == MEASUREMENT_WORKFLOW:
         c in uploaded_frame and uploaded_frame[c].notna().any()
         for c in ("Capacitance_uF", "ESR_ohm", "Leakage_uA", "Case_Expansion_um", "H2_Generated_mL_STP", "Pressure_Abs_kPa")
     )))
-    st.success("Basic data checks passed. This does not establish measurement validity or real-world reliability.")
-    for warning in group_capacitor_warnings(warnings):
-        st.warning(warning)
+    from caplife.upload_ui import status_row
+    status_row("Basic data checks passed. This does not establish measurement validity or real-world reliability.",
+               list(group_capacitor_warnings(warnings)),
+               [] if using_sample else uploaded_frame.attrs.get("notes", []))
 
     summary_tab, signals, overview, research, exports = st.tabs(
         ["Summary", "Signal history", "Data quality", "Research tools", "Downloads"])
@@ -805,9 +804,10 @@ if workflow == MEASUREMENT_WORKFLOW:
                 lambda value: "—" if pd.isna(value) else f"{value:+.5g}"
             )
         table(rate_summary_display, hide_index=True, width="stretch")
-        for warning in rate_report["warnings"]:
-            if str(cap_choice) in warning:
-                st.warning(warning)
+        rate_notes = [warning for warning in rate_report["warnings"] if str(cap_choice) in warning]
+        if rate_notes:  # a small tag with the full note on hover, instead of a message box
+            st.badge("ESR rates provisional" if all("ESR" in note for note in rate_notes) else "Rates to review",
+                     icon=":material/warning:", color="orange", help=" ".join(rate_notes))
         with st.expander("View interval-by-interval rates for all six indicators", expanded=False):
             rate_rows = rate_report["intervals"].loc[
                 lambda df: df["Cap_ID"] == cap_choice
@@ -949,14 +949,10 @@ if workflow == MEASUREMENT_WORKFLOW:
                 file_name="caplife_assessment_tables.zip",
                 mime="application/zip",
             )
-        st.info(
-            "**Limitations:** This mode does not determine health, EOL, RUL, uncertainty "
-            "intervals, or maintenance actions. A complete dataset can still have inaccurate "
-            "sensors, changing operating conditions, or incomparable test settings. "
-            "The uploaded file is processed by the web-app server; check hosting/privacy "
-            "policies before submitting confidential experiments."
-        )
-        st.caption("CapLife AI · six-indicator observation plus optional hypothetical physics · no real-data neural-network prediction")
+        st.caption(
+            "Limitations: this page describes measurements; it does not determine health, EOL, RUL, uncertainty "
+            "intervals or maintenance actions. A complete dataset can still have inaccurate sensors, changing "
+            "operating conditions or incomparable test settings. Uploads are processed on the app server.")
 
     st.stop()
 
