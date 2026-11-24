@@ -642,7 +642,7 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
 def _range_hover(ranges: dict, hours_scale: alt.Scale) -> list:
     """Invisible hover areas over two end-of-life ranges: where only one covers the time, its details;
     where both do, both. ``ranges`` maps "Changed"/"Recorded" to (from, median, to) in hours."""
-    names = {"Changed": "Your changed conditions", "Recorded": "Recorded conditions"}
+    names = {"Changed": "EOL for Changed Conditions", "Recorded": "EOL for Recorded Conditions"}
     (c_low, c_mid, c_high), (r_low, r_mid, r_high) = ranges["Changed"], ranges["Recorded"]
     edges = sorted({c_low, c_high, r_low, r_high})
     single, both = [], []
@@ -653,24 +653,25 @@ def _range_hover(ranges: dict, hours_scale: alt.Scale) -> list:
             both.append({"from": start, "to": stop})
         elif inside:
             low, mid, high = ranges[inside[0]]
-            single.append({"from": start, "to": stop, "which": names[inside[0]], "median": mid, "low": low,
-                           "high": high})
+            single.append({"from": start, "to": stop, "which": names[inside[0]], "median": mid,
+                           "range": f"{low:,.0f} – {high:,.0f}"})
     hour = lambda field, title: alt.Tooltip(f"{field}:Q", title=title, format=",.0f")
     layers = []
     if single:
         layers.append(alt.Chart(pd.DataFrame(single)).mark_rect(opacity=0.001).encode(
             x=alt.X("from:Q", scale=hours_scale), x2="to:Q",
-            tooltip=[alt.Tooltip("which:N", title="End of life with"), hour("median", "Median (h)"),
-                     hour("low", "80% range from (h)"), hour("high", "80% range to (h)")]))
+            tooltip=[alt.Tooltip("which:N", title="Point"), hour("median", "Predicted EOL (h)"),
+                     alt.Tooltip("range:N", title="80% range (h)")]))
     if both:
-        frame = pd.DataFrame(both).assign(c_mid=c_mid, c_low=c_low, c_high=c_high, r_mid=r_mid, r_low=r_low,
-                                          r_high=r_high, note="Both 80% ranges cover this time")
+        frame = pd.DataFrame(both).assign(
+            note="Both EOL 80% ranges cover this time", c_mid=c_mid, c_range=f"{c_low:,.0f} – {c_high:,.0f}",
+            r_mid=r_mid, r_range=f"{r_low:,.0f} – {r_high:,.0f}")
         layers.append(alt.Chart(frame).mark_rect(opacity=0.001).encode(
             x=alt.X("from:Q", scale=hours_scale), x2="to:Q",
-            tooltip=[alt.Tooltip("note:N", title="End of life"),
-                     hour("c_mid", "Changed conditions: median (h)"), hour("c_low", "Changed: 80% range from (h)"),
-                     hour("c_high", "Changed: 80% range to (h)"), hour("r_mid", "Recorded conditions: median (h)"),
-                     hour("r_low", "Recorded: 80% range from (h)"), hour("r_high", "Recorded: 80% range to (h)")]))
+            tooltip=[alt.Tooltip("note:N", title="Point"),
+                     hour("c_mid", "EOL for Changed Conditions (h)"), alt.Tooltip("c_range:N", title="80% range (h)"),
+                     hour("r_mid", "EOL for Recorded Conditions (h)"),
+                     alt.Tooltip("r_range:N", title="80% range (h) ")]))
     return layers
 
 
@@ -707,8 +708,8 @@ def _countdown(now: pd.Series) -> pd.DataFrame:
 
 
 def _with_range(frame: pd.DataFrame, low: str = "RUL_low_h", high: str = "RUL_high_h") -> pd.DataFrame:
-    """Adds a readable "range" column ("1,416 – 2,530 h") for tooltips."""
-    return frame.assign(range=[f"{max(a, 0):,.0f} – {max(b, 0):,.0f} h" for a, b in zip(frame[low], frame[high])])
+    """Adds a readable "range" column ("1,416 – 2,530") for tooltips."""
+    return frame.assign(range=[f"{max(a, 0):,.0f} – {max(b, 0):,.0f}" for a, b in zip(frame[low], frame[high])])
 
 
 def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd.Series | None = None,
@@ -754,9 +755,10 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
         layers += _range_hover(ranges, hours_scale)
     # Predictions made at past readings.
     data = _with_range(data)
-    past_tip = [alt.Tooltip("which:N", title="Conditions"), hour("Hours", "Age (h)"),
-                hour("RUL_median_h", "Remaining life (h)"), alt.Tooltip("range:N", title="80% range")]
-    data = data.assign(which="Recorded" if changed else "As recorded")
+    # Every tooltip on this chart: what the point is, then age, remaining life and its 80% range.
+    past_tip = [alt.Tooltip("point:N", title="Point"), hour("Hours", "Age (h)"),
+                hour("RUL_median_h", "Remaining life (h)"), alt.Tooltip("range:N", title="80% range (h)")]
+    data = data.assign(point="Prediction at a reading · Recorded Conditions")
     layers += [
         alt.Chart(data).mark_area(color=PURPLE, opacity=.25).encode(
             x=x, y=alt.Y("RUL_low_h:Q", scale=scale), y2="RUL_high_h:Q", tooltip=NO_TOOLTIP),
@@ -771,7 +773,8 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
     ]
     hovers += _hoverable(data, x, y, past_tip, PURPLE)
     if changed_history is not None and len(changed_history):
-        gold = _with_range(changed_history.dropna(subset=["RUL_median_h"])).assign(which="Yours, from that reading on")
+        gold = _with_range(changed_history.dropna(subset=["RUL_median_h"])).assign(
+            point="Prediction at a reading · Changed Conditions from then on")
         gold_tip = past_tip
         layers += [
             alt.Chart(gold).mark_area(color=GOLD, opacity=.2).encode(
@@ -800,21 +803,29 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
         layers.append(alt.Chart(pd.DataFrame({"Hours": [end]})).mark_rule(
             color=colour if changed else GREY, strokeWidth=2.5, strokeDash=[4, 3] if recorded_line else [1, 0]).encode(
             x=alt.X("Hours:Q", scale=hours_scale),
-            tooltip=[hour("Hours", f"Predicted end of life{', ' + name.lower() + ' conditions' if changed else ''} (h)")]))
+            tooltip=[hour("Hours", f"EOL for {name} Conditions (h)")]))
         # Points along the countdown, at 0%, 10%, ..., 100% of the predicted remaining life.
         mid, low, high = (float(now[k]) for k in ("RUL_median_h", "RUL_low_h", "RUL_high_h"))
         steps = mid * np.linspace(0, 1, 11)
         points = _with_range(pd.DataFrame({"Hours": latest + steps, "median": mid - steps, "low": low - steps,
                                            "high": high - steps}), "low", "high")
-        points["which"] = ("Recorded" if name == "Recorded" else "Yours") if changed else "As recorded"
-        points["note"] = ["Latest reading"] + ["Countdown"] * 9 + ["Predicted end of life"]
-        point_tip = [alt.Tooltip("which:N", title="Conditions"), alt.Tooltip("note:N", title=" "),
-                     hour("Hours", "Age (h)"), hour("median", "Remaining life (h)"),
-                     alt.Tooltip("range:N", title="80% range")]
+        conditions_name = f"{name} Conditions"
+        points["point"] = [f"Latest reading · {conditions_name}"] + [f"Countdown · {conditions_name}"] * 10
+        point_tip = [alt.Tooltip("point:N", title="Point"), hour("Hours", "Age (h)"),
+                     hour("median", "Remaining life (h)"), alt.Tooltip("range:N", title="80% range (h)")]
+        # The last point is the predicted end of life: its hour and the end of life's own 80% range.
+        eol_point = pd.DataFrame([{"Hours": ranges[name][1], "median": 0.0, "point": f"EOL for {conditions_name}",
+                                   "range": f"{ranges[name][0]:,.0f} – {ranges[name][2]:,.0f}"}])
+        eol_tip = [alt.Tooltip("point:N", title="Point"), hour("Hours", "Predicted EOL (h)"),
+                   alt.Tooltip("range:N", title="80% range (h)")]
+        points = points.iloc[:-1]
         y_median = alt.Y("median:Q", scale=scale)
-        layers.append(alt.Chart(points).mark_point(color=colour, size=34, filled=True, opacity=1).encode(
-            x=x, y=y_median, tooltip=point_tip))
+        layers += [alt.Chart(points).mark_point(color=colour, size=34, filled=True, opacity=1).encode(
+                       x=x, y=y_median, tooltip=point_tip),
+                   alt.Chart(eol_point).mark_point(color=colour, size=60, filled=True, opacity=1).encode(
+                       x=x, y=y_median, tooltip=eol_tip)]
         hovers += _hoverable(points, x, y_median, point_tip, colour)
+        hovers += _hoverable(eol_point, x, y_median, eol_tip, colour)
     if changed:  # labels near the top of the end-of-life lines, on their outer sides and at two heights
         recorded_end, changed_end = ranges["Recorded"][1], ranges["Changed"][1]
         for when, lift, name, outer in ((changed_end, 0.99, "Changed", changed_end >= recorded_end),
