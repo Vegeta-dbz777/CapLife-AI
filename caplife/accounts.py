@@ -14,6 +14,8 @@ import os
 import pandas as pd
 import streamlit as st
 
+from caplife.tables import table
+
 from caplife.storage import KINDS, DatasetStore, StorageError
 
 
@@ -182,12 +184,12 @@ def render_my_data() -> None:
     if saved.empty:
         st.info("Nothing saved yet. Upload a dataset on **RUL prediction** or **Train RUL model** and save it.")
     else:
-        table = pd.DataFrame({
+        listing = pd.DataFrame({
             "Name": saved["name"], "Type": saved["kind"].map(KINDS),
             "Saved": [local_time(value, viewer_timezone()) for value in saved["created_at"]],
             "Size (KB)": (saved["size_bytes"] / 1024).round(1),
         })
-        st.dataframe(table, hide_index=True, width="stretch")
+        table(listing, hide_index=True, width="stretch")
         labels = {int(row.id): f"{row.name} · {KINDS[row.kind]}" for row in saved.itertuples(index=False)}
         chosen = st.selectbox("Dataset", list(labels), format_func=labels.get, key="caplife_mydata_pick")
         files = data_store.load(user["id"], chosen)

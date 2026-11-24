@@ -8,6 +8,8 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from caplife.tables import table
+
 from caplife.accounts import save_controls, saved_picker, saving_available
 from caplife.measurement_review import read_experimental_csv
 from caplife.upload_ui import UPLOAD_TYPES, file_settings, show_notes
@@ -76,10 +78,10 @@ def _reason_list(reasons: dict) -> str:
     return "\n".join(f"- **{device}**: {reason}" for device, reason in reasons.items())
 
 
-def _interval_chart(table: pd.DataFrame, observed: bool) -> alt.Chart:
+def _interval_chart(rows: pd.DataFrame, observed: bool) -> alt.Chart:
     data = pd.DataFrame({
-        "capacitor": table["Capacitor"], "low": table["80% range from (h)"],
-        "mid": table["Predicted failure age (h)"], "high": table["80% range to (h)"],
+        "capacitor": rows["Capacitor"], "low": rows["80% range from (h)"],
+        "mid": rows["Predicted failure age (h)"], "high": rows["80% range to (h)"],
     })
     y = alt.Y("capacitor:N", sort=None, title=None)
     layers = [
@@ -92,8 +94,8 @@ def _interval_chart(table: pd.DataFrame, observed: bool) -> alt.Chart:
             y=y, x="mid:Q", tooltip=[alt.Tooltip("mid:Q", title="Predicted failure age (h)", format=",.0f")]),
     ]
     if observed:
-        seen = table.assign(capacitor=table["Capacitor"], lower=table["Last seen working (h)"],
-                            upper=table["Found failed by (h)"])
+        seen = rows.assign(capacitor=rows["Capacitor"], lower=rows["Last seen working (h)"],
+                            upper=rows["Found failed by (h)"])
         failed = seen.dropna(subset=["upper"])
         layers.append(alt.Chart(failed).mark_rule(strokeWidth=3, color=OBSERVED_COLOR).encode(
             y=y, x="lower:Q", x2="upper:Q",
@@ -107,7 +109,7 @@ def _interval_chart(table: pd.DataFrame, observed: bool) -> alt.Chart:
                                                         color=OBSERVED_COLOR).encode(
                 y=y, x="lower:Q", tooltip=[alt.Tooltip("lower:Q", title="Still working at (h)", format=",.0f")]))
     else:
-        latest = table.assign(capacitor=table["Capacitor"], latest=table["Latest reading (h)"])
+        latest = rows.assign(capacitor=rows["Capacitor"], latest=rows["Latest reading (h)"])
         layers.append(alt.Chart(latest).mark_tick(thickness=2, size=18, color=OBSERVED_COLOR).encode(
             y=y, x="latest:Q", tooltip=[alt.Tooltip("latest:Q", title="Latest reading (h)", format=",.0f")]))
     # Enough room per row that every capacitor label is drawn.
@@ -213,7 +215,7 @@ def _show_results(result: dict, attempts: int) -> None:
             st.markdown(_reason_list(excluded))
 
     st.subheader("2 · Test on capacitors the model never saw")
-    st.dataframe(
+    table(
         result["model_table"], hide_index=True, width="stretch",
         column_config={
             "Model": st.column_config.TextColumn(pinned=True),
@@ -230,7 +232,7 @@ def _show_results(result: dict, attempts: int) -> None:
                "Orange: when each test capacitor actually failed (between last seen working and found failed), "
                "or a triangle where it was still working when testing stopped.")
     with st.expander("Each test capacitor"):
-        st.dataframe(result["test_table"].round(1), hide_index=True, width="stretch",
+        table(result["test_table"].round(1), hide_index=True, width="stretch",
                      column_config={"Capacitor": st.column_config.TextColumn(pinned=True)})
 
     st.subheader("3 · Verdict")
@@ -262,7 +264,7 @@ def _show_results(result: dict, attempts: int) -> None:
             st.altair_chart(_interval_chart(forecasts, observed=False), width="stretch")
             st.caption("Teal bars: 80% range for the age at failure, with the dot at the predicted failure age. "
                        "Orange tick: each capacitor's latest reading.")
-            st.dataframe(_forecast_display(forecasts), hide_index=True, width="stretch",
+            table(_forecast_display(forecasts), hide_index=True, width="stretch",
                          column_config={"Capacitor": st.column_config.TextColumn(pinned=True)})
             st.caption("Each forecast uses all of a capacitor's readings up to its latest one. Remaining life "
                        "counts from that reading.")

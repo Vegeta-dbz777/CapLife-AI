@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from caplife.tables import table
+
 from caplife.accounts import save_controls, saved_picker, saving_available
 from caplife.file_reader import read_measurement_file
 from caplife.upload_ui import UPLOAD_TYPES, file_settings, show_notes
@@ -612,7 +614,7 @@ def _model_card(measured: tuple[str, ...]) -> None:
         rows.append(row("Neural network (GRU), all six parameters", full))
     if trend:
         rows.append(row("Trend line to nearest limit, these parameters", trend))
-    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", column_config={
+    table(pd.DataFrame(rows), hide_index=True, width="stretch", column_config={
         "Typical error (h)": st.column_config.NumberColumn(format="%.0f"),
         "Typical relative error": st.column_config.NumberColumn(format="percent"),
         "True RUL inside 80% range": st.column_config.NumberColumn(format="percent"),
@@ -675,7 +677,7 @@ def render() -> None:
               "Overall health (%)": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%d%%")}
     if truth:
         config["Simulated true end of life (h)"] = st.column_config.NumberColumn(format="%.0f")
-    st.dataframe(fleet, hide_index=True, width="stretch", column_config=config)
+    table(fleet, hide_index=True, width="stretch", column_config=config)
     custom = [device for device in devices if all_limits[device] != full_limits()]
     st.caption("Each capacitor is assessed against its own end-of-life limits, set under Capacitor detail. "
                + (f"Custom limits: {', '.join(custom)}." if custom else "All use the default limits."))
