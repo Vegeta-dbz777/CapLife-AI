@@ -151,6 +151,8 @@ def alternative_history(readings: pd.DataFrame, planned: dict) -> pd.DataFrame |
             values = values[0] + np.concatenate([[0.0], np.cumsum(steps)])
             values[np.isnan(readings[signal].to_numpy(dtype=float))] = np.nan
         out[signal] = values
+    for column in CONDITION_COLUMNS:  # the planned conditions throughout, so the model can read this history
+        out[column] = after[column].iloc[0]
     return out
 
 
