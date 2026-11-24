@@ -263,3 +263,14 @@ def test_my_data_refuses_a_file_its_page_cannot_read(database, monkeypatch):
     assert not app.exception, app.exception
     assert any("could not be used" in e.value for e in app.error)
     assert database.list(ALICE["id"]).empty
+
+
+def test_my_data_sorts_newest_or_oldest_first(database, monkeypatch):
+    for name in ("First", "Second", "Third"):
+        database.save(ALICE["id"], "six_parameter", name, {"measurements": b"Cap_ID,Hours\nA,0\n"})
+    app = open_my_data(monkeypatch=monkeypatch)
+    names = lambda: [m.value.strip("*") for m in app.markdown if m.value in ("**First**", "**Second**", "**Third**")]
+    assert names() == ["Third", "Second", "First"]  # newest first by default
+    app.get("button_group")[0].set_value("oldest").run()
+    assert not app.exception, app.exception
+    assert names() == ["First", "Second", "Third"]

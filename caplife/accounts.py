@@ -243,6 +243,7 @@ def _upload_dataset(user: dict, data_store: DatasetStore) -> None:
                           args=("caplife_mydata_saved_note", None))
 
 
+SORT_ORDERS = {"newest": ":material/arrow_downward: Newest first", "oldest": ":material/arrow_upward: Oldest first"}
 FILE_LABELS = {"measurements": "Measurements", "outcomes": "Outcomes"}
 
 
@@ -291,6 +292,11 @@ def render_my_data() -> None:
         st.info("Nothing saved yet. Upload a dataset below to keep it for later.")
     else:
         timezone = viewer_timezone()
+        order = st.segmented_control(
+            "Sort", list(SORT_ORDERS), format_func=SORT_ORDERS.get, default="newest", required=True,
+            key="caplife_mydata_sort", label_visibility="collapsed", persist_state="session")
+        if order == "oldest":  # the store lists newest first
+            saved = saved.iloc[::-1]
         for row in saved.itertuples(index=False):
             _dataset_row(user, row, timezone)
     _upload_dataset(user, data_store)
