@@ -684,23 +684,59 @@ def _always_at_end_of_life(assessment: pd.DataFrame) -> bool:
     return bool(len(predicted)) and bool((predicted["RUL_high_h"] == 0).all())
 
 
-def _rul_chart(assessment: pd.DataFrame, true_eol: float | None) -> alt.Chart:
-    data = assessment.dropna(subset=["RUL_median_h"])
-    band = alt.Chart(data).mark_area(opacity=.25, color=TEAL).encode(
-        x=alt.X("Hours:Q", title="Capacitor age when the prediction was made (h)"),
-        y=alt.Y("RUL_low_h:Q", title="Remaining useful life (h)", axis=alt.Axis(format=",.0f"),
-                scale=alt.Scale(domainMin=0)), y2="RUL_high_h:Q", tooltip=NO_TOOLTIP)
-    tip = [alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
-           alt.Tooltip("RUL_median_h:Q", title="Predicted RUL (h)", format=",.0f"),
-           alt.Tooltip("RUL_low_h:Q", title="80% range from", format=",.0f"),
-           alt.Tooltip("RUL_high_h:Q", title="80% range to", format=",.0f")]
-    line = alt.Chart(data).mark_line(point=True, color=TEAL).encode(x="Hours:Q", y="RUL_median_h:Q", tooltip=tip)
-    layers = [band, line]
+def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, always_changed: pd.DataFrame | None = None,
+               changed_now: pd.Series | None = None) -> alt.Chart:
+    """Remaining life predicted at every reading, each from the readings available then.
+
+    ``assessment`` uses the recorded conditions (purple line and 80% band). With changed operating
+    conditions, ``always_changed`` is the same for the estimated history had the capacitor always run
+    at them (gold line and band), and ``changed_now`` the prediction at the latest reading if it runs at
+    them from now on (gold diamond with its 80% range).
+    """
+    x = alt.X("Hours:Q", title="Capacitor age when the prediction was made (h)")
+    y_axis = alt.Y("RUL_median_h:Q", title="Remaining useful life (h)", axis=alt.Axis(format=",.0f"),
+                   scale=alt.Scale(domainMin=0))
+
+    def series(data: pd.DataFrame, color: str, label: str, dash: list | None) -> list:
+        data = data.dropna(subset=["RUL_median_h"])
+        tip = [alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
+               alt.Tooltip("RUL_median_h:Q", title=f"Predicted RUL, {label} (h)", format=",.0f"),
+               alt.Tooltip("RUL_low_h:Q", title="80% range from (h)", format=",.0f"),
+               alt.Tooltip("RUL_high_h:Q", title="80% range to (h)", format=",.0f")]
+        band = alt.Chart(data).mark_area(opacity=.22, color=color).encode(
+            x=x, y=alt.Y("RUL_low_h:Q", scale=alt.Scale(domainMin=0)), y2="RUL_high_h:Q", tooltip=NO_TOOLTIP)
+        line = alt.Chart(data).mark_line(color=color, strokeWidth=2.5, strokeDash=dash or [1, 0],
+                                         point=alt.OverlayMarkDef(color=color, size=34, filled=True)).encode(
+            x=x, y=y_axis, tooltip=tip)
+        return [band, line], _hoverable(data, x, y_axis, tip, color)
+
+    layers, hovers = series(assessment, PURPLE, "recorded conditions", None)
+    if always_changed is not None and always_changed["RUL_median_h"].notna().any():
+        more, more_hovers = series(always_changed, GOLD, "always at your conditions", [6, 3])
+        layers, hovers = more + layers, hovers + more_hovers
+    if changed_now is not None and pd.notna(changed_now.get("RUL_median_h")):
+        now = pd.DataFrame([{"Hours": changed_now["Hours"], "RUL_median_h": changed_now["RUL_median_h"],
+                             "RUL_low_h": changed_now["RUL_low_h"], "RUL_high_h": changed_now["RUL_high_h"]}])
+        tip = [alt.Tooltip("Hours:Q", title="Latest reading (h)", format=",.0f"),
+               alt.Tooltip("RUL_median_h:Q", title="Predicted RUL from now on, your conditions (h)", format=",.0f"),
+               alt.Tooltip("RUL_low_h:Q", title="80% range from (h)", format=",.0f"),
+               alt.Tooltip("RUL_high_h:Q", title="80% range to (h)", format=",.0f")]
+        layers += [
+            alt.Chart(now).mark_rule(color=GOLD, strokeWidth=4, opacity=.6).encode(
+                x=x, y=alt.Y("RUL_low_h:Q", scale=alt.Scale(domainMin=0)), y2="RUL_high_h:Q", tooltip=tip),
+            alt.Chart(now).mark_point(shape="diamond", filled=True, size=150, color=GOLD, opacity=1, stroke="white",
+                                      strokeWidth=1).encode(x=x, y=y_axis, tooltip=tip),
+        ]
+        hovers += _hoverable(now, x, y_axis, tip, GOLD)
     if true_eol is not None:
-        truth = pd.DataFrame({"Hours": data["Hours"], "true": np.maximum(true_eol - data["Hours"], 0)})
-        layers.append(alt.Chart(truth).mark_line(color=ORANGE, strokeDash=[6, 4]).encode(
-            x="Hours:Q", y="true:Q", tooltip=[alt.Tooltip("true:Q", title="True RUL (h)", format=",.0f")]))
-    return alt.layer(*layers, *_hoverable(data, "Hours:Q", "RUL_median_h:Q", tip, TEAL)).properties(height=280)
+        truth = assessment.dropna(subset=["RUL_median_h"])
+        truth = pd.DataFrame({"Hours": truth["Hours"], "true": np.maximum(true_eol - truth["Hours"], 0)})
+        tip = [alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
+               alt.Tooltip("true:Q", title="True RUL (h)", format=",.0f")]
+        layers.append(alt.Chart(truth).mark_line(color=ORANGE, strokeDash=[6, 4], strokeWidth=2).encode(
+            x=x, y=alt.Y("true:Q", scale=alt.Scale(domainMin=0)), tooltip=tip))
+        hovers += _hoverable(truth, x, alt.Y("true:Q", scale=alt.Scale(domainMin=0)), tip, ORANGE)
+    return alt.layer(*layers, *hovers).properties(height=320)
 
 
 # Labels for use mid-sentence: lower case except abbreviations (ESR, H₂).
@@ -924,7 +960,8 @@ def render() -> None:
     last = assessment.iloc[-1]
     default_limits = limits == full_limits()
     original = original.reset_index(drop=True)
-    recorded_last = (_model().assess(original, measured, limits).iloc[-1] if planned.get(str(device)) else None)
+    recorded_assessment = _model().assess(original, measured, limits) if planned.get(str(device)) else None
+    recorded_last = recorded_assessment.iloc[-1] if recorded_assessment is not None else None
     if recorded_last is not None and pd.isna(recorded_last.get("RUL_median_h")):
         recorded_last = None
     if bool(last["End_of_life_reached"]):
@@ -1000,14 +1037,26 @@ def render() -> None:
         _forecast_charts(readings, forecast, last, limits, zoom, reference)
     if assessment["RUL_median_h"].notna().any() if "RUL_median_h" in assessment else False:
         true_eol = truth[device]["eol_h"] if truth and default_limits and not planned.get(str(device)) else None
+        changed = recorded_assessment is not None
         st.markdown("##### Remaining-life prediction over time",
-                    help="Each point uses only the readings available at that age. Shaded band: 80% range."
-                         + (" Dashed orange line: the simulated true remaining life." if true_eol else ""))
+                    help="Each point is the prediction made at that age, from the readings available then. Shaded "
+                         "bands: 80% ranges. Purple: with the recorded conditions."
+                         + (" Gold dashed: had the capacitor always run at your changed conditions (its estimated "
+                            "history, as in the history charts). Gold diamond: from the latest reading on at your "
+                            "conditions, with its 80% range." if changed else "")
+                         + (" Orange dashed: the simulated true remaining life." if true_eol else ""))
+        if changed:
+            st.caption("Purple: recorded conditions. Gold dashed: had it always run at your conditions. "
+                       "Gold ◆: from now on at your conditions.")
         if _always_at_end_of_life(assessment):
             st.info("Every prediction is 0 h because an end-of-life limit was already met when the first "
                     "prediction could be made, so there is no remaining-life trend to plot.")
         else:
-            st.altair_chart(_rul_chart(assessment, true_eol), width="stretch")
+            always = None
+            if changed and alternative is not None:
+                always = _model().assess(alternative.assign(Cap_ID=str(device)), measured, limits)
+            st.altair_chart(_rul_chart(recorded_assessment if changed else assessment, true_eol, always,
+                                       last if changed else None), width="stretch")
 
     with st.expander("About the model and how well it did on simulated data"):
         _model_card(measured)
