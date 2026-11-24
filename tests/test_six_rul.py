@@ -164,12 +164,18 @@ def test_three_parameter_histories_get_health_and_remaining_life(model):
 
 
 def test_hidden_indicators_in_training_match_a_real_partial_file():
-    from caplife.six_rul import COMMON_SUBSET, _subset_mask, hide_indicators
+    from caplife.six_rul import COMMON_SUBSET, _subset_mask, hide_indicators, no_conditions
+    from caplife.six_sim import CONDITION_COLUMNS
     measurements, _ = example_fleet()
     readings = measurements.loc[measurements["Cap_ID"].eq("DEMO_03")]
     full = sequences(readings, SIGNALS)
-    hidden = hide_indicators(full, np.tile(_subset_mask(COMMON_SUBSET), (len(full), 1)))
-    assert np.allclose(hidden, sequences(readings[["Cap_ID", "Hours", *COMMON_SUBSET]]))
+    keep = np.tile(_subset_mask(COMMON_SUBSET), (len(full), 1))
+    # Hidden indicators, conditions kept: a file with three parameters and the operating conditions.
+    assert np.allclose(hide_indicators(full, keep),
+                       sequences(readings[["Cap_ID", "Hours", *COMMON_SUBSET, *CONDITION_COLUMNS]]))
+    # Conditions hidden as well: a file with the three parameters only.
+    assert np.allclose(hide_indicators(full, keep, no_conditions(len(full))),
+                       sequences(readings[["Cap_ID", "Hours", *COMMON_SUBSET]]))
 
 
 def test_every_parameter_combination_is_calibrated_and_tested():

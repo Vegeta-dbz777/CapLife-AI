@@ -11,9 +11,10 @@ illustration and none is calibrated against a real capacitor series:
   heats less (up to 1.4 times the rated current for the same heating at
   10 kHz and above).
 - Each capacitor has its own rated voltage, rated ripple current, operating
-  frequency, ambient temperature, applied voltage and ripple current, and 40%
-  of capacitors move to new operating conditions part-way through life. Every
-  inspection records the conditions in effect at that time.
+  frequency, ambient temperature, applied voltage and ripple current, and half
+  of the capacitors move to new operating conditions part-way through life, at
+  an inspection that records them. Every inspection records the conditions in
+  effect from then on.
 - Electrolyte loss lowers capacitance and raises ESR.
 - Leakage current grows with aging. A fraction of it electrolyses water and
   generates hydrogen (Faraday's law: 0.116 mL of H₂ at STP per ampere-second).
@@ -29,6 +30,8 @@ the levels at which a typical simulated capacitor reaches the vent pressure, so
 a stiff-cased or gas-retaining capacitor can still vent first.
 """
 from __future__ import annotations
+
+import math
 
 import numpy as np
 import pandas as pd
@@ -81,7 +84,7 @@ NOISE = {"Capacitance_uF": 0.003, "ESR_ohm": 0.015, "Leakage_uA": 0.03, "H2_Gene
 CONDITION_COLUMNS = ("Ambient_C", "Core_C", "Voltage_V", "Rated_V", "Ripple_A", "Rated_Ripple_A", "Ripple_Hz")
 RATED_VOLTAGES = (16.0, 25.0, 35.0, 50.0, 63.0, 100.0, 160.0, 250.0, 400.0, 450.0)
 RATED_TEMP_C = 105.0
-CHANGE_SHARE = 0.4  # share of capacitors whose operating conditions change part-way through life
+CHANGE_SHARE = 0.5  # share of capacitors whose operating conditions change part-way through life
 
 
 def frequency_multiplier(hz):
@@ -116,7 +119,9 @@ def _device(rng: np.random.Generator) -> dict:
     if rng.random() < CHANGE_SHARE:
         ambient2, voltage2, ripple2 = _operating(rng)
         core2, acceleration2 = (float(v) for v in operating_stress(ambient2, voltage2, ripple2, hz))
-        device.update(change_h=float(rng.uniform(0.15, 0.7) * device["tau_h"]), ambient2_C=ambient2,
+        # On the 0.1 h grid inspections are recorded on, so the inspection at the change records the new ones.
+        change_h = math.ceil(rng.uniform(0.15, 0.7) * device["tau_h"] * 10) / 10
+        device.update(change_h=change_h, ambient2_C=ambient2,
                       voltage2_ratio=voltage2, ripple2_ratio=ripple2, core2_C=core2, tau2_h=tau_rated / acceleration2)
     else:
         device.update(ambient2_C=ambient, voltage2_ratio=voltage, ripple2_ratio=ripple, core2_C=core,
@@ -223,6 +228,10 @@ def simulate_device(rng: np.random.Generator, cap_id: str, fine_step_h: float = 
         if times[-1] + step >= eol_h:
             break
         times.append(times[-1] + step)
+    if device["change_h"] < eol_h:
+        # Conditions are changed at an inspection, which records the new ones before any aging under them
+        # (the situation of a user entering planned conditions).
+        times = sorted([t for t in times if abs(t - device["change_h"]) >= 1.0] + [device["change_h"]])
     if near_end_share and rng.random() < near_end_share:
         extra = eol_h * (1 - rng.uniform(0.003, 0.03, rng.integers(1, 3)))
         times += sorted(t for t in extra if t > times[-1] + 1.0)

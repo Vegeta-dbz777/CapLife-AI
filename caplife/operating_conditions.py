@@ -127,12 +127,12 @@ def stress_notes(values: pd.Series) -> list[tuple[str, str]]:
 
 
 def summary_columns(readings: pd.DataFrame) -> dict:
-    """Latest core (or ambient) temperature, voltage and ripple ratios for the fleet table (NaN if unknown)."""
+    """Latest core (or ambient) temperature, and voltage and ripple as % of rated, for the fleet table."""
     derived = condition_values(readings).iloc[-1] if len(readings) else pd.Series(dtype=float)
     core = derived.get("core_temperature", np.nan)
     return {"Temperature (°C)": core if np.isfinite(core) else derived.get("ambient_temperature", np.nan),
-            "Voltage / rated": derived.get("voltage_ratio", np.nan),
-            "Ripple / rated": derived.get("ripple_ratio", np.nan)}
+            "Voltage / rated": 100 * derived.get("voltage_ratio", np.nan),
+            "Ripple / rated": 100 * derived.get("ripple_ratio", np.nan)}
 
 
 def describe(values: pd.Series) -> str:

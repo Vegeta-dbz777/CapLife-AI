@@ -750,8 +750,8 @@ def render() -> None:
               "Overall health (%)": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%d%%"),
               "Temperature (°C)": st.column_config.NumberColumn(format="%.0f", help="Latest core temperature, or "
                                                                 "ambient where core was not recorded."),
-              "Voltage / rated": st.column_config.NumberColumn(format="percent"),
-              "Ripple / rated": st.column_config.NumberColumn(format="percent")}
+              "Voltage / rated": st.column_config.NumberColumn(format="%.0f%%"),
+              "Ripple / rated": st.column_config.NumberColumn(format="%.0f%%")}
     if truth:
         config["Simulated true end of life (h)"] = st.column_config.NumberColumn(format="%.0f")
     table(fleet, hide_index=True, width="stretch", column_config=config)

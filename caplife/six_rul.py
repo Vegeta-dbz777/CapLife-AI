@@ -482,6 +482,40 @@ def _path_metrics(path: np.ndarray, truth: np.ndarray, measured: np.ndarray) -> 
     return out
 
 
+def path_adjustment(path_net: nn.Module, cal: dict, rng: np.random.Generator) -> np.ndarray:
+    """One additive range adjustment per forecast point and indicator (split-conformal).
+
+    Every calibration reading is used, with the training mix of measured indicators and recorded
+    conditions: one reading per capacitor left too few scores per point for a stable 80% range.
+    """
+    n = len(cal["x"])
+    keep = _random_masks(rng, n)
+    predicted = _predict(path_net, hide_indicators(cal["x"], keep, _random_condition_masks(rng, n)))
+    adjust = np.zeros((HORIZON_POINTS, N))
+    for index in range(N):
+        rows = keep[:, index]
+        scores = np.maximum(predicted[rows, :, index, 0] - cal["path"][rows, :, index],
+                            cal["path"][rows, :, index] - predicted[rows, :, index, 2])
+        level = math.ceil((rows.sum() + 1) * INTERVAL_MASS) / rows.sum()
+        adjust[:, index] = np.quantile(scores, min(level, 1.0), axis=0)
+    return adjust
+
+
+def trajectory_metrics(path_net: nn.Module, data: dict, path_adjust: np.ndarray) -> dict:
+    """Forecast-path accuracy and coverage on the test fleets, with and without operating conditions."""
+    metrics = {}
+    for name in ("test", "test_custom"):
+        test = data[name]
+        for label, subset in (("all six", SIGNALS), ("capacitance, ESR, leakage", COMMON_SUBSET)):
+            keep = np.tile(_subset_mask(subset), (len(test["x"]), 1))
+            for suffix, conditions in (("", None), (", no operating conditions", no_conditions(len(test["x"])))):
+                p = _predict(path_net, hide_indicators(test["x"], keep, conditions))
+                p[..., 0] -= path_adjust
+                p[..., 2] += path_adjust
+                metrics[f"{name}, {label}{suffix}"] = _path_metrics(p, test["path"], _subset_mask(subset))
+    return metrics
+
+
 def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -> dict:
     torch.manual_seed(seed)
     torch.set_num_threads(min(4, torch.get_num_threads()))
@@ -530,28 +564,8 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
             store[key] = _metrics(np.exp(test["y"]) - RUL_OFFSET_H, _to_hours(q[:, 0] - pad),
                                   _to_hours(q[:, 1]), _to_hours(q[:, 2] + pad))
 
-    # Path ranges: one additive adjustment per forecast point and indicator, from calibration
-    # capacitors with the training mix of measured indicators.
-    keep_cal = _random_masks(rng, len(pick))
-    p_cal = _predict(path_net, hide_indicators(cal["x"][pick], keep_cal, _random_condition_masks(rng, len(pick))))
-    target = cal["path"][pick]
-    path_adjust = np.zeros((HORIZON_POINTS, N))
-    for index in range(N):
-        rows = keep_cal[:, index]
-        scores = np.maximum(p_cal[rows, :, index, 0] - target[rows, :, index],
-                            target[rows, :, index] - p_cal[rows, :, index, 2])
-        level = math.ceil((rows.sum() + 1) * INTERVAL_MASS) / rows.sum()
-        path_adjust[:, index] = np.quantile(scores, min(level, 1.0), axis=0)
-    path_metrics = {}
-    for name in ("test", "test_custom"):
-        test = data[name]
-        for label, subset in (("all six", SIGNALS), ("capacitance, ESR, leakage", COMMON_SUBSET)):
-            keep = np.tile(_subset_mask(subset), (len(test["x"]), 1))
-            for suffix, conditions in (("", None), (", no operating conditions", no_conditions(len(test["x"])))):
-                p = _predict(path_net, hide_indicators(test["x"], keep, conditions))
-                p[..., 0] -= path_adjust
-                p[..., 2] += path_adjust
-                path_metrics[f"{name}, {label}{suffix}"] = _path_metrics(p, test["path"], _subset_mask(subset))
+    path_adjust = path_adjustment(path_net, cal, rng)
+    path_metrics = trajectory_metrics(path_net, data, path_adjust)
 
     # Accuracy by how close the nearest parameter already is to its limit (random-limit test capacitors).
     custom = data["test_custom"]
@@ -674,6 +688,11 @@ class SixRULModel:
         rows = []
         if len(readings) >= MIN_READINGS:
             q = _predict(self.net, sequences(readings, measured, limits))
+            # Remaining life can only grow when a limit is loosened, so it is never predicted below that
+            # for the limits tightened to the defaults (each quantile is monotone in the limits).
+            floor = {key: min(value, EOL_LIMITS[key]) for key, value in full_limits(limits).items()}
+            if floor != full_limits(limits):
+                q = np.maximum(q, _predict(self.net, sequences(readings, measured, floor)))
             near = seen.to_numpy()[MIN_READINGS - 1:].max(axis=1) >= self.near_limit
             pad = np.where(near, self.near_adjustments[key], self.adjustments[key])
             low, mid, high = _to_hours(q[:, 0] - pad), _to_hours(q[:, 1]), _to_hours(q[:, 2] + pad)
