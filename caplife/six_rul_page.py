@@ -12,6 +12,7 @@ import pandas as pd
 import streamlit as st
 
 from caplife.tables import table
+from caplife.chart_hover import NO_TOOLTIP, hoverable as _hoverable
 
 from caplife.accounts import save_controls, saved_picker, saving_available
 from caplife.file_reader import read_measurement_file
@@ -34,7 +35,6 @@ DIGITS = {"Capacitance_uF": 1, "ESR_ohm": 4, "Leakage_uA": 2, "Case_Expansion_um
           "H2_Generated_mL_STP": 2, "Pressure_Abs_kPa": 1}
 # Hover values: two digits after the decimal point; ESR keeps four (its values are around 0.1 ohm).
 HOVER_FORMAT = {signal: ",.4f" if signal == "ESR_ohm" else ",.2f" for signal in DIGITS}
-NO_TOOLTIP = alt.value(None)  # Streamlit gives every mark a raw-number tooltip unless it is switched off
 # The six end-of-life limit inputs: label, the limit key, how the box shows it, and its step.
 # ESR and leakage limits are entered as a rise in percent (100% rise = 2x the first reading).
 LIMIT_INPUTS = {
@@ -447,11 +447,12 @@ def signal_charts(readings: pd.DataFrame, limits: dict | None = None, reference:
         bottom, top, off_chart = _chart_domain(pd.concat([data["value"], *([other["value"]] if other is not None
                                                                            else [])]), limit, DIGITS[signal])
         scale = alt.Scale(domain=[bottom, top], zero=False, nice=False)
+        measured_tip = [alt.Tooltip("Hours:Q", format=",.0f"),
+                        alt.Tooltip("value:Q", title=INDICATOR_LABELS[signal], format=HOVER_FORMAT[signal])]
         line = alt.Chart(data).mark_line(color=TEAL, strokeWidth=1.8, point=alt.OverlayMarkDef(
             color=TEAL, size=30, filled=True)).encode(
             x=alt.X("Hours:Q", title="Hours"), y=alt.Y("value:Q", title=UNITS[signal], scale=scale),
-            tooltip=[alt.Tooltip("Hours:Q", format=",.0f"), alt.Tooltip("value:Q", title=INDICATOR_LABELS[signal],
-                                                                       format=HOVER_FORMAT[signal])])
+            tooltip=measured_tip)
         if off_chart is None:
             marker = alt.Chart(pd.DataFrame({"limit": [limit]})).mark_rule(color=ORANGE, strokeDash=[5, 4]).encode(
                 y=alt.Y("limit:Q", scale=alt.Scale(domain=[bottom, top], nice=False)),
@@ -471,15 +472,17 @@ def signal_charts(readings: pd.DataFrame, limits: dict | None = None, reference:
             kind = "default reference limit" if reference else "limit"
             st.caption(f"**{INDICATOR_LABELS[signal]}** · {kind}: {_limit_text(signal, limits)}")
             layers = [line, marker]
+            hovers = _hoverable(data, "Hours:Q", alt.Y("value:Q", scale=scale), measured_tip, TEAL)
             if other is not None:
+                other_tip = [alt.Tooltip("Hours:Q", format=",.0f"),
+                             alt.Tooltip("value:Q", title="Had it always run at your conditions",
+                                         format=HOVER_FORMAT[signal])]
                 layers.append(alt.Chart(other).mark_line(
                     color=GOLD, strokeWidth=2.2, strokeDash=[6, 3],
                     point=alt.OverlayMarkDef(color=GOLD, size=22, filled=True)).encode(
-                    x="Hours:Q", y=alt.Y("value:Q", scale=scale),
-                    tooltip=[alt.Tooltip("Hours:Q", format=",.0f"),
-                             alt.Tooltip("value:Q", title="Had it always run at your conditions",
-                                         format=HOVER_FORMAT[signal])]))
-            st.altair_chart(alt.layer(*layers).properties(height=260), width="stretch")
+                    x="Hours:Q", y=alt.Y("value:Q", scale=scale), tooltip=other_tip))
+                hovers += _hoverable(other, "Hours:Q", alt.Y("value:Q", scale=scale), other_tip, GOLD)
+            st.altair_chart(alt.layer(*layers, *hovers).properties(height=260), width="stretch")
 
 
 _signal_charts = signal_charts
@@ -535,11 +538,16 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
             align="right", baseline="top", dx=-5, dy=4, color=DIVIDER, fontSize=11, fontWeight="bold").encode(
             x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale), text="label:N",
             tooltip=NO_TOOLTIP)
+        measured_tip = [alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
+                        alt.Tooltip("value:Q", title=f"Measured {INDICATOR_LABELS[signal]}", format=number)]
         history = alt.Chart(measured).mark_line(color=TEAL, strokeWidth=1.8, clip=True, point=alt.OverlayMarkDef(
             color=TEAL, size=26, filled=True)).encode(
-            x=x, y=alt.Y("value:Q", title=UNITS[signal], scale=scale),
-            tooltip=[alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
-                     alt.Tooltip("value:Q", title=f"Measured {INDICATOR_LABELS[signal]}", format=number)])
+            x=x, y=alt.Y("value:Q", title=UNITS[signal], scale=scale), tooltip=measured_tip)
+        y_value, y_median = alt.Y("value:Q", scale=scale), alt.Y("median:Q", scale=scale)
+        ahead_tip = [alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
+                     alt.Tooltip("median:Q", title=f"Predicted {INDICATOR_LABELS[signal]}", format=number),
+                     alt.Tooltip("low:Q", title="80% range from", format=number),
+                     alt.Tooltip("high:Q", title="80% range to", format=number)]
         band = alt.Chart(data).mark_area(color=mine, opacity=.28).encode(
             x=x, y=alt.Y("low:Q", scale=scale), y2="high:Q", tooltip=NO_TOOLTIP)
         age = alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f")
@@ -547,6 +555,8 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
         start, ahead, final = data.iloc[[0]], data.iloc[1:], data.iloc[[-1]]
         edges = pd.concat([final.assign(value=final["high"], edge="Top of the 80% range at end of life"),
                            final.assign(value=final["low"], edge="Bottom of the 80% range at end of life")])
+        edge_tip = [alt.Tooltip("edge:N", title="Point"), age,
+                    alt.Tooltip("value:Q", title=INDICATOR_LABELS[signal], format=number)]
         path = alt.layer(
             alt.Chart(data).mark_line(color=mine, strokeWidth=3, strokeDash=[7, 3]).encode(
                 x=x, y=alt.Y("median:Q", scale=scale), tooltip=NO_TOOLTIP),
@@ -554,21 +564,25 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
             alt.Chart(start).mark_point(color=mine, size=34, filled=True, opacity=1).encode(
                 x=x, y=alt.Y("median:Q", scale=scale), tooltip=[age, predicted]),
             alt.Chart(ahead).mark_point(color=mine, size=34, filled=True, opacity=1).encode(
-                x=x, y=alt.Y("median:Q", scale=scale),
-                tooltip=[age, predicted, alt.Tooltip("low:Q", title="80% range from", format=number),
-                         alt.Tooltip("high:Q", title="80% range to", format=number)]),
+                x=x, y=alt.Y("median:Q", scale=scale), tooltip=ahead_tip),
             # The ends of the range on the end-of-life line, with their values.
             alt.Chart(edges).mark_point(color=mine, size=30, filled=False, strokeWidth=2, opacity=1).encode(
-                x=x, y=alt.Y("value:Q", scale=scale),
-                tooltip=[alt.Tooltip("edge:N", title="Point"), age,
-                         alt.Tooltip("value:Q", title=INDICATOR_LABELS[signal], format=number)]),
+                x=x, y=alt.Y("value:Q", scale=scale), tooltip=edge_tip),
         )
+        hovers = [*_hoverable(measured.loc[measured["Hours"] >= left], x, y_value, measured_tip, TEAL),
+                  *_hoverable(start, x, y_median, [age, predicted], mine),
+                  *_hoverable(ahead, x, y_median, ahead_tip, mine),
+                  *_hoverable(edges, x, y_value, edge_tip, mine)]
         eol = alt.Chart(pd.DataFrame({"Hours": [end]})).mark_rule(color=eol_color, strokeWidth=2.5).encode(
             x=alt.X("Hours:Q", scale=hours_scale),
             tooltip=[alt.Tooltip("Hours:Q", title="Predicted end of life (h)", format=",.0f")])
         layers = [window, now, now_label, band, history, path, eol]
         if reference is not None:
             before = reference[0].loc[reference[0]["signal"].eq(signal)]
+            recorded_tip = [alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
+                            alt.Tooltip("median:Q", title=f"{INDICATOR_LABELS[signal]}, recorded conditions",
+                                        format=number)]
+            hovers += _hoverable(before.iloc[1:], x, y_median, recorded_tip, PURPLE)
             recorded = reference[1]
             recorded_end = latest + float(recorded["RUL_median_h"])
             height = top - bottom
@@ -587,10 +601,7 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
                 # Points make the thin dotted line easy to hover.
                 alt.Chart(before).mark_line(color=PURPLE, strokeWidth=2.2, strokeDash=[2, 3], clip=True,
                                             point=alt.OverlayMarkDef(color=PURPLE, size=26, filled=True)).encode(
-                    x=x, y=alt.Y("median:Q", scale=scale),
-                    tooltip=[alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
-                             alt.Tooltip("median:Q", title=f"{INDICATOR_LABELS[signal]}, recorded conditions",
-                                         format=number)]),
+                    x=x, y=alt.Y("median:Q", scale=scale), tooltip=recorded_tip),
                 alt.Chart(pd.DataFrame({"Hours": [recorded_end]})).mark_rule(
                     color=PURPLE, strokeWidth=2.5, strokeDash=[4, 3]).encode(
                     x=alt.X("Hours:Q", scale=hours_scale),
@@ -620,7 +631,7 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
                                   text="label:N", tooltip=NO_TOOLTIP))
         with columns[index % 2]:
             st.caption(f"**{INDICATOR_LABELS[signal]}** · limit: {_limit_text(signal, limits)}")
-            st.altair_chart(alt.layer(*layers).properties(height=260), width="stretch")
+            st.altair_chart(alt.layer(*layers, *hovers).properties(height=260), width="stretch")
 
 
 def _range_hover(ranges: dict, hours_scale: alt.Scale) -> list:
@@ -687,18 +698,17 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None) -> alt.Chart:
         x=alt.X("Hours:Q", title="Capacitor age when the prediction was made (h)"),
         y=alt.Y("RUL_low_h:Q", title="Remaining useful life (h)", axis=alt.Axis(format=",.0f"),
                 scale=alt.Scale(domainMin=0)), y2="RUL_high_h:Q", tooltip=NO_TOOLTIP)
-    line = alt.Chart(data).mark_line(point=True, color=TEAL).encode(
-        x="Hours:Q", y="RUL_median_h:Q",
-        tooltip=[alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
-                 alt.Tooltip("RUL_median_h:Q", title="Predicted RUL (h)", format=",.0f"),
-                 alt.Tooltip("RUL_low_h:Q", title="80% range from", format=",.0f"),
-                 alt.Tooltip("RUL_high_h:Q", title="80% range to", format=",.0f")])
+    tip = [alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
+           alt.Tooltip("RUL_median_h:Q", title="Predicted RUL (h)", format=",.0f"),
+           alt.Tooltip("RUL_low_h:Q", title="80% range from", format=",.0f"),
+           alt.Tooltip("RUL_high_h:Q", title="80% range to", format=",.0f")]
+    line = alt.Chart(data).mark_line(point=True, color=TEAL).encode(x="Hours:Q", y="RUL_median_h:Q", tooltip=tip)
     layers = [band, line]
     if true_eol is not None:
         truth = pd.DataFrame({"Hours": data["Hours"], "true": np.maximum(true_eol - data["Hours"], 0)})
         layers.append(alt.Chart(truth).mark_line(color=ORANGE, strokeDash=[6, 4]).encode(
             x="Hours:Q", y="true:Q", tooltip=[alt.Tooltip("true:Q", title="True RUL (h)", format=",.0f")]))
-    return alt.layer(*layers).properties(height=280)
+    return alt.layer(*layers, *_hoverable(data, "Hours:Q", "RUL_median_h:Q", tip, TEAL)).properties(height=280)
 
 
 # Labels for use mid-sentence: lower case except abbreviations (ESR, H₂).
