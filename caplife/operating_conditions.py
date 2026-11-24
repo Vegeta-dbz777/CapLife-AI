@@ -112,21 +112,23 @@ def with_planned(readings: pd.DataFrame, planned: dict) -> pd.DataFrame:
     return changed
 
 
-def stress_notes(values: pd.Series) -> list[tuple[str, str]]:
-    """(level, message) judgements of one set of conditions in user units: 'error', 'warning' or 'info'."""
+def judgements(values: pd.Series) -> list[tuple[str, str, str]]:
+    """(level, short label, message) for one set of conditions in user units; level 'error', 'warning' or 'info'."""
     derived = condition_values(pd.DataFrame([values]))
     ratio = lambda name: float(derived[name].iloc[0])
     notes = []
     voltage = ratio("voltage_ratio")
     if np.isfinite(voltage):
         if voltage > 1.0:
-            notes.append(("error", f"Applied voltage is {voltage:.0%} of the rated voltage: above rating, which "
+            notes.append(("error", f"Voltage {voltage:.0%} of rated", f"Applied voltage is {voltage:.0%} of the rated voltage: above rating, which "
                                    "shortens life sharply and risks failure."))
         elif voltage > 0.9:
-            notes.append(("warning", f"Applied voltage is {voltage:.0%} of rated, with little derating. Running at "
+            notes.append(("warning", f"Voltage {voltage:.0%} of rated", f"Applied voltage is {voltage:.0%} of rated, with little derating. Running at "
                                      "80% of rated or less is a common design rule."))
         else:
-            notes.append(("info", f"Applied voltage is {voltage:.0%} of rated."))
+            notes.append(("info", f"Voltage {voltage:.0%} of rated", f"Applied voltage is {voltage:.0%} of rated, "
+                                  "within the common design rule of 80% or less." if voltage <= 0.8 else
+                                  f"Applied voltage is {voltage:.0%} of rated."))
     ripple = ratio("ripple_ratio")
     if np.isfinite(ripple):
         hz = float(values.get("Ripple_Hz", np.nan))
@@ -134,30 +136,37 @@ def stress_notes(values: pd.Series) -> list[tuple[str, str]]:
         share = ripple / allowed
         at = f" at {hz:,.0f} Hz" if np.isfinite(hz) else ""
         if share > 1.0:
-            notes.append(("error", f"Ripple current is {ripple:.0%} of the rated ripple current{at}, above what the "
+            notes.append(("error", f"Ripple {ripple:.0%} of rated", f"Ripple current is {ripple:.0%} of the rated ripple current{at}, above what the "
                                    "capacitor is rated for; ripple heating speeds up aging."))
         elif share > 0.8:
-            notes.append(("warning", f"Ripple current is {ripple:.0%} of the rated ripple current{at}, close to "
+            notes.append(("warning", f"Ripple {ripple:.0%} of rated", f"Ripple current is {ripple:.0%} of the rated ripple current{at}, close to "
                                      "the rating."))
         else:
-            notes.append(("info", f"Ripple current is {ripple:.0%} of the rated ripple current{at}."))
+            notes.append(("info", f"Ripple {ripple:.0%} of rated", f"Ripple current is {ripple:.0%} of the rated ripple "
+                                  f"current{at}."))
     core = float(values.get("Core_C", np.nan))
     hot = core if np.isfinite(core) else float(values.get("Ambient_C", np.nan))
     which = "Core" if np.isfinite(core) else "Ambient"
     if np.isfinite(hot):
         if hot > RATED_TEMP_C:
-            notes.append(("error", f"{which} temperature {hot:.0f} °C is above the {RATED_TEMP_C:.0f} °C rating of "
+            notes.append(("error", f"{which} {hot:.0f} °C", f"{which} temperature {hot:.0f} °C is above the {RATED_TEMP_C:.0f} °C rating of "
                                    "a typical long-life series; life halves for about every 10 °C of extra heat."))
         elif hot > RATED_TEMP_C - 10:
-            notes.append(("warning", f"{which} temperature {hot:.0f} °C is within 10 °C of a {RATED_TEMP_C:.0f} °C "
+            notes.append(("warning", f"{which} {hot:.0f} °C", f"{which} temperature {hot:.0f} °C is within 10 °C of a {RATED_TEMP_C:.0f} °C "
                                      "rating; every 10 °C cooler roughly doubles life."))
         else:
-            notes.append(("info", f"{which} temperature is {hot:.0f} °C."))
+            notes.append(("info", f"{which} {hot:.0f} °C", f"{which} temperature is {hot:.0f} °C, at least 10 °C below a "
+                                  f"{RATED_TEMP_C:.0f} °C rating."))
     outside = conditions_outside_training(derived.iloc[0])
     if outside:
-        notes.append(("warning", "Outside the conditions the model was trained on, so its prediction is an "
+        notes.append(("warning", "Outside training range", "Outside the conditions the model was trained on, so its prediction is an "
                                  f"extrapolation: {', '.join(outside)}."))
     return notes
+
+
+def stress_notes(values: pd.Series) -> list[tuple[str, str]]:
+    """(level, message) judgements of one set of conditions in user units: 'error', 'warning' or 'info'."""
+    return [(level, message) for level, _, message in judgements(values)]
 
 
 def summary_columns(readings: pd.DataFrame) -> dict:
@@ -182,4 +191,4 @@ def describe(values: pd.Series) -> str:
 
 
 __all__ = ["CONDITION_LABELS", "PLANNED_INPUTS", "aging_rule_factor", "describe", "latest", "planned_core",
-           "recorded_columns", "stress_notes", "summary_columns", "with_planned"]
+           "judgements", "recorded_columns", "stress_notes", "summary_columns", "with_planned"]

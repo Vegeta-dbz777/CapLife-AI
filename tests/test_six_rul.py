@@ -341,7 +341,7 @@ def test_each_capacitor_is_assessed_with_its_own_parameters():
     parsed, _, _ = page._parse(mixed.to_csv(index=False).encode(), "mixed", save=False)
     assert sorted(parsed["Cap_ID"].unique()) == sorted(own)  # nobody is dropped for lacking other parameters
     assert len(parsed) == len(mixed) - 1
-    results = page._assess_cached(parsed, json.dumps({}), "test")
+    results = page._assess_cached(parsed, json.dumps({}), json.dumps({}), "test")
     for device, signals in own.items():
         readings, assessment = results[device]
         assert page._measured(readings) == tuple(s for s in SIGNALS if s in signals)
