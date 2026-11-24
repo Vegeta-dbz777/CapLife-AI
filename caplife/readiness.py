@@ -25,7 +25,8 @@ CONTEXT = (
     ("Voltage_V", "Applied voltage", "V"),
     ("Rated_V", "Rated voltage", "V"),
     ("Ripple_A", "Ripple current", "A"),
-    ("Ripple_Hz", "Ripple frequency", "Hz"),
+    ("Rated_Ripple_A", "Rated ripple current", "A"),
+    ("Ripple_Hz", "Operating (ripple) frequency", "Hz"),
     ("ESR_Test_Hz", "ESR measurement frequency", "Hz"),
     ("ESR_Test_Temp_C", "ESR measurement temperature", "°C"),
 )

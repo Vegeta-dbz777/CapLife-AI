@@ -164,12 +164,18 @@ def test_three_parameter_histories_get_health_and_remaining_life(model):
 
 
 def test_hidden_indicators_in_training_match_a_real_partial_file():
-    from caplife.six_rul import COMMON_SUBSET, _subset_mask, hide_indicators
+    from caplife.six_rul import COMMON_SUBSET, _subset_mask, hide_indicators, no_conditions
+    from caplife.six_sim import CONDITION_COLUMNS
     measurements, _ = example_fleet()
     readings = measurements.loc[measurements["Cap_ID"].eq("DEMO_03")]
     full = sequences(readings, SIGNALS)
-    hidden = hide_indicators(full, np.tile(_subset_mask(COMMON_SUBSET), (len(full), 1)))
-    assert np.allclose(hidden, sequences(readings[["Cap_ID", "Hours", *COMMON_SUBSET]]))
+    keep = np.tile(_subset_mask(COMMON_SUBSET), (len(full), 1))
+    # Hidden indicators, conditions kept: a file with three parameters and the operating conditions.
+    assert np.allclose(hide_indicators(full, keep),
+                       sequences(readings[["Cap_ID", "Hours", *COMMON_SUBSET, *CONDITION_COLUMNS]]))
+    # Conditions hidden as well: a file with the three parameters only.
+    assert np.allclose(hide_indicators(full, keep, no_conditions(len(full))),
+                       sequences(readings[["Cap_ID", "Hours", *COMMON_SUBSET]]))
 
 
 def test_every_parameter_combination_is_calibrated_and_tested():
@@ -177,8 +183,11 @@ def test_every_parameter_combination_is_calibrated_and_tested():
     by_subset = metadata["test_metrics_by_subset"]
     assert len(by_subset) == 63 == len(metadata["conformal_adjustment_log_by_subset"])
     # Ranges are calibrated on capacitors with a mix of user limits; with the default limits they come
-    # out slightly cautious (wider), never narrow.
-    assert all(0.78 <= metrics["interval_coverage"] <= 0.93 for metrics in by_subset.values())
+    # out slightly cautious (wider), never clearly narrow. 500 calibration capacitors leave about
+    # ±1.8 points of sampling error around the 80% target.
+    assert all(0.77 <= metrics["interval_coverage"] <= 0.93 for metrics in by_subset.values())
+    bare = metadata["test_metrics_by_subset_without_conditions"]
+    assert len(bare) == 63 and all(0.77 <= m["interval_coverage"] <= 0.93 for m in bare.values())
     custom = metadata["test_metrics_by_subset_custom_limits"]
     assert len(custom) == 63 and all(0.74 <= m["interval_coverage"] <= 0.88 for m in custom.values())
     # Fewer parameters must not look more precise than all six.

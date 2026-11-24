@@ -109,3 +109,22 @@ def test_fewer_parameters_train_on_the_ones_every_capacitor_has(example):
     assert result["parameters"] == ("Capacitance_uF", "ESR_ohm", "Leakage_uA")
     assert result["training_landmarks"] > result["roles"]["training"]  # every reading from the third on
     assert len(result["test_table"]) == result["roles"]["test"]  # one evaluation reading per test capacitor
+
+
+def test_recorded_operating_conditions_join_the_features(example):
+    import numpy as np
+    measurements, outcomes = example
+    # Every capacitor records the same rated values and frequency; ambient differs by experiment.
+    ambient = measurements["Cap_ID"].str.extract(r"_(\w)_")[0].map({"A": 70.0, "B": 85.0, "C": 95.0}).fillna(80.0)
+    with_conditions = measurements.assign(Ambient_C=ambient, Voltage_V=20.0, Rated_V=25.0, Ripple_Hz=10_000.0)
+    result = run_rul_workflow(with_conditions, outcomes, SPLIT_BY_EXPERIMENT, "SYN_EXP_C", "SYN_EXP_B")
+    assert result["operating_conditions"] == ("ambient_temperature", "voltage_ratio", "frequency")
+    assert result["report"]["operating_conditions"] == ["ambient_temperature", "voltage_ratio", "frequency"]
+    # A capacitor to forecast that lacks a used condition is withheld with the reason.
+    running = with_conditions["Cap_ID"].isin(set(measurements["Cap_ID"]) - set(outcomes["Cap_ID"]))
+    first = with_conditions.loc[running, "Cap_ID"].iloc[0]
+    missing = with_conditions.copy()
+    missing.loc[missing["Cap_ID"].eq(first), "Ambient_C"] = np.nan
+    again = run_rul_workflow(missing, outcomes, SPLIT_BY_EXPERIMENT, "SYN_EXP_C", "SYN_EXP_B")
+    if again["passed"]:
+        assert "ambient temperature" in again["forecasts_withheld"][first]

@@ -203,9 +203,13 @@ def _show_results(result: dict, attempts: int) -> None:
     by_role = result["experiments_by_role"]
     from caplife.real_data import MEASUREMENTS
     used = [MEASUREMENTS[signal][0].split(" (")[0] for signal in result["parameters"]]
+    from caplife.six_rul import CONDITION_LABELS
+    operating = [CONDITION_LABELS[name].lower() for name in result.get("operating_conditions", ())]
     st.caption(f"Parameters used ({len(used)} of 6, the ones every capacitor with an outcome has): "
-               f"{', '.join(used)}. The training capacitors gave {result['training_landmarks']:,} readings to "
-               "learn from.")
+               f"{', '.join(used)}. "
+               + (f"Operating conditions used: {', '.join(operating)}. " if operating else
+                  "No operating condition is recorded for every capacitor with an outcome, so none is used. ")
+               + f"The training capacitors gave {result['training_landmarks']:,} readings to learn from.")
     st.caption(f"Endpoint: {result['audit']['endpoint']}. Training experiments: "
                f"{', '.join(by_role['training'])}. Calibration: {', '.join(by_role['calibration'])}. "
                f"Test: {', '.join(by_role['test'])}.")
