@@ -156,7 +156,8 @@ def test_brand_returns_home_from_any_page_and_keeps_the_work():
     assert app.radio(key="caplife_six_source").value == "Use simulated example capacitors"  # still chosen
 
 
-def test_upload_pages_have_no_column_guides():
+def test_upload_pages_have_no_column_guides_or_file_settings():
     for label in ("Monitor and Predict", "Train The AI"):
         app = open_workspace(label)
-        assert not any(e.label in ("Columns and units", "What goes in each file") for e in app.expander)
+        assert not any(e.label in ("Columns and units", "What goes in each file", "File settings: time unit and pressure")
+                       for e in app.expander)
