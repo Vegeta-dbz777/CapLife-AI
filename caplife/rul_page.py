@@ -5,6 +5,8 @@ import hashlib
 import json
 
 import altair as alt
+
+from caplife.chart_hover import hoverable
 import pandas as pd
 import streamlit as st
 
@@ -84,6 +86,8 @@ def _interval_chart(rows: pd.DataFrame, observed: bool) -> alt.Chart:
         "mid": rows["Predicted failure age (h)"], "high": rows["80% range to (h)"],
     })
     y = alt.Y("capacitor:N", sort=None, title=None)
+    mid_tip = [alt.Tooltip("capacitor:N", title="Capacitor"),
+               alt.Tooltip("mid:Q", title="Predicted failure age (h)", format=",.0f")]
     layers = [
         alt.Chart(data).mark_bar(height=10, opacity=.45, color=RANGE_COLOR, cornerRadius=3).encode(
             y=y, x=alt.X("low:Q", title="Capacitor age (h)"), x2="high:Q",
@@ -91,7 +95,7 @@ def _interval_chart(rows: pd.DataFrame, observed: bool) -> alt.Chart:
                      alt.Tooltip("low:Q", title="80% range from (h)", format=",.0f"),
                      alt.Tooltip("high:Q", title="80% range to (h)", format=",.0f")]),
         alt.Chart(data).mark_point(filled=True, size=55, color=POINT_COLOR).encode(
-            y=y, x="mid:Q", tooltip=[alt.Tooltip("mid:Q", title="Predicted failure age (h)", format=",.0f")]),
+            y=y, x="mid:Q", tooltip=mid_tip),
     ]
     if observed:
         seen = rows.assign(capacitor=rows["Capacitor"], lower=rows["Last seen working (h)"],
@@ -113,7 +117,8 @@ def _interval_chart(rows: pd.DataFrame, observed: bool) -> alt.Chart:
         layers.append(alt.Chart(latest).mark_tick(thickness=2, size=18, color=OBSERVED_COLOR).encode(
             y=y, x="latest:Q", tooltip=[alt.Tooltip("latest:Q", title="Latest reading (h)", format=",.0f")]))
     # Enough room per row that every capacitor label is drawn.
-    return alt.layer(*layers).properties(height=max(150, 42 * len(data)))
+    return alt.layer(*layers, *hoverable(data, "mid:Q", y, mid_tip, POINT_COLOR)).properties(
+        height=max(150, 42 * len(data)))
 
 
 def _inputs() -> tuple[bytes, bytes] | None:
