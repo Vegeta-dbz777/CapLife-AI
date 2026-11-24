@@ -100,11 +100,13 @@ These figures hold for the simulator only: the coefficients are illustrative,
 and accuracy on real capacitors is unknown until the model is tested on
 measured failures. Retrain with `python -m caplife.six_rul --output artifacts/six_rul`.
 
-**Reports.** Under Downloads, *Report (PDF)* and *Report (Excel)* cover the fleet (health, status, remaining
-life and its 80% range), the selected capacitor (limits, operating conditions as recorded and as used,
-parameter health, history and forecast charts, remaining life over time) and a data check (missing readings,
-no 0 h reading, sampling gaps, changing ESR test settings). The Excel workbook adds every table in full. Both
-are built when the button is clicked (`caplife/monitor_report.py`).
+**Reports.** Under Downloads, *Report (PDF)* is the page as you see it: the fleet overview, then the
+selected capacitor with its end-of-life limits and operating conditions as entered in the boxes (changed values
+next to the recorded ones), the stress badges, remaining-life figures, health cards and the page's own charts
+(parameter history, predicted trends to end of life with the zoom as set, remaining life over time), exported
+from the same charts with vl-convert. *Report (Excel)* has every table in full: fleet, the capacitor's history
+and forecast, limits in the page's units, conditions, a data check and the measurements. Both are built when
+the button is clicked (`caplife/monitor_report.py`).
 
 ## Train The AI
 
