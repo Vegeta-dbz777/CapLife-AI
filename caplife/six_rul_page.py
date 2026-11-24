@@ -684,58 +684,110 @@ def _always_at_end_of_life(assessment: pd.DataFrame) -> bool:
     return bool(len(predicted)) and bool((predicted["RUL_high_h"] == 0).all())
 
 
-def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, always_changed: pd.DataFrame | None = None,
-               changed_now: pd.Series | None = None) -> alt.Chart:
-    """Remaining life predicted at every reading, each from the readings available then.
+def _countdown(now: pd.Series) -> pd.DataFrame:
+    """From the latest reading, remaining life falls one hour per hour: median and 80% range until zero."""
+    latest, mid, low, high = (float(now[k]) for k in ("Hours", "RUL_median_h", "RUL_low_h", "RUL_high_h"))
+    hours = np.linspace(latest, latest + high, 40)
+    gone = hours - latest
+    return pd.DataFrame({"Hours": hours, "median": np.clip(mid - gone, 0, None), "low": np.clip(low - gone, 0, None),
+                         "high": np.clip(high - gone, 0, None)}).loc[lambda f: f["Hours"] <= latest + high]
 
-    ``assessment`` uses the recorded conditions (purple line and 80% band). With changed operating
-    conditions, ``always_changed`` is the same for the estimated history had the capacitor always run
-    at them (gold line and band), and ``changed_now`` the prediction at the latest reading if it runs at
-    them from now on (gold diamond with its 80% range).
-    """
-    x = alt.X("Hours:Q", title="Capacitor age when the prediction was made (h)")
-    y_axis = alt.Y("RUL_median_h:Q", title="Remaining useful life (h)", axis=alt.Axis(format=",.0f"),
-                   scale=alt.Scale(domainMin=0))
 
-    def series(data: pd.DataFrame, color: str, label: str, dash: list | None) -> list:
-        data = data.dropna(subset=["RUL_median_h"])
-        tip = [alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
-               alt.Tooltip("RUL_median_h:Q", title=f"Predicted RUL, {label} (h)", format=",.0f"),
-               alt.Tooltip("RUL_low_h:Q", title="80% range from (h)", format=",.0f"),
-               alt.Tooltip("RUL_high_h:Q", title="80% range to (h)", format=",.0f")]
-        band = alt.Chart(data).mark_area(opacity=.22, color=color).encode(
-            x=x, y=alt.Y("RUL_low_h:Q", scale=alt.Scale(domainMin=0)), y2="RUL_high_h:Q", tooltip=NO_TOOLTIP)
-        line = alt.Chart(data).mark_line(color=color, strokeWidth=2.5, strokeDash=dash or [1, 0],
-                                         point=alt.OverlayMarkDef(color=color, size=34, filled=True)).encode(
-            x=x, y=y_axis, tooltip=tip)
-        return [band, line], _hoverable(data, x, y_axis, tip, color)
-
-    layers, hovers = series(assessment, PURPLE, "recorded conditions", None)
-    if always_changed is not None and always_changed["RUL_median_h"].notna().any():
-        more, more_hovers = series(always_changed, GOLD, "always at your conditions", [6, 3])
-        layers, hovers = more + layers, hovers + more_hovers
-    if changed_now is not None and pd.notna(changed_now.get("RUL_median_h")):
-        now = pd.DataFrame([{"Hours": changed_now["Hours"], "RUL_median_h": changed_now["RUL_median_h"],
-                             "RUL_low_h": changed_now["RUL_low_h"], "RUL_high_h": changed_now["RUL_high_h"]}])
-        tip = [alt.Tooltip("Hours:Q", title="Latest reading (h)", format=",.0f"),
-               alt.Tooltip("RUL_median_h:Q", title="Predicted RUL from now on, your conditions (h)", format=",.0f"),
-               alt.Tooltip("RUL_low_h:Q", title="80% range from (h)", format=",.0f"),
-               alt.Tooltip("RUL_high_h:Q", title="80% range to (h)", format=",.0f")]
-        layers += [
-            alt.Chart(now).mark_rule(color=GOLD, strokeWidth=4, opacity=.6).encode(
-                x=x, y=alt.Y("RUL_low_h:Q", scale=alt.Scale(domainMin=0)), y2="RUL_high_h:Q", tooltip=tip),
-            alt.Chart(now).mark_point(shape="diamond", filled=True, size=150, color=GOLD, opacity=1, stroke="white",
-                                      strokeWidth=1).encode(x=x, y=y_axis, tooltip=tip),
-        ]
-        hovers += _hoverable(now, x, y_axis, tip, GOLD)
+def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd.Series | None = None) -> alt.Chart:
+    """Remaining life predicted at every reading (purple, from the readings available then), and from the
+    latest reading a countdown to end of life with its 80% range and end-of-life range, like the parameter
+    forecasts. ``assessment`` uses the recorded conditions; with changed ones, ``changed_now`` is the
+    prediction at the latest reading under them (gold countdown and end of life)."""
+    data = assessment.dropna(subset=["RUL_median_h"])
+    recorded_now = data.iloc[-1]
+    latest = float(recorded_now["Hours"])
+    nows = {"Recorded": recorded_now, **({"Changed": changed_now} if changed_now is not None else {})}
+    right = max(latest + float(now["RUL_high_h"]) for now in nows.values())
     if true_eol is not None:
-        truth = assessment.dropna(subset=["RUL_median_h"])
-        truth = pd.DataFrame({"Hours": truth["Hours"], "true": np.maximum(true_eol - truth["Hours"], 0)})
-        tip = [alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
-               alt.Tooltip("true:Q", title="True RUL (h)", format=",.0f")]
+        right = max(right, true_eol)
+    first = float(data["Hours"].min())
+    hours_scale = alt.Scale(domain=[first, right * 1.02], nice=False)
+    top = max([float(data["RUL_high_h"].max()), *(float(now["RUL_high_h"]) for now in nows.values())]) * 1.08
+    scale = alt.Scale(domain=[0, top], nice=False)
+    x = alt.X("Hours:Q", title="Capacitor age (h)", scale=hours_scale)
+    y = alt.Y("RUL_median_h:Q", title="Remaining useful life (h)", axis=alt.Axis(format=",.0f"), scale=scale)
+    hour = lambda field, title: alt.Tooltip(f"{field}:Q", title=title, format=",.0f")
+    changed = changed_now is not None
+    colours = {"Recorded": PURPLE, "Changed": GOLD}
+
+    layers, hovers = [], []
+    ranges = {name: (latest + float(now["RUL_low_h"]), latest + float(now["RUL_median_h"]),
+                     latest + float(now["RUL_high_h"])) for name, now in nows.items()}
+    # End-of-life 80% ranges, shaded (grey when there is only the one prediction).
+    for name, (low, _, high) in ranges.items():
+        layers.append(alt.Chart(pd.DataFrame({"from": [low], "to": [high]})).mark_rect(
+            color=colours[name] if changed else GREY, opacity=.18 if changed else .16).encode(
+            x=alt.X("from:Q", scale=hours_scale), x2="to:Q",
+            tooltip=NO_TOOLTIP if changed else [hour("from", "End of life, 80% range from (h)"),
+                                                hour("to", "to (h)")]))
+    if changed:
+        layers += _range_hover(ranges, hours_scale)
+    # Predictions made at past readings.
+    past_tip = [hour("Hours", "Age when predicted (h)"),
+                hour("RUL_median_h", "Predicted remaining life" + (", recorded conditions (h)" if changed else " (h)")),
+                hour("RUL_low_h", "80% range from (h)"), hour("RUL_high_h", "80% range to (h)")]
+    layers += [
+        alt.Chart(data).mark_area(color=PURPLE, opacity=.25).encode(
+            x=x, y=alt.Y("RUL_low_h:Q", scale=scale), y2="RUL_high_h:Q", tooltip=NO_TOOLTIP),
+        alt.Chart(data).mark_line(color=PURPLE, strokeWidth=2.2, point=alt.OverlayMarkDef(
+            color=PURPLE, size=30, filled=True)).encode(x=x, y=y, tooltip=past_tip),
+        alt.Chart(pd.DataFrame({"Hours": [latest]})).mark_rule(color=DIVIDER, strokeWidth=3).encode(
+            x=alt.X("Hours:Q", scale=hours_scale), tooltip=[hour("Hours", "Latest reading (h)")]),
+        alt.Chart(pd.DataFrame({"Hours": [latest], "value": [top], "label": ["Latest reading"]})).mark_text(
+            align="right", baseline="top", dx=-5, dy=4, color=DIVIDER, fontSize=11, fontWeight="bold").encode(
+            x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale), text="label:N",
+            tooltip=NO_TOOLTIP),
+    ]
+    hovers += _hoverable(data, x, y, past_tip, PURPLE)
+    # Countdowns from the latest reading to end of life.
+    for name, now in nows.items():
+        colour = colours[name]
+        path = _countdown(now)
+        recorded_line = name == "Recorded" and changed
+        layers += [
+            alt.Chart(path).mark_area(color=colour, opacity=.16 if recorded_line else .24).encode(
+                x=x, y=alt.Y("low:Q", scale=scale), y2="high:Q", tooltip=NO_TOOLTIP),
+            # The median line stops at its end of life instead of running along zero.
+            alt.Chart(path.loc[path["Hours"] <= latest + float(now["RUL_median_h"])]
+                      .pipe(lambda f: pd.concat([f, pd.DataFrame([{"Hours": latest + float(now["RUL_median_h"]),
+                                                                   "median": 0.0}])])))
+            .mark_line(color=colour, strokeWidth=2.2 if recorded_line else 3,
+                                      strokeDash=[2, 3] if recorded_line else [7, 3]).encode(
+                x=x, y=alt.Y("median:Q", scale=scale), tooltip=NO_TOOLTIP),
+        ]
+        end = ranges[name][1]
+        layers.append(alt.Chart(pd.DataFrame({"Hours": [end]})).mark_rule(
+            color=colour if changed else GREY, strokeWidth=2.5, strokeDash=[4, 3] if recorded_line else [1, 0]).encode(
+            x=alt.X("Hours:Q", scale=hours_scale),
+            tooltip=[hour("Hours", f"Predicted end of life{', ' + name.lower() + ' conditions' if changed else ''} (h)")]))
+        start = pd.DataFrame([{"Hours": latest, "median": float(now["RUL_median_h"]), "low": float(now["RUL_low_h"]),
+                               "high": float(now["RUL_high_h"])}])
+        start_tip = [hour("Hours", "Latest reading (h)"),
+                     hour("median", f"Remaining life from now{', ' + name.lower() + ' conditions' if changed else ''} (h)"),
+                     hour("low", "80% range from (h)"), hour("high", "80% range to (h)")]
+        layers.append(alt.Chart(start).mark_point(color=colour, size=60, filled=True, opacity=1).encode(
+            x=x, y=alt.Y("median:Q", scale=scale), tooltip=start_tip))
+        hovers += _hoverable(start, x, alt.Y("median:Q", scale=scale), start_tip, colour)
+    if changed:  # labels at the end-of-life lines, on their outer sides and at two heights
+        recorded_end, changed_end = ranges["Recorded"][1], ranges["Changed"][1]
+        for when, lift, name, outer in ((changed_end, 0.02, "Changed", changed_end >= recorded_end),
+                                        (recorded_end, 0.08, "Recorded", recorded_end > changed_end)):
+            layers.append(alt.Chart(pd.DataFrame({"Hours": [when], "value": [lift * top], "label": [name]})).mark_text(
+                align="left" if outer else "right", dx=4 if outer else -4, baseline="bottom", fontSize=11,
+                fontWeight="bold", color=colours[name]).encode(
+                x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale), text="label:N",
+                tooltip=NO_TOOLTIP))
+    if true_eol is not None:
+        truth = pd.DataFrame({"Hours": np.linspace(first, true_eol, 60)})
+        truth["true"] = np.maximum(true_eol - truth["Hours"], 0)
+        tip = [hour("Hours", "Age (h)"), hour("true", "True remaining life (h)")]
         layers.append(alt.Chart(truth).mark_line(color=ORANGE, strokeDash=[6, 4], strokeWidth=2).encode(
-            x=x, y=alt.Y("true:Q", scale=alt.Scale(domainMin=0)), tooltip=tip))
-        hovers += _hoverable(truth, x, alt.Y("true:Q", scale=alt.Scale(domainMin=0)), tip, ORANGE)
+            x=x, y=alt.Y("true:Q", scale=scale), tooltip=tip))
     return alt.layer(*layers, *hovers).properties(height=320)
 
 
@@ -1039,23 +1091,21 @@ def render() -> None:
         true_eol = truth[device]["eol_h"] if truth and default_limits and not planned.get(str(device)) else None
         changed = recorded_assessment is not None
         st.markdown("##### Remaining-life prediction over time",
-                    help="Each point is the prediction made at that age, from the readings available then. Shaded "
-                         "bands: 80% ranges. Purple: with the recorded conditions."
-                         + (" Gold dashed: had the capacitor always run at your changed conditions (its estimated "
-                            "history, as in the history charts). Gold diamond: from the latest reading on at your "
-                            "conditions, with its 80% range." if changed else "")
+                    help="Left of the Latest reading line: the remaining life predicted at each reading, from the "
+                         "readings available then (purple, with its 80% range). Right of it: from the latest "
+                         "reading, remaining life counts down one hour per hour to end of life; the shaded area at "
+                         "the end is the end of life's 80% range."
+                         + (" Purple dotted: with the recorded conditions. Gold dashed: with your changed "
+                            "conditions." if changed else "")
                          + (" Orange dashed: the simulated true remaining life." if true_eol else ""))
         if changed:
-            st.caption("Purple: recorded conditions. Gold dashed: had it always run at your conditions. "
-                       "Gold ◆: from now on at your conditions.")
+            st.caption("Purple: with the recorded conditions. Gold: with your changed conditions. Hover a shaded "
+                       "range for its hours.")
         if _always_at_end_of_life(assessment):
             st.info("Every prediction is 0 h because an end-of-life limit was already met when the first "
                     "prediction could be made, so there is no remaining-life trend to plot.")
         else:
-            always = None
-            if changed and alternative is not None:
-                always = _model().assess(alternative.assign(Cap_ID=str(device)), measured, limits)
-            st.altair_chart(_rul_chart(recorded_assessment if changed else assessment, true_eol, always,
+            st.altair_chart(_rul_chart(recorded_assessment if changed else assessment, true_eol,
                                        last if changed else None), width="stretch")
 
     with st.expander("About the model and how well it did on simulated data"):
