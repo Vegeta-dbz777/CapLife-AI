@@ -87,3 +87,24 @@ def test_aging_rule_factor_follows_ten_degree_and_voltage_rules():
     assert np.isclose(conditions.aging_rule_factor(recorded, {"Ambient_C": 70.0}), 2.0)  # 10 °C cooler: twice
     assert np.isclose(conditions.aging_rule_factor(recorded, {"Voltage_V": 20.0}), 8.0)  # half the voltage: 2³
     assert conditions.aging_rule_factor(pd.Series({"Voltage_V": 40.0, "Rated_V": 50.0}), {"Voltage_V": 20.0}) is None
+
+
+def test_changed_conditions_reach_the_assessment_of_that_capacitor_only():
+    import json
+    from caplife import six_rul_page as page
+    measurements, _ = simulate_fleet(3, seed=31)
+    measurements = measurements.groupby("Cap_ID").head(8)
+    first, second = sorted(measurements["Cap_ID"].unique())[:2]
+    recorded = conditions.latest(measurements.loc[measurements["Cap_ID"] == first])
+    planned = {first: {"Ambient_C": float(recorded["Ambient_C"]) + 20}}
+    base = page._assess_cached(measurements, json.dumps({}), json.dumps({}), "t")
+    hot = page._assess_cached(measurements, json.dumps({}), json.dumps(planned), "t")
+    assert hot[first][0]["Ambient_C"].iloc[-1] == planned[first]["Ambient_C"]
+    assert hot[first][1]["RUL_median_h"].iloc[-1] < base[first][1]["RUL_median_h"].iloc[-1]
+    assert hot[first][1]["RUL_median_h"].iloc[:-1].equals(base[first][1]["RUL_median_h"].iloc[:-1])  # history unchanged
+    assert hot[second][1].equals(base[second][1])
+
+
+def test_judgements_have_short_labels_for_badges():
+    found = conditions.judgements(pd.Series({"Voltage_V": 24.5, "Rated_V": 25.0, "Core_C": 70.0}))
+    assert [(level, short) for level, short, _ in found] == [("warning", "Voltage 98% of rated"), ("info", "Core 70 °C")]
