@@ -450,3 +450,76 @@
     overflow: hidden;
     clip: rect(0 0 0 0);
 }
+
+/* Sidebar: room between the brand, the theme switch and the workspace list, and the three workspaces
+   drawn as roomy navigation items (the chosen one highlighted). */
+[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+    padding-top: 1.6rem;
+}
+
+[data-testid="stSidebar"] .st-key-caplife_brand_home button {
+    margin-bottom: 1.5rem;
+}
+
+[data-testid="stSidebar"] .st-key-caplife_brand_home button::before {
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: .88rem;
+}
+
+[data-testid="stSidebar"] .st-key-caplife_brand_home button p {
+    font-size: 1.38rem;
+}
+
+[data-testid="stSidebar"] .caplife-theme-switch {
+    margin-bottom: 1.6rem;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadio"] [data-testid="stWidgetLabel"] p {
+    margin-bottom: .45rem;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    opacity: .7;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] {
+    width: 100%;
+    gap: .4rem;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] > div {
+    width: 100%;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadioOption"] {
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0;
+    padding: .62rem .75rem;
+    border: 1px solid transparent;
+    border-radius: .7rem;
+    transition: background-color .15s ease, border-color .15s ease;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadioOption"] p {
+    font-size: 1.02rem;
+}
+
+[data-testid="stSidebar"] [data-testid="stRadioOption"]:hover {
+    background: light-dark(rgba(11, 107, 94, .07), rgba(140, 231, 213, .07));
+}
+
+[data-testid="stSidebar"] [data-testid="stRadioOption"]:has(input:checked) {
+    border-color: light-dark(#9cc9be, #2f5f57);
+    background: light-dark(#dff0eb, #18302d);
+}
+
+[data-testid="stSidebar"] [data-testid="stRadioOption"]:has(input:checked) p {
+    font-weight: 650;
+}
+
+[data-testid="stSidebar"] hr {
+    margin: 1.8rem 0 1.4rem;
+}
