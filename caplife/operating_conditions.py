@@ -96,6 +96,64 @@ def aging_rule_factor(recorded: pd.Series, planned: dict) -> float | None:
     return float(factor)
 
 
+GAS_SIGNALS = {"H2_Generated_mL_STP": 0.0, "Pressure_Abs_kPa": None, "Case_Expansion_um": 0.0}
+
+
+def _rates(values: pd.DataFrame, use_voltage: bool) -> tuple[np.ndarray, np.ndarray]:
+    """Electrolyte-aging and gas-generation rates (relative) for rows of conditions in user units.
+
+    Electrolyte loss doubles per 10 °C of core temperature and grows with the cube of applied over
+    rated voltage; gas comes from leakage current, which doubles per 20 °C and grows with voltage.
+    """
+    core = values.apply(_core_estimate, axis=1).to_numpy(dtype=float)
+    ratio = (values["Voltage_V"] / values["Rated_V"]).to_numpy(dtype=float) if use_voltage else np.ones(len(values))
+    return 2 ** ((core - RATED_TEMP_C) / 10) * ratio ** 3, 2 ** ((core - 25) / 20) * ratio
+
+
+def alternative_history(readings: pd.DataFrame, planned: dict) -> pd.DataFrame | None:
+    """The measured history as it would have been had the capacitor always run at the planned conditions.
+
+    Each reading's state is moved to the hour it would have been reached: the time is scaled by the
+    electrolyte-aging rate (capacitance, ESR and leakage keep their values), and each interval's gain
+    in generated H₂, pressure above atmospheric and case expansion is scaled by how much faster gas
+    forms per unit of electrolyte aging. Conditions recorded with a reading hold until the next one.
+    None when a temperature (core or ambient) is missing before or after.
+    """
+    present = [column for column in CONDITION_COLUMNS if column in readings]
+    if not present or readings[present].isna().all().all():
+        return None
+    readings = readings.sort_values("Hours").reset_index(drop=True)
+    recorded = readings[present].reindex(columns=CONDITION_COLUMNS).ffill().bfill()
+    latest_values = recorded.iloc[-1]
+    after = {**latest_values.to_dict(), **{k: v for k, v in planned.items() if v is not None}}
+    core_after = planned_core(latest_values, planned)
+    if np.isfinite(core_after):
+        after["Core_C"] = core_after
+    after = pd.DataFrame([after]).reindex(columns=CONDITION_COLUMNS)
+    both = pd.concat([recorded, after], ignore_index=True)
+    use_voltage = bool((both["Voltage_V"].notna() & both["Rated_V"].notna()).all())
+    elec, gas = _rates(recorded, use_voltage)
+    new_elec, new_gas = (float(rate[0]) for rate in _rates(after, use_voltage))
+    if not (np.isfinite(elec).all() and np.isfinite(gas).all() and np.isfinite(new_elec) and new_elec > 0):
+        return None
+    hours = readings["Hours"].to_numpy(dtype=float)
+    gaps = np.diff(hours)
+    # Conditions recorded with a reading hold until the next reading.
+    aging = np.concatenate([[0.0], np.cumsum(gaps * elec[:-1])])
+    out = pd.DataFrame({"Hours": hours[0] + aging / new_elec})
+    scale = (new_gas / gas[:-1]) / (new_elec / elec[:-1])
+    for signal in ("Capacitance_uF", "ESR_ohm", "Leakage_uA", *GAS_SIGNALS):
+        if signal not in readings:
+            continue
+        values = readings[signal].to_numpy(dtype=float)
+        if signal in GAS_SIGNALS:
+            steps = np.nan_to_num(np.diff(values)) * scale
+            values = values[0] + np.concatenate([[0.0], np.cumsum(steps)])
+            values[np.isnan(readings[signal].to_numpy(dtype=float))] = np.nan
+        out[signal] = values
+    return out
+
+
 def with_planned(readings: pd.DataFrame, planned: dict) -> pd.DataFrame:
     """The readings with the newest reading's conditions replaced by the planned ones."""
     changed = readings.copy()

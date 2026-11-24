@@ -108,3 +108,33 @@ def test_changed_conditions_reach_the_assessment_of_that_capacitor_only():
 def test_judgements_have_short_labels_for_badges():
     found = conditions.judgements(pd.Series({"Voltage_V": 24.5, "Rated_V": 25.0, "Core_C": 70.0}))
     assert [(level, short) for level, short, _ in found] == [("warning", "Voltage 98% of rated"), ("info", "Core 70 °C")]
+
+
+def test_alternative_history_matches_the_simulator_had_it_always_run_cooler():
+    import caplife.six_sim as sim
+    rng = np.random.default_rng(3)
+    device = sim._device(rng)
+    while np.isfinite(device["change_h"]):
+        device = sim._device(rng)
+    hours = np.linspace(0, 0.8 * device["tau_h"], 12)
+    state = sim._state(device, hours)
+    conditions_now = sim.conditions_at(device, hours)
+    readings = pd.DataFrame({"Cap_ID": "A", "Hours": hours, **state,
+                             **{column: conditions_now[column] for column in CONDITION_COLUMNS}})
+    planned = {"Ambient_C": device["ambient_C"] - 15, "Voltage_V": 0.6 * device["rated_V"],
+               "Ripple_A": 0.5 * device["rated_ripple_A"]}
+    estimate = conditions.alternative_history(readings, planned)
+    # The truth: the same capacitor run at the planned conditions from the start.
+    ratio = (planned["Voltage_V"] / device["rated_V"], planned["Ripple_A"] / device["rated_ripple_A"])
+    core, acceleration = (float(v) for v in sim.operating_stress(planned["Ambient_C"], *ratio, device["ripple_Hz"]))
+    tau_rated = device["tau_h"] * float(sim.operating_stress(device["ambient_C"], device["voltage_ratio"],
+                                                             device["ripple_ratio"], device["ripple_Hz"])[1])
+    other = {**device, "ambient_C": planned["Ambient_C"], "voltage_ratio": ratio[0], "ripple_ratio": ratio[1],
+             "core_C": core, "ambient2_C": planned["Ambient_C"], "voltage2_ratio": ratio[0], "ripple2_ratio": ratio[1],
+             "core2_C": core, "tau_h": tau_rated / acceleration, "tau2_h": tau_rated / acceleration}
+    truth = sim._state(other, estimate["Hours"].to_numpy())
+    assert estimate["Hours"].iloc[-1] > hours[-1]  # milder conditions: the same aging takes longer
+    for signal in SIGNALS:
+        assert np.allclose(estimate[signal], truth[signal], rtol=2e-3, atol=1e-6), signal
+    # Without any recorded temperature there is nothing to scale from.
+    assert conditions.alternative_history(readings.drop(columns=["Core_C", "Ambient_C"]), planned) is None
