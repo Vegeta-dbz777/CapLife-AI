@@ -3,9 +3,10 @@
 Each column (and the index, when it is shown) is centred. A column's existing settings (number
 format, pinning, label) are kept. Progress-bar columns fill their cell, so they are left as they are.
 
-Sentence-length text (recommendations, notes) would be cut off in a one-line cell, so such columns
-get a fixed minimum width; text too long for one line is left-aligned and the rows are made tall
-enough for it to wrap.
+Streamlit sizes a column from its first rows only, so a longer entry further down (or any
+sentence-length text) would be cut off. Text columns therefore get a width that fits their longest
+entry and header; text too long for one line is left-aligned, gets ``WRAP_WIDTH`` and the rows are
+made tall enough for it to wrap.
 """
 from __future__ import annotations
 
@@ -15,9 +16,10 @@ import pandas as pd
 import streamlit as st
 
 CENTER = "center"
-LONG_TEXT = 48          # characters: longer text gets a wider column (and wraps past CHARS_PER_LINE)
+FIT_FROM = 12           # characters: shorter text always fits Streamlit's own column sizing
+CHAR_WIDTH, CELL_PADDING = 7.6, 30   # pixels, a generous estimate for the app's 14 px font
 WRAP_WIDTH = 480        # pixels given to a wrapping column (it can grow to fill the table)
-CHARS_PER_LINE = 62     # a conservative fit for WRAP_WIDTH
+CHARS_PER_LINE = 62     # text longer than this wraps; a conservative fit for WRAP_WIDTH
 LINE_HEIGHT, ROW_PADDING, MAX_LINES = 20, 16, 6
 
 
@@ -28,8 +30,8 @@ def _columns(data) -> list:
     return list(getattr(frame, "columns", []))
 
 
-def long_text_lengths(data) -> dict:
-    """Longest text in each column whose text runs past ``LONG_TEXT`` characters."""
+def text_lengths(data) -> dict:
+    """Longest entry (or header) of each text column, in characters, where it is ``FIT_FROM`` or more."""
     frame = getattr(data, "data", data)
     if not isinstance(frame, pd.DataFrame):
         return {}
@@ -37,10 +39,21 @@ def long_text_lengths(data) -> dict:
     for name in frame.columns:
         column = frame[name]
         if column.dtype == object or pd.api.types.is_string_dtype(column):
-            longest = int(column.dropna().astype(str).str.len().max() or 0) if column.notna().any() else 0
-            if longest > LONG_TEXT:
+            longest = int(column.dropna().astype(str).str.len().max()) if column.notna().any() else 0
+            longest = max(longest, len(str(name)))
+            if longest >= FIT_FROM:
                 lengths[name] = longest
     return lengths
+
+
+def long_text_lengths(data) -> dict:
+    """Text columns whose longest entry needs more than one line."""
+    return {name: length for name, length in text_lengths(data).items() if length > CHARS_PER_LINE}
+
+
+def fitted_width(length: int) -> int:
+    """Pixels for one line of ``length`` characters (up to ``WRAP_WIDTH``)."""
+    return min(WRAP_WIDTH, math.ceil(length * CHAR_WIDTH + CELL_PADDING))
 
 
 def wrapped_row_height(lengths: dict) -> int | None:
@@ -54,12 +67,12 @@ def wrapped_row_height(lengths: dict) -> int | None:
 def centered_config(data, column_config: dict | None = None, show_index: bool = True) -> dict:
     """``column_config`` with every column centred, keeping whatever each column already had.
 
-    Sentence-length text columns get ``WRAP_WIDTH`` unless their configuration already sets a width;
-    those long enough to wrap are left-aligned.
+    Text columns get a width that fits their longest entry unless their configuration already sets
+    one; text that wraps is left-aligned.
     """
     config = dict(column_config or {})
     names = [str(name) if not isinstance(name, (str, int)) else name for name in _columns(data)]
-    long_text = long_text_lengths(data)
+    text = text_lengths(data)
     if show_index:
         names.append("_index")
     for name in names:
@@ -67,8 +80,9 @@ def centered_config(data, column_config: dict | None = None, show_index: bool = 
         if current is None and name in config:  # None hides a column: leave it hidden
             continue
         settings = {"alignment": CENTER}
-        if name in long_text:  # wide enough for one line of CHARS_PER_LINE; text that wraps reads left-aligned
-            settings = {"alignment": "left" if long_text[name] > CHARS_PER_LINE else CENTER, "width": WRAP_WIDTH}
+        if name in text:  # wide enough for the longest entry; text that wraps reads left-aligned
+            wraps = text[name] > CHARS_PER_LINE
+            settings = {"alignment": "left" if wraps else CENTER, "width": fitted_width(text[name])}
         if isinstance(current, str):  # a plain label
             config[name] = st.column_config.Column(current, **settings)
         elif isinstance(current, dict):
