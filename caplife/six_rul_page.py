@@ -465,14 +465,21 @@ _signal_charts = signal_charts
 
 
 def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Series,
-                     limits: dict | None = None, zoom: bool = False) -> None:
+                     limits: dict | None = None, zoom: bool = False,
+                     reference: tuple[pd.DataFrame, pd.Series] | None = None) -> None:
     """Each measured parameter from the first reading to the predicted end of life: the measured
-    readings (solid) followed by the forecast path from the latest reading (dashed, with its range)."""
+    readings (solid) followed by the forecast path from the latest reading (dashed, with its range).
+
+    ``reference`` is the forecast and assessment with the recorded operating conditions, drawn in grey
+    on the same time axis when the user changed the conditions, so the effect on each parameter shows.
+    """
     baseline = readings.iloc[0]
     first, latest = float(readings["Hours"].min()), float(last["Hours"])
     end = latest + float(last["RUL_median_h"])
     eol_range = pd.DataFrame({"from": [latest + float(last["RUL_low_h"])], "to": [latest + float(last["RUL_high_h"])]})
     right = latest + float(last["RUL_high_h"])
+    if reference is not None:
+        right = max(right, latest + float(reference[1]["RUL_median_h"]) * 1.05)
     # Zoomed in, the chart keeps about as much history as the forecast spans, so the forecast fills half of it.
     left = max(first, latest - (right - latest)) if zoom else first
     hours_scale = alt.Scale(domain=[left, right], nice=False)
@@ -485,7 +492,9 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
             inside = measured["Hours"] >= left
             measured = measured.loc[inside | inside.shift(-1, fill_value=False)]
         limit = _limit_value(signal, baseline, limits)
-        values = pd.concat([measured.loc[measured["Hours"] >= left, "value"], data["low"], data["high"]])
+        values = pd.concat([measured.loc[measured["Hours"] >= left, "value"], data["low"], data["high"]]
+                           + ([reference[0].loc[reference[0]["signal"].eq(signal), "median"]] if reference is not None
+                              else []))
         bottom, top, off_chart = _chart_domain(values, limit, DIGITS[signal])
         scale = alt.Scale(domain=[bottom, top], zero=False, nice=False)
         number = f",.{DIGITS[signal]}f"
@@ -515,6 +524,19 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
             x=alt.X("Hours:Q", scale=hours_scale),
             tooltip=[alt.Tooltip("Hours:Q", title="Predicted end of life (h)", format=",.0f")])
         layers = [window, now, now_label, band, history, path, eol]
+        if reference is not None:
+            before = reference[0].loc[reference[0]["signal"].eq(signal)]
+            recorded_end = latest + float(reference[1]["RUL_median_h"])
+            layers += [
+                alt.Chart(before).mark_line(color=GREY, strokeWidth=2, strokeDash=[2, 3], clip=True).encode(
+                    x=x, y=alt.Y("median:Q", scale=scale),
+                    tooltip=[alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
+                             alt.Tooltip("median:Q", title="With recorded conditions", format=number)]),
+                alt.Chart(pd.DataFrame({"Hours": [recorded_end]})).mark_rule(
+                    color=GREY, strokeWidth=1.2, strokeDash=[2, 3]).encode(
+                    x=alt.X("Hours:Q", scale=hours_scale),
+                    tooltip=[alt.Tooltip("Hours:Q", title="End of life, recorded conditions (h)", format=",.0f")]),
+            ]
         if off_chart is None:
             layers.append(alt.Chart(pd.DataFrame({"limit": [limit]})).mark_rule(color=ORANGE, strokeDash=[5, 4])
                           .encode(y=alt.Y("limit:Q", scale=scale),
@@ -795,6 +817,10 @@ def render() -> None:
         _condition_inputs(str(device), conditions.latest(original), conditions.latest(readings))
     last = assessment.iloc[-1]
     default_limits = limits == full_limits()
+    original = original.reset_index(drop=True)
+    recorded_last = (_model().assess(original, measured, limits).iloc[-1] if planned.get(str(device)) else None)
+    if recorded_last is not None and pd.isna(recorded_last.get("RUL_median_h")):
+        recorded_last = None
     if bool(last["End_of_life_reached"]):
         st.error(_end_of_life_message(assessment))
     elif "RUL_median_h" not in assessment or pd.isna(last.get("RUL_median_h")):
@@ -802,8 +828,7 @@ def render() -> None:
     else:
         detail = f"Based on {len(readings)} readings up to {last['Hours']:,.0f} h."
         delta = None
-        if planned.get(str(device)):
-            recorded_last = _model().assess(original.reset_index(drop=True), measured, limits).iloc[-1]
+        if recorded_last is not None:
             delta = f"{last['RUL_median_h'] - recorded_last['RUL_median_h']:+,.0f} h vs recorded conditions"
             detail += f" With the recorded conditions: {_hours(recorded_last['RUL_median_h'])}."
             factor = conditions.aging_rule_factor(conditions.latest(original), planned[str(device)])
@@ -833,7 +858,9 @@ def render() -> None:
     _health_cards(readings, assessment, limits)
 
     st.markdown("##### Parameter history" if len(measured) < len(SIGNALS) else "##### Six-parameter history",
-                help="Each dot is one reading, joined in time order. Orange dashed line: your limit.")
+                help="Each dot is one measured reading, joined in time order. Orange dashed line: your limit. "
+                     "Measurements are what happened, so they do not change with the operating conditions you "
+                     "enter; the forecasts below do.")
     _signal_charts(readings, limits)
     has_rul = "RUL_median_h" in assessment and pd.notna(last.get("RUL_median_h"))
     if has_rul and not bool(last["End_of_life_reached"]):
@@ -848,7 +875,12 @@ def render() -> None:
                  "expected to reach its limit first.")
         zoom = st.toggle("Zoom in on the forecast", key="caplife_six_forecast_zoom",
                          help="Show the latest readings and the forecast instead of the whole history.")
-        _forecast_charts(readings, forecast, last, limits, zoom)
+        reference = None
+        if recorded_last is not None:
+            reference = (_forecast_cached(original, float(recorded_last["RUL_median_h"]),
+                                          json.dumps(limits, sort_keys=True), code_version()), recorded_last)
+            st.caption("Purple: with your changed operating conditions. Grey dotted: with the recorded conditions.")
+        _forecast_charts(readings, forecast, last, limits, zoom, reference)
     if assessment["RUL_median_h"].notna().any() if "RUL_median_h" in assessment else False:
         true_eol = truth[device]["eol_h"] if truth and default_limits and not planned.get(str(device)) else None
         st.markdown("##### Remaining-life prediction over time",
