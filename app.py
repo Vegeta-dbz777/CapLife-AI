@@ -442,6 +442,7 @@ if workflow == MEASUREMENT_WORKFLOW:
     )
     from caplife.readiness import (
         audit_measurement_readiness,
+        grouped_actions,
         assessment_zip_with_readiness_bytes,
     )
 
@@ -589,7 +590,8 @@ if workflow == MEASUREMENT_WORKFLOW:
         )
         table(audit["summary"], hide_index=True, width="stretch", column_config={"Cap_ID": st.column_config.TextColumn(pinned=True)})
         with st.expander("Recommended measurement and documentation improvements"):
-            table(audit["actions"], hide_index=True, width="stretch")
+            st.caption("Each recommendation is listed once, with the capacitors it applies to. Most urgent first.")
+            table(grouped_actions(audit["actions"], audit["summary"]["Cap_ID"]), hide_index=True, width="stretch")
         with st.expander("Recorded operating and test conditions"):
             table(audit["conditions"], hide_index=True, width="stretch")
 
