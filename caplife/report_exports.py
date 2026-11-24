@@ -184,7 +184,7 @@ def xlsx_report_bytes(report: dict, audit: dict, selected_cap: str, gas_scenario
         sheet.set_row(0, 34)
         for ci, col in enumerate(df.columns):
             sheet.write(0, ci, str(col), header)
-            if col in {"Recommendation", "Status", "Data_readiness"}:
+            if col in {"Recommendation", "Status", "Data_readiness", "Limits"}:
                 sheet.set_column(ci, ci, 48)
             elif col == "Cap_ID":
                 sheet.set_column(ci, ci, 25)

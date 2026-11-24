@@ -31,13 +31,32 @@ CONTEXT = (
 )
 
 
-def _append_action(actions, cap_id, category, recommendation, priority="Review"):
+FILE_SCOPE, CAP_SCOPE = "File", "Capacitor"
+PRIORITY_ORDER = {"Important": 0, "Review": 1, "Documentation": 2}
+SHOWN_IDS = 3  # longer capacitor lists are shortened to "A, B, C + 18 more"; exports keep every row
+
+
+def _append_action(actions, cap_id, category, recommendation, priority="Review", scope=CAP_SCOPE):
     actions.append({
         "Cap_ID": cap_id,
         "Category": category,
         "Priority": priority,
         "Recommendation": recommendation,
+        "Scope": scope,
     })
+
+
+def _sentence_case(text: str) -> str:
+    return text[:1].upper() + text[1:]
+
+
+def _h(hours: float) -> str:
+    return f"{hours:,.0f} h"
+
+
+def _hour_list(hours, limit: int = 3) -> str:
+    shown = ", ".join(f"{value:,.0f}" for value in list(hours)[:limit])
+    return f"{shown}{', …' if len(hours) > limit else ''} h"
 
 
 def audit_measurement_readiness(report: dict) -> dict:
@@ -46,6 +65,10 @@ def audit_measurement_readiness(report: dict) -> dict:
     Input is assess_real_measurements(...) output from caplife.real_data.
     The audit avoids universal sensor/aging cutoffs. Five observations is a
     tutorial-oriented flag for limited history, not an equipment standard.
+
+    Capacitor-specific findings name their own numbers (which parameter, how many readings, which
+    hours). Documentation advice that holds for every capacitor measuring a parameter has scope
+    "File"; ``grouped_actions`` shows each such item once.
     """
     df = report["measurements"]
     changes = report["changes"]
@@ -54,6 +77,7 @@ def audit_measurement_readiness(report: dict) -> dict:
     for cap_id, g in df.groupby("Cap_ID", sort=True):
         g = g.sort_values("Hours")
         n = len(g)
+        hours = g["Hours"].to_numpy(dtype=float)
         c = changes.loc[changes["Cap_ID"] == cap_id]
         compared = int(c[["Observed_Change_percent", "Observed_Change_um", "Observed_Change_mL_STP", "Observed_Change_kPa"]].notna().any(axis=1).sum())
         supplied = [col for col, _ in DEGRADATION if col in g and g[col].notna().any()]
@@ -61,45 +85,72 @@ def audit_measurement_readiness(report: dict) -> dict:
         possible_among_recorded = n * len(supplied)
         coverage = round(100 * (1 - missing_among_recorded / possible_among_recorded), 2) if possible_among_recorded else 0.0
         baseline = bool((g["Hours"] == 0).any())
+        limits = []
 
         if not baseline:
-            _append_action(actions, cap_id, "Baseline", "A measured 0-hour baseline is absent. Ratios and percent changes cannot be established without a valid reference.")
+            _append_action(actions, cap_id, "Baseline",
+                           f"No reading at 0 h (the first is at {_h(hours[0])}), so changes from new can't be "
+                           "calculated. Add the 0 h reading if you have it.")
+            limits.append(f"no 0 h reading (first at {_h(hours[0])})")
         for col, label in DEGRADATION:
             if col not in g or g[col].notna().sum() == 0:
                 continue  # Channels never measured are not counted as failed sensors.
-            if not baseline or g.loc[g["Hours"] == 0, col].isna().all():
-                _append_action(actions, cap_id, "Baseline", f"{label}: record a genuine reference reading, if available; do not invent it.")
-            missing = int(g[col].isna().sum())
-            if missing:
-                _append_action(actions, cap_id, "Missing readings", f"{label}: {missing} of {n} time points have no observation. Leave them blank and document why.")
+            if baseline and g.loc[g["Hours"] == 0, col].isna().all():
+                first = float(g.loc[g[col].notna(), "Hours"].iloc[0])
+                _append_action(actions, cap_id, "Baseline",
+                               f"{label} has no 0 h reading (first at {_h(first)}). Add it if you have it; don't estimate it.")
+                limits.append(f"{label}: no 0 h reading")
+            gaps = g.loc[g[col].isna(), "Hours"]
+            if len(gaps):
+                _append_action(actions, cap_id, "Missing readings",
+                               f"{label} is missing at {len(gaps)} of {n} readings ({_hour_list(gaps)}). "
+                               "Leave them blank and note why.")
+                limits.append(f"{label}: {len(gaps)} of {n} missing")
 
         if n < 5:
-            _append_action(actions, cap_id, "History length", f"Only {n} observations are recorded. This permits basic comparisons but provides limited evidence for a stable degradation pattern.")
+            _append_action(actions, cap_id, "History length",
+                           f"Only {n} readings ({_h(hours[0])} to {_h(hours[-1])}). More readings would show the trend more clearly.")
+            limits.append(f"only {n} readings")
 
-        hours = g["Hours"].to_numpy(dtype=float)
         spacings = np.diff(hours)
         if len(spacings) >= 3 and np.median(spacings) > 0 and float(np.max(spacings)) > 3 * float(np.median(spacings)):
-            _append_action(actions, cap_id, "Sampling gaps", "A sampling interval exceeds three times the median interval. Check for missed measurements or intentional schedule changes.")
+            at = int(np.argmax(spacings))
+            _append_action(actions, cap_id, "Sampling gaps",
+                           f"{_h(spacings[at])} gap between {_h(hours[at])} and {_h(hours[at + 1])} "
+                           f"(usual spacing {_h(np.median(spacings))}). Check for missed readings.")
+            limits.append(f"{_h(spacings[at])} gap after {_h(hours[at])}")
 
         esr = c[c["Indicator"] == "ESR"]
         if not esr.empty and g.get("ESR_ohm", pd.Series(dtype=float)).notna().sum() >= 2:
             esr_status = str(esr.iloc[0]["Status"])
             if "Incomparable" in esr_status:
-                _append_action(actions, cap_id, "ESR comparability", "ESR test settings differ or are incompletely recorded. Do not interpret the ESR change as aging until measurements are made comparable.", "Important")
+                _append_action(actions, cap_id, "ESR comparability",
+                               "ESR test frequency or temperature changes between readings or is partly missing, "
+                               "so the ESR change may not be aging.", "Important")
+                limits.append("ESR test settings vary")
             elif "Provisional" in esr_status:
-                _append_action(actions, cap_id, "ESR comparability", "Record ESR measurement frequency AND temperature at each test point. Current ESR change is provisional.")
+                _append_action(actions, cap_id, "ESR comparability",
+                               "Record the ESR test frequency and temperature at each reading; until then the ESR change is provisional.",
+                               scope=FILE_SCOPE)
 
         if "H2_Generated_mL_STP" in supplied:
-            _append_action(actions, cap_id, "Gas measurement provenance", "Document whether H₂ is cumulative generated gas or gas remaining, plus reference temperature, pressure and collection method.", "Documentation")
+            _append_action(actions, cap_id, "Gas measurement provenance",
+                           "Note whether H₂ is total generated gas or gas remaining, and the reference temperature, "
+                           "pressure and collection method.", "Documentation", FILE_SCOPE)
         if "Pressure_Abs_kPa" in supplied:
-            _append_action(actions, cap_id, "Pressure measurement provenance", "Document absolute-vs-gauge pressure, ambient reference, sensor calibration, internal probe geometry and operating temperature.", "Documentation")
+            _append_action(actions, cap_id, "Pressure measurement provenance",
+                           "Note whether pressure is absolute or gauge, the ambient reference, sensor calibration, "
+                           "probe position and operating temperature.", "Documentation", FILE_SCOPE)
         supplied_context = [col for col, _, _ in CONTEXT if col in g and g[col].notna().any()]
         if not any(col in supplied_context for col in ("Ambient_C", "Core_C", "Voltage_V", "Ripple_A", "Ripple_Hz")):
-            _append_action(actions, cap_id, "Operating conditions", "Document operating temperature, voltage and ripple conditions alongside measurements, where available.")
+            _append_action(actions, cap_id, "Operating conditions",
+                           "Record operating temperature, voltage and ripple with the measurements.", scope=FILE_SCOPE)
 
         # Capacitance and leakage comparability depend on their test protocols as well.
         if any(col in supplied for col in ("Capacitance_uF", "Leakage_uA")):
-            _append_action(actions, cap_id, "Measurement protocol", "Keep the capacitance/leakage test method (frequency, temperature, voltage and settling time as applicable) in your laboratory record.", "Documentation")
+            _append_action(actions, cap_id, "Measurement protocol",
+                           "Record how capacitance and leakage were measured (frequency, temperature, voltage, settling time).",
+                           "Documentation", FILE_SCOPE)
 
         for col, label, unit in CONTEXT:
             observed = g[col].dropna() if col in g else pd.Series(dtype=float)
@@ -111,13 +162,15 @@ def audit_measurement_readiness(report: dict) -> dict:
             })
 
         if compared == 0:
-            state = "No baseline-based comparison available"
-        elif n < 5 or missing_among_recorded > 0 or not baseline:
-            state = "Limited descriptive comparison"
+            state = "Not comparable"
+        elif limits:  # each limit is spelled out in the Limits column
+            state = "Limited"
         else:
-            state = "Descriptive comparison available"
+            state = "Ready"
         summaries.append({
             "Cap_ID": cap_id,
+            "Data_readiness": state,
+            "Limits": _sentence_case("; ".join(limits)) if limits else "—",
             "Measurements": n,
             "First_hour": float(hours[0]),
             "Last_hour": float(hours[-1]),
@@ -125,14 +178,35 @@ def audit_measurement_readiness(report: dict) -> dict:
             "Observed_coverage_percent": coverage,
             "Hour_zero_recorded": baseline,
             "Baseline_based_comparisons": compared,
-            "Data_readiness": state,
         })
 
     return {
         "summary": pd.DataFrame(summaries),
-        "actions": pd.DataFrame(actions, columns=["Cap_ID", "Category", "Priority", "Recommendation"]),
+        "actions": pd.DataFrame(actions, columns=["Cap_ID", "Category", "Priority", "Recommendation", "Scope"]),
         "conditions": pd.DataFrame(context_rows),
     }
+
+
+def grouped_actions(actions: pd.DataFrame, all_caps) -> pd.DataFrame:
+    """Each distinct recommendation once, with the capacitors it applies to; most urgent first."""
+    columns = ["Applies_to", "Recommendation", "Priority", "Category"]
+    if actions.empty:
+        return pd.DataFrame(columns=columns)
+    total = len(set(all_caps))
+    rows = []
+    for (category, priority, text), group in actions.groupby(["Category", "Priority", "Recommendation"], sort=False):
+        caps = list(dict.fromkeys(group["Cap_ID"].astype(str)))
+        if len(caps) == total and total > 1:
+            applies = f"All {total} capacitors"
+        elif len(caps) > SHOWN_IDS + 1:
+            applies = f"{', '.join(caps[:SHOWN_IDS])} + {len(caps) - SHOWN_IDS} more"
+        else:
+            applies = ", ".join(caps)
+        rows.append({"Applies_to": applies, "Category": category, "Priority": priority, "Recommendation": text,
+                     "_order": (PRIORITY_ORDER.get(priority, 1), group["Scope"].iloc[0] == FILE_SCOPE, -len(caps))})
+    frame = pd.DataFrame(rows)
+    frame = frame.iloc[sorted(range(len(frame)), key=lambda i: frame["_order"].iloc[i])]
+    return frame[columns].reset_index(drop=True)
 
 
 def assessment_zip_with_readiness_bytes(report: dict, audit: dict) -> bytes:
