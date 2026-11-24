@@ -706,6 +706,11 @@ def _countdown(now: pd.Series) -> pd.DataFrame:
                          "high": np.clip(high - gone, 0, None)}).loc[lambda f: f["Hours"] <= latest + high]
 
 
+def _with_range(frame: pd.DataFrame, low: str = "RUL_low_h", high: str = "RUL_high_h") -> pd.DataFrame:
+    """Adds a readable "range" column ("1,416 – 2,530 h") for tooltips."""
+    return frame.assign(range=[f"{max(a, 0):,.0f} – {max(b, 0):,.0f} h" for a, b in zip(frame[low], frame[high])])
+
+
 def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd.Series | None = None,
                changed_history: pd.DataFrame | None = None) -> alt.Chart:
     """Remaining life predicted at every reading (purple, from the readings available then), and from the
@@ -745,10 +750,13 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
             x=alt.X("from:Q", scale=hours_scale), x2="to:Q",
             tooltip=NO_TOOLTIP if changed else [hour("from", "End of life, 80% range from (h)"),
                                                 hour("to", "to (h)")]))
+    if changed:
+        layers += _range_hover(ranges, hours_scale)
     # Predictions made at past readings.
-    past_tip = [hour("Hours", "Age when predicted (h)"),
-                hour("RUL_median_h", "Predicted remaining life" + (", recorded conditions (h)" if changed else " (h)")),
-                hour("RUL_low_h", "80% range from (h)"), hour("RUL_high_h", "80% range to (h)")]
+    data = _with_range(data)
+    past_tip = [alt.Tooltip("which:N", title="Conditions"), hour("Hours", "Age (h)"),
+                hour("RUL_median_h", "Remaining life (h)"), alt.Tooltip("range:N", title="80% range")]
+    data = data.assign(which="Recorded" if changed else "As recorded")
     layers += [
         alt.Chart(data).mark_area(color=PURPLE, opacity=.25).encode(
             x=x, y=alt.Y("RUL_low_h:Q", scale=scale), y2="RUL_high_h:Q", tooltip=NO_TOOLTIP),
@@ -763,10 +771,8 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
     ]
     hovers += _hoverable(data, x, y, past_tip, PURPLE)
     if changed_history is not None and len(changed_history):
-        gold = changed_history.dropna(subset=["RUL_median_h"])
-        gold_tip = [hour("Hours", "Age when predicted (h)"),
-                    hour("RUL_median_h", "Predicted remaining life, your conditions from then on (h)"),
-                    hour("RUL_low_h", "80% range from (h)"), hour("RUL_high_h", "80% range to (h)")]
+        gold = _with_range(changed_history.dropna(subset=["RUL_median_h"])).assign(which="Yours, from that reading on")
+        gold_tip = past_tip
         layers += [
             alt.Chart(gold).mark_area(color=GOLD, opacity=.2).encode(
                 x=x, y=alt.Y("RUL_low_h:Q", scale=scale), y2="RUL_high_h:Q", tooltip=NO_TOOLTIP),
@@ -795,14 +801,20 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
             color=colour if changed else GREY, strokeWidth=2.5, strokeDash=[4, 3] if recorded_line else [1, 0]).encode(
             x=alt.X("Hours:Q", scale=hours_scale),
             tooltip=[hour("Hours", f"Predicted end of life{', ' + name.lower() + ' conditions' if changed else ''} (h)")]))
-        start = pd.DataFrame([{"Hours": latest, "median": float(now["RUL_median_h"]), "low": float(now["RUL_low_h"]),
-                               "high": float(now["RUL_high_h"])}])
-        start_tip = [hour("Hours", "Latest reading (h)"),
-                     hour("median", f"Remaining life from now{', ' + name.lower() + ' conditions' if changed else ''} (h)"),
-                     hour("low", "80% range from (h)"), hour("high", "80% range to (h)")]
-        layers.append(alt.Chart(start).mark_point(color=colour, size=60, filled=True, opacity=1).encode(
-            x=x, y=alt.Y("median:Q", scale=scale), tooltip=start_tip))
-        hovers += _hoverable(start, x, alt.Y("median:Q", scale=scale), start_tip, colour)
+        # Points along the countdown, at 0%, 10%, ..., 100% of the predicted remaining life.
+        mid, low, high = (float(now[k]) for k in ("RUL_median_h", "RUL_low_h", "RUL_high_h"))
+        steps = mid * np.linspace(0, 1, 11)
+        points = _with_range(pd.DataFrame({"Hours": latest + steps, "median": mid - steps, "low": low - steps,
+                                           "high": high - steps}), "low", "high")
+        points["which"] = ("Recorded" if name == "Recorded" else "Yours") if changed else "As recorded"
+        points["note"] = ["Latest reading"] + ["Countdown"] * 9 + ["Predicted end of life"]
+        point_tip = [alt.Tooltip("which:N", title="Conditions"), alt.Tooltip("note:N", title=" "),
+                     hour("Hours", "Age (h)"), hour("median", "Remaining life (h)"),
+                     alt.Tooltip("range:N", title="80% range")]
+        y_median = alt.Y("median:Q", scale=scale)
+        layers.append(alt.Chart(points).mark_point(color=colour, size=34, filled=True, opacity=1).encode(
+            x=x, y=y_median, tooltip=point_tip))
+        hovers += _hoverable(points, x, y_median, point_tip, colour)
     if changed:  # labels near the top of the end-of-life lines, on their outer sides and at two heights
         recorded_end, changed_end = ranges["Recorded"][1], ranges["Changed"][1]
         for when, lift, name, outer in ((changed_end, 0.99, "Changed", changed_end >= recorded_end),
@@ -818,93 +830,8 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
         tip = [hour("Hours", "Age (h)"), hour("true", "True remaining life (h)")]
         layers.append(alt.Chart(truth).mark_line(color=ORANGE, strokeDash=[6, 4], strokeWidth=2).encode(
             x=x, y=alt.Y("true:Q", scale=scale), tooltip=tip))
-    del hovers  # the crosshair below gives every value at the pointer's hour
-    return alt.layer(*layers, *_rul_crosshair(data, nows, changed_history, ranges, true_eol, right, x, scale, top)
-                     ).properties(height=320)
-
-
-def _rul_crosshair(data: pd.DataFrame, nows: dict, changed_history: pd.DataFrame | None, ranges: dict,
-                   true_eol: float | None, right: float, x, scale, top: float) -> list:
-    """Hover anywhere on the remaining-life chart: a line at the nearest hour, a dot on each series and one
-    tooltip with every series' remaining life there (prediction made at a reading, or the countdown from
-    the latest reading), both end-of-life ranges and, for simulated capacitors, the true value."""
-    changed = "Changed" in nows
-    latest = float(nows["Recorded"]["Hours"])
-
-    def text(median, low, high) -> str:
-        if not np.isfinite(median):
-            return "—"
-        if median <= 0:
-            return "at or past its predicted end of life"
-        return f"{median:,.0f} h (80% range {max(low, 0):,.0f}–{high:,.0f} h)"
-
-    def countdown(now, hours):
-        gone = hours - latest
-        return (float(now["RUL_median_h"]) - gone, float(now["RUL_low_h"]) - gone, float(now["RUL_high_h"]) - gone)
-
-    gold = (changed_history.set_index("Hours") if changed_history is not None and len(changed_history)
-            else pd.DataFrame(columns=["RUL_median_h", "RUL_low_h", "RUL_high_h"]))
-    rows = []
-    for row in data.itertuples(index=False):
-        record = {"Hours": float(row.Hours), "phase": "Prediction made at this reading",
-                  "rec_y": float(row.RUL_median_h),
-                  "recorded": text(float(row.RUL_median_h), float(row.RUL_low_h), float(row.RUL_high_h))}
-        if changed and float(row.Hours) in gold.index:
-            g = gold.loc[float(row.Hours)]
-            record.update(chg_y=float(g["RUL_median_h"]),
-                          changed=text(float(g["RUL_median_h"]), float(g["RUL_low_h"]), float(g["RUL_high_h"])))
-        rows.append(record)
-    for hours in np.linspace(latest, right, 120)[1:]:
-        median, low, high = countdown(nows["Recorded"], hours)
-        record = {"Hours": float(hours), "phase": "Countdown from the latest reading",
-                  "rec_y": max(median, 0.0) if median > -0.5 * (right - latest) else np.nan,
-                  "recorded": text(median, low, high)}
-        if changed:
-            median, low, high = countdown(nows["Changed"], hours)
-            record.update(chg_y=max(median, 0.0), changed=text(median, low, high))
-        rows.append(record)
-    cross = pd.DataFrame(rows)
-    # Dots only where a line is drawn (a countdown stops at its end of life).
-    for name, column in (("Recorded", "rec_y"), ("Changed", "chg_y")):
-        if column in cross and name in ranges:
-            cross.loc[cross["Hours"] > ranges[name][1], column] = np.nan
-    eol = lambda name: (f"{ranges[name][1]:,.0f} h (80% range {ranges[name][0]:,.0f}–{ranges[name][2]:,.0f} h)")
-    cross["eol_recorded"] = eol("Recorded")
-    if changed:
-        cross["eol_changed"] = eol("Changed")
-    if true_eol is not None:
-        cross["truth"] = [f"{max(true_eol - h, 0):,.0f} h" for h in cross["Hours"]]
-    cross["anchor"] = top / 2
-
-    label = "recorded conditions" if changed else ""
-    tooltip = [alt.Tooltip("Hours:Q", title="Capacitor age (h)", format=",.0f"), alt.Tooltip("phase:N", title=" "),
-               alt.Tooltip("recorded:N", title=f"Remaining life{', ' + label if label else ''}")]
-    if changed:
-        tooltip.append(alt.Tooltip("changed:N", title="Remaining life, your conditions"))
-    tooltip.append(alt.Tooltip("eol_recorded:N", title=f"End of life{', ' + label if label else ''}"))
-    if changed:
-        tooltip.append(alt.Tooltip("eol_changed:N", title="End of life, your conditions"))
-    if true_eol is not None:
-        tooltip.append(alt.Tooltip("truth:N", title="True remaining life (simulated)"))
-
-    pointer = alt.selection_point(name="rul_crosshair", on="pointerover", clear="pointerout", nearest=True,
-                                  fields=["Hours"], empty=False)
-    shown = lambda: alt.condition(pointer, alt.value(1), alt.value(0))
-    layers = [
-        alt.Chart(cross).mark_rule(color="#c9d4dc", strokeWidth=1.2, strokeDash=[3, 3]).encode(
-            x=x, opacity=shown(), tooltip=NO_TOOLTIP),
-        alt.Chart(cross.dropna(subset=["rec_y"])).mark_circle(size=90, color=PURPLE, stroke="white", strokeWidth=1.5
-                                                              ).encode(
-            x=x, y=alt.Y("rec_y:Q", scale=scale), opacity=shown(), tooltip=NO_TOOLTIP),
-    ]
-    if changed and "chg_y" in cross:
-        layers.append(alt.Chart(cross.dropna(subset=["chg_y"])).mark_circle(
-            size=90, color=GOLD, stroke="white", strokeWidth=1.5).encode(
-            x=x, y=alt.Y("chg_y:Q", scale=scale), opacity=shown(), tooltip=NO_TOOLTIP))
-    # Invisible points at mid-height: the nearest one (by hour) is picked anywhere over the chart.
-    layers.append(alt.Chart(cross).mark_point(opacity=0, size=1).encode(
-        x=x, y=alt.Y("anchor:Q", scale=scale), tooltip=tooltip).add_params(pointer))
-    return layers
+        hovers += _hoverable(truth.iloc[::4], x, alt.Y("true:Q", scale=scale), tip, ORANGE)
+    return alt.layer(*layers, *hovers).properties(height=320)
 
 
 # Labels for use mid-sentence: lower case except abbreviations (ESR, H₂).
