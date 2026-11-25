@@ -676,7 +676,6 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
         band = alt.Chart(data).mark_area(color=mine, opacity=.28).encode(
             x=x, y=alt.Y("low:Q", scale=scale), y2="high:Q", tooltip=NO_TOOLTIP)
         age = alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f")
-        predicted = alt.Tooltip("median:Q", title=f"Predicted {INDICATOR_LABELS[signal]} ({UNITS[signal]})", format=number)
         start, ahead, final = data.iloc[[0]], data.iloc[1:], data.iloc[[-1]]
         at_eol = "at EOL for Changed Conditions" if reference is not None else "at end of life"
         edges = pd.concat([final.assign(value=final["high"], edge=f"Top of the 80% range {at_eol}"),
@@ -686,18 +685,33 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
         path = alt.layer(
             alt.Chart(data).mark_line(color=mine, strokeWidth=3, strokeDash=[7, 3]).encode(
                 x=x, y=alt.Y("median:Q", scale=scale), tooltip=NO_TOOLTIP),
-            # The first point is the latest reading itself: its value only, no range.
-            alt.Chart(start).mark_point(color=mine, size=34, filled=True, opacity=1).encode(
-                x=x, y=alt.Y("median:Q", scale=scale), tooltip=[age, predicted]),
             alt.Chart(ahead).mark_point(color=mine, size=34, filled=True, opacity=1).encode(
                 x=x, y=alt.Y("median:Q", scale=scale), tooltip=ahead_tip),
             # The ends of the range on the end-of-life line, with their values.
             alt.Chart(edges).mark_point(color=mine, size=30, filled=False, strokeWidth=2, opacity=1).encode(
                 x=x, y=alt.Y("value:Q", scale=scale), tooltip=edge_tip),
         )
-        hovers = [*_hoverable(in_span(measured), x, y_value, measured_tip, TEAL),
+        # The latest reading is one point: the last measured reading, where every prediction starts. It is
+        # drawn as a diamond and hovered as one point, not as three stacked ones.
+        measured_last = float(measured.loc[measured["Hours"] == latest, "value"].dropna().iloc[-1]) \
+            if (measured["Hours"] == latest).any() else float(start["median"].iloc[0])
+        starts_from = float(start["median"].iloc[0])
+        latest_point = pd.DataFrame({
+            "Hours": [latest], "value": [measured_last], "start": [starts_from],
+            "point": ["Latest reading · both predictions start here" if reference is not None
+                      else "Latest reading · the prediction starts here"]})
+        latest_point_tip = [alt.Tooltip("point:N", title="Point"), age,
+                            alt.Tooltip("value:Q", title=f"Measured {INDICATOR_LABELS[signal]} ({UNITS[signal]})",
+                                        format=number)]
+        if not np.isclose(starts_from, measured_last, rtol=1e-4):  # health follows the worst level held
+            latest_point_tip.append(alt.Tooltip("start:Q", title=f"Predictions start from ({UNITS[signal]})",
+                                                format=number))
+        latest_marker = alt.Chart(latest_point).mark_point(
+            shape="diamond", size=120, filled=True, color=TEAL, stroke="white", strokeWidth=1.5, opacity=1).encode(
+            x=x, y=y_value, tooltip=latest_point_tip)
+        hovers = [*_hoverable(in_span(measured).loc[lambda f: f["Hours"] < latest], x, y_value, measured_tip, TEAL),
                   # The latest reading and the end of life sit on vertical lines: larger hover areas.
-                  *_hoverable(start, x, y_median, [age, predicted], mine, on_line=True),
+                  *_hoverable(latest_point, x, y_value, latest_point_tip, TEAL, on_line=True),
                   *_hoverable(ahead.iloc[:-1], x, y_median, ahead_tip, mine),
                   *_hoverable(ahead.iloc[-1:], x, y_median, ahead_tip, mine, on_line=True),
                   *_hoverable(edges, x, y_value, edge_tip, mine, on_line=True)]
@@ -709,7 +723,7 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
             x=x_rule, tooltip=eol_tip)
         hovers += [*_hoverable_rule(pd.DataFrame({"Hours": [latest]}), x_rule, latest_tip, DIVIDER),
                    *_hoverable_rule(pd.DataFrame({"Hours": [end]}), x_rule, eol_tip, eol_color)]
-        layers = [window, now, now_label, band, history, path, eol]
+        layers = [window, now, now_label, band, history, path, eol, latest_marker]
         if reference is not None:
             before = reference[0].loc[reference[0]["signal"].eq(signal)].assign(
                 point="Prediction for Recorded Conditions")
@@ -752,13 +766,16 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
                 *_range_hover(ranges, hours_scale),  # above the band, below the lines and their points
                 path, eol,
                 # Points make the thin dotted line easy to hover.
-                alt.Chart(before).mark_line(color=PURPLE, strokeWidth=2.2, strokeDash=[2, 3], clip=True,
-                                            point=alt.OverlayMarkDef(color=PURPLE, size=26, filled=True)).encode(
+                alt.Chart(before).mark_line(color=PURPLE, strokeWidth=2.2, strokeDash=[2, 3], clip=True).encode(
+                    x=x, y=alt.Y("median:Q", scale=scale), tooltip=NO_TOOLTIP),
+                # Its points after the latest reading (which is the shared diamond).
+                alt.Chart(before.iloc[1:]).mark_point(color=PURPLE, size=26, filled=True, opacity=1).encode(
                     x=x, y=alt.Y("median:Q", scale=scale), tooltip=recorded_tip),
                 alt.Chart(pd.DataFrame({"Hours": [recorded_end]})).mark_rule(
                     color=PURPLE, strokeWidth=2.5, strokeDash=[4, 3]).encode(x=x_rule, tooltip=recorded_eol_tip),
                 alt.Chart(recorded_edges).mark_point(color=PURPLE, size=30, filled=False, strokeWidth=2,
                                                      opacity=1).encode(x=x, y=y_value, tooltip=edge_tip),
+                latest_marker,  # on top of both forecasts' first points
                 # Labels at the median lines, each on the outer side of its line and at its own height.
                 *(alt.Chart(pd.DataFrame({"Hours": [when], "value": [bottom + lift * height], "label": [name]}))
                   .mark_text(align="left" if outer else "right", dx=4 if outer else -4, baseline="bottom",
