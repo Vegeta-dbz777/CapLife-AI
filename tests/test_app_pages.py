@@ -99,9 +99,13 @@ def test_monitor_pdf_report_is_the_page_as_shown():
 
 
 def test_monitor_runs_with_only_three_parameters():
+    from caplife import operating_conditions as conditions
+    from caplife.six_rul import COMMON_SUBSET, example_fleet
+    measurements, _ = example_fleet()
+    three = measurements[["Cap_ID", "Hours", *COMMON_SUBSET, *conditions.recorded_columns(measurements)]]
     app = open_workspace("Monitor and Predict")
-    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
-    app.checkbox(key="caplife_six_three_only").check().run()
+    assert not app.checkbox  # the example has no "only three parameters" option any more
+    app.get("file_uploader")[0].upload("three.csv", three.to_csv(index=False).encode(), "text/csv").run()
     assert not app.exception, app.exception
     assert any("Using 3 of 6 parameters" in c.value for c in app.caption)
     assert not app.info
