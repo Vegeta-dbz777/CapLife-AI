@@ -427,39 +427,31 @@ def _chart_domain(values: pd.Series, limit: float, digits: int) -> tuple[float, 
     return min(low, limit) - pad, max(high, limit) + pad, None
 
 
-ZOOM_HELP = (" Drag across a chart to zoom in on those hours; Reset zoom above its top-right corner (or a "
-             "double-click on the chart) shows the full range again. Both work in full screen too.")
-# A click on the chart's "Reset zoom" label, or a double-click anywhere on it, clears the dragged selection.
-ZOOM_CLEAR = "dblclick, click[event.item && event.item.mark && event.item.mark.name === 'zoom_reset_marks']"
-ZOOM_BLUE = "#4c8fe0"
+ZOOM_HELP = (" Drag across a chart to zoom in on those hours; Reset zoom by its title (or, in full screen, a "
+             "double-click on the chart) shows the full range again.")
+ZOOM_ROUNDS = "caplife_six_zoom_rounds"  # per chart: bumped by Reset zoom, giving the chart a fresh key
+
+
+def _zoom_key(key: str) -> str:
+    return f"{key}_{st.session_state.setdefault(ZOOM_ROUNDS, {}).get(key, 0)}"
 
 
 def _zoom_hours(key: str) -> tuple[float, float] | None:
     """The hours a chart is zoomed to: its dragged selection, kept in the chart's own state."""
-    event = st.session_state.get(key) or {}
+    event = st.session_state.get(_zoom_key(key)) or {}
     picked = ((event.get("selection") or {}).get("zoom") or {}).get("Hours")
     return (float(picked[0]), float(picked[1])) if picked and len(picked) == 2 and picked[1] > picked[0] else None
 
 
+def _reset_zoom(key: str) -> None:
+    """A fresh key clears the chart's selection (a double-click on the chart does the same)."""
+    rounds = st.session_state.setdefault(ZOOM_ROUNDS, {})
+    rounds[key] = rounds.get(key, 0) + 1
+
+
 def _zoom_brush() -> alt.Parameter:
-    """Dragging across a chart selects hours to zoom it to."""
-    return alt.selection_interval(name="zoom", encodings=["x"], clear=ZOOM_CLEAR)
-
-
-def _with_reset(chart: alt.LayerChart, zoomed: bool) -> alt.LayerChart:
-    """While zoomed, a "Reset zoom" label just above the chart's top-right corner. It is part of the chart,
-    so it is there in full screen too; clicking it clears the zoom."""
-    if not zoomed:
-        return chart
-    label = alt.Chart(pd.DataFrame({"label": ["⟲ Reset zoom"]})).mark_text(
-        align="right", baseline="bottom", x=alt.expr("width"), y=-6, fontSize=12, fontWeight="bold",
-        color=ZOOM_BLUE, cursor="pointer").encode(
-        text="label:N", tooltip=alt.value("Show the full range")).properties(name="zoom_reset")
-    # Added to the chart's own layers: wrapping the chart in another layer would define its zoom selection twice.
-    shown = chart.copy(deep=False)
-    shown.layer = [*chart.layer, label]
-    shown.padding = {"top": 24, "left": 5, "right": 5, "bottom": 5}
-    return shown
+    """Dragging across a chart selects hours to zoom it to; a double-click clears it."""
+    return alt.selection_interval(name="zoom", encodings=["x"])
 
 
 def _clipped(chart: alt.LayerChart, zoomed: bool = True) -> alt.LayerChart:
@@ -490,15 +482,21 @@ def _show_charts(charts: list[tuple[str, alt.Chart]], columns: int = 2) -> None:
 @st.fragment
 def _zoomable(build, key: str, charts: list, index: int) -> None:
     """One chart that zooms on its own. A drag across it reruns only this fragment, so zooming is quick,
-    and the chart keeps its key, so it stays open in full screen. ``build(hours)`` returns (caption, chart);
-    the chart as shown is kept in ``charts[index]`` for the PDF report."""
+    and the chart keeps its key, so it stays open in full screen. While zoomed, Reset zoom sits right
+    after the caption, outside the chart. ``build(hours)`` returns (caption, chart); the chart as shown is
+    kept in ``charts[index]`` for the PDF report."""
     hours = _zoom_hours(key)
     caption, chart = build(hours)
-    charts[index] = (caption, chart)  # the report shows the zoom, without the Reset zoom label
-    if caption:
+    charts[index] = (caption, chart)
+    if hours:
+        row = st.container(horizontal=True, vertical_alignment="center", gap="small")
+        if caption:
+            row.caption(caption, width="content")
+        row.button("Reset zoom", icon=":material/zoom_out:", type="tertiary", key=f"{key}_reset",
+                   on_click=_reset_zoom, args=(key,), help=f"Zoomed in on {hours[0]:,.0f} – {hours[1]:,.0f} h.")
+    elif caption:
         st.caption(caption)
-    st.altair_chart(_with_reset(chart, hours is not None), width="stretch", on_select="rerun",
-                    selection_mode="zoom", key=key)
+    st.altair_chart(chart, width="stretch", on_select="rerun", selection_mode="zoom", key=_zoom_key(key))
 
 
 def _show_zoomable(builders: list[tuple[str, object]], columns: int = 2) -> list[tuple[str, alt.Chart]]:
