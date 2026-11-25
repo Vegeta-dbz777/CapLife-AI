@@ -187,18 +187,14 @@ def test_upload_pages_have_no_column_guides_or_file_settings():
 
 
 def test_each_chart_zooms_on_its_own_and_resets():
-    """A chart's zoom is its dragged selection, kept in the chart's own state (so full screen stays open)."""
+    """A drag zooms one chart; a click or tap does not undo it; Reset zoom or a double-click does."""
     from caplife import six_rul_page as page
     app = open_workspace("Monitor and Predict")
     app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
     device = app.selectbox(key="caplife_six_device").value
     history = f"caplife_six_zoom_{device}_history_Capacitance_uF"
     rul = f"caplife_six_zoom_{device}_rul"
-    drag = lambda start, stop: {"selection": {"zoom": {"Hours": [start, stop]}}}
-    for key, hours in ((history, (1000.0, 5000.0)), (rul, (2000.0, 9000.0))):  # as a drag in the browser
-        app.session_state[f"{key}_0"] = drag(*hours)
-    app.run()
-    assert not app.exception, app.exception
+    drag = lambda start, stop: {"selection": {"zoom": {"Hours": [start, stop]}, "reset": []}}
 
     def domains(spec):
         found = [spec.get("encoding", {}).get("x", {}).get("scale", {}).get("domain")]
@@ -206,15 +202,27 @@ def test_each_chart_zooms_on_its_own_and_resets():
             found += domains(layer)
         return found
 
-    sections = app.session_state[page.REPORT_VIEW].sections
-    assert [1000.0, 5000.0] in domains(sections[0].charts[0][1].to_dict())       # the zoomed chart
-    assert [1000.0, 5000.0] not in domains(sections[0].charts[1][1].to_dict())   # the others keep their range
-    assert [2000.0, 9000.0] in domains(sections[2].charts[0][1].to_dict())
-    resets = {b.key for b in app.button if b.key and b.key.startswith("caplife_six_zoom_")}
-    assert resets == {f"{history}_reset", f"{rul}_reset"}  # outside the charts, by their titles
-    app.button(key=f"{rul}_reset").click().run()
-    assert [2000.0, 9000.0] not in domains(app.session_state[page.REPORT_VIEW].sections[2].charts[0][1].to_dict())
-    assert [1000.0, 5000.0] in domains(app.session_state[page.REPORT_VIEW].sections[0].charts[0][1].to_dict())
+    chart = lambda section, index: app.session_state[page.REPORT_VIEW].sections[section].charts[index][1].to_dict()
+    for key, hours in ((history, (1000.0, 5000.0)), (rul, (2000.0, 9000.0))):  # as a drag in the browser
+        app.session_state[key] = drag(*hours)
+    app.run()
+    assert not app.exception, app.exception
+    assert [1000.0, 5000.0] in domains(chart(0, 0))        # the zoomed chart
+    assert [1000.0, 5000.0] not in domains(chart(0, 1))    # the others keep their range
+    assert [2000.0, 9000.0] in domains(chart(2, 0))
+    assert {b.key for b in app.button if b.key and b.key.startswith("caplife_six_zoom_")} == \
+        {f"{history}_reset", f"{rul}_reset"}
+    app.session_state[rul] = {"selection": {"zoom": {}, "reset": []}}  # a click or tap: the zoom stays
+    app.run()
+    assert [2000.0, 9000.0] in domains(chart(2, 0))
+    app.session_state[rul] = drag(3000.0, 6000.0)  # zoom again, inside the zoom
+    app.run()
+    assert [3000.0, 6000.0] in domains(chart(2, 0))
+    app.session_state[rul] = {"selection": {"zoom": {}, "reset": [{"Hours": 4500.0}]}}  # a double-click
+    app.run()
+    assert [3000.0, 6000.0] not in domains(chart(2, 0))
+    app.button(key=f"{history}_reset").click().run()  # Reset zoom by the title
+    assert [1000.0, 5000.0] not in domains(chart(0, 0))
 
 
 def test_uploaded_file_and_choices_are_kept_when_visiting_other_pages():

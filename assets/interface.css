@@ -531,3 +531,8 @@
   position: absolute; top: 50%; right: .6rem; transform: translateY(-50%); width: auto; z-index: 1;
 }
 .st-key-caplife_mydata_saved_box .st-key-caplife_mydata_saved_close button { min-height: 2rem; padding: 0 .35rem; }
+
+/* Charts on touch screens: a vertical swipe scrolls the page, a sideways drag goes to the chart (zoom to
+   selection). Without this the browser takes over the drag a moment in and the zoom gets the wrong hours. */
+[data-testid="stVegaLiteChart"] canvas,
+[data-testid="stVegaLiteChart"] svg { touch-action: pan-y; }
