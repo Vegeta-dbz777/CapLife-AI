@@ -427,30 +427,52 @@ def _chart_domain(values: pd.Series, limit: float, digits: int) -> tuple[float, 
     return min(low, limit) - pad, max(high, limit) + pad, None
 
 
-ZOOM_HELP = (" Drag across a chart to zoom in on those hours; Reset zoom by its title (or, in full screen, a "
-             "double-click on the chart) shows the full range again.")
-ZOOM_ROUNDS = "caplife_six_zoom_rounds"  # per chart: bumped by Reset zoom, giving the chart a fresh key
+ZOOM_HELP = (" Drag sideways across a chart to zoom in on those hours (again to zoom further). Double-click "
+             "(double-tap) the chart, or use Reset zoom by its title, to show the full range again; both gestures "
+             "work in full screen and on a phone.")
+ZOOM_STATE = "caplife_six_zoom"  # per chart: the hours it is zoomed to, and the last drag and double-click seen
 
 
-def _zoom_key(key: str) -> str:
-    return f"{key}_{st.session_state.setdefault(ZOOM_ROUNDS, {}).get(key, 0)}"
+def _zoom_state(key: str) -> dict:
+    return st.session_state.setdefault(ZOOM_STATE, {}).setdefault(key, {"hours": None, "picked": None,
+                                                                        "reset": None})
 
 
 def _zoom_hours(key: str) -> tuple[float, float] | None:
-    """The hours a chart is zoomed to: its dragged selection, kept in the chart's own state."""
-    event = st.session_state.get(_zoom_key(key)) or {}
-    picked = ((event.get("selection") or {}).get("zoom") or {}).get("Hours")
-    return (float(picked[0]), float(picked[1])) if picked and len(picked) == 2 and picked[1] > picked[0] else None
+    """The hours a chart is zoomed to. A new drag across it zooms it there; a new double-click (or
+    double-tap) on it, or Reset zoom by its title, shows the full range again. A click or tap changes
+    nothing: on a phone a tap is how a point's values are read, and it must not undo the zoom."""
+    own = _zoom_state(key)
+    selection = (st.session_state.get(key) or {}).get("selection") or {}
+    picked = (selection.get("zoom") or {}).get("Hours")
+    if picked and len(picked) == 2 and picked[1] > picked[0]:
+        picked = (float(picked[0]), float(picked[1]))
+        if picked != own["picked"]:
+            own.update(hours=picked, picked=picked)
+    reset = json.dumps(selection.get("reset"), sort_keys=True) if selection.get("reset") else None
+    if reset and reset != own["reset"]:
+        own.update(hours=None, reset=reset)
+    return own["hours"]
 
 
 def _reset_zoom(key: str) -> None:
-    """A fresh key clears the chart's selection (a double-click on the chart does the same)."""
-    rounds = st.session_state.setdefault(ZOOM_ROUNDS, {})
-    rounds[key] = rounds.get(key, 0) + 1
+    _zoom_state(key)["hours"] = None
+
+
+def _dblclick_reset(low: float, high: float) -> alt.Chart:
+    """An invisible backdrop over the whole chart carrying the double-click selection. It listens to a
+    double-click (or double-tap) anywhere on the chart, on any line, band or point, and takes the hours of
+    what was hit (the backdrop's own where nothing else is); each new one resets the zoom. It works in full
+    screen too, where the Reset zoom button is not shown."""
+    pick = alt.selection_point(name="reset", on="dblclick", fields=["Hours"], clear=False, toggle=False,
+                               empty=False)
+    return alt.Chart(pd.DataFrame({"Hours": [low], "Hours_end": [high]})).mark_rect(opacity=0).encode(
+        x=alt.X("Hours:Q"), x2="Hours_end:Q", y=alt.value(0), y2=alt.value(alt.expr("height")),
+        tooltip=NO_TOOLTIP).add_params(pick)
 
 
 def _zoom_brush() -> alt.Parameter:
-    """Dragging across a chart selects hours to zoom it to; a double-click clears it.
+    """Dragging across a chart selects hours to zoom it to.
 
     Every drag starts a new selection (the box is never moved or resized), so a zoomed chart can be zoomed
     again: after a zoom the selection spans the whole chart, and moving it would change nothing. The box is
@@ -503,7 +525,7 @@ def _zoomable(build, key: str, charts: list, index: int) -> None:
                    on_click=_reset_zoom, args=(key,), help=f"Zoomed in on {hours[0]:,.0f} – {hours[1]:,.0f} h.")
     elif caption:
         st.caption(caption)
-    st.altair_chart(chart, width="stretch", on_select="rerun", selection_mode="zoom", key=_zoom_key(key))
+    st.altair_chart(chart, width="stretch", on_select="rerun", selection_mode=["zoom", "reset"], key=key)
 
 
 def _show_zoomable(builders: list[tuple[str, object]], columns: int = 2) -> list[tuple[str, alt.Chart]]:
@@ -575,7 +597,7 @@ def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, refer
             x=alt.X("Hours:Q", title="Hours", scale=x_scale), y=alt.Y("value:Q", title=UNITS[signal], scale=scale),
             tooltip=measured_tip)
         if brush:
-            line = line.add_params(alt.selection_interval(name="zoom", encodings=["x"]))
+            line = line.add_params(_zoom_brush())
         if off_chart is None:
             limit_row = pd.DataFrame({"limit": [limit], "label": [f"Your limit ({_limit_text(signal, limits)})"]})
             marker = alt.Chart(limit_row).mark_rule(color=ORANGE, strokeDash=[5, 4], clip=True).encode(
@@ -595,6 +617,9 @@ def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, refer
                 text="label:N", tooltip=NO_TOOLTIP)
         kind = "default reference limit" if reference else "limit"
         layers = [line, marker]
+        everything = pd.concat([data["Hours"], *([other["Hours"]] if other is not None else [])])
+        if brush:  # at the bottom, so the double-click reset covers the whole chart
+            layers.insert(0, _dblclick_reset(*(hours or (float(everything.min()), float(everything.max())))))
         x = alt.X("Hours:Q", scale=x_scale)
         hovers = _hoverable(inside(data), x, alt.Y("value:Q", scale=scale), measured_tip, TEAL)
         if other is not None:
@@ -829,7 +854,8 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
                           .encode(x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale),
                                   text="label:N", tooltip=NO_TOOLTIP))
         charts.append((f"**{INDICATOR_LABELS[signal]}** · limit: {_limit_text(signal, limits)}",
-                       _clipped(alt.layer(*layers, *points_over_lines(hovers)).properties(height=260),
+                       _clipped(alt.layer(*([_dblclick_reset(lo, hi)] if brush else []), *layers,
+                                          *points_over_lines(hovers)).properties(height=260),
                                 (picked or {}).get(signal) is not None)))
     return charts
 
@@ -1054,7 +1080,8 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
         layers.append(alt.Chart(truth).mark_line(color=ORANGE, strokeDash=[6, 4], strokeWidth=2).encode(
             x=x, y=alt.Y("true:Q", scale=scale), tooltip=tip))
         hovers += _hoverable(truth.iloc[::4], x, alt.Y("true:Q", scale=scale), tip, ORANGE)
-    return _clipped(alt.layer(*layers, *points_over_lines(hovers)).properties(height=320), bool(hours))
+    reset = [_dblclick_reset(*hours_scale.domain)] if brush else []
+    return _clipped(alt.layer(*reset, *layers, *points_over_lines(hovers)).properties(height=320), bool(hours))
 
 
 # Labels for use mid-sentence: lower case except abbreviations (ESR, H₂).
