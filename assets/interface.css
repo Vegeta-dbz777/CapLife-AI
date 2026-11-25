@@ -536,3 +536,8 @@
    selection). Without this the browser takes over the drag a moment in and the zoom gets the wrong hours. */
 [data-testid="stVegaLiteChart"] canvas,
 [data-testid="stVegaLiteChart"] svg { touch-action: pan-y; }
+
+/* On touch screens a table's toolbar is always shown, above the table; keep it clear of the heading above. */
+@media (hover: none) {
+  .stElementContainer:has([data-testid="stDataFrame"]) { margin-top: 1.75rem; }
+}
