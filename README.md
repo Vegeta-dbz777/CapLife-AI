@@ -20,8 +20,8 @@ Open [CapLife AI](https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/) in
 
 Choose **Monitor and Predict** in the sidebar and upload a CSV with `Cap_ID`, `Hours`
 and any of `Capacitance_uF`, `ESR_ohm`, `Leakage_uA`, `Case_Expansion_um`,
-`H2_Generated_mL_STP` and `Pressure_Abs_kPa`, or load the simulated example
-(optionally with only capacitance, ESR and leakage). Operating conditions are
+`H2_Generated_mL_STP` and `Pressure_Abs_kPa`, or load the simulated example.
+Operating conditions are
 optional and recommended: `Ambient_C`, `Core_C`, `Voltage_V` (applied),
 `Rated_V`, `Ripple_A`, `Rated_Ripple_A` and `Ripple_Hz` (the operating
 frequency), recorded at each reading. The page scores each measured parameter's
