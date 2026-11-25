@@ -450,8 +450,15 @@ def _reset_zoom(key: str) -> None:
 
 
 def _zoom_brush() -> alt.Parameter:
-    """Dragging across a chart selects hours to zoom it to; a double-click clears it."""
-    return alt.selection_interval(name="zoom", encodings=["x"])
+    """Dragging across a chart selects hours to zoom it to; a double-click clears it.
+
+    Every drag starts a new selection (the box is never moved or resized), so a zoomed chart can be zoomed
+    again: after a zoom the selection spans the whole chart, and moving it would change nothing. The box is
+    a dashed outline rather than a grey fill, so the selection kept after a zoom does not grey the chart."""
+    return alt.selection_interval(
+        name="zoom", encodings=["x"], translate=False, zoom=False,
+        mark=alt.BrushConfig(fill="#4c8fe0", fillOpacity=0, stroke="#4c8fe0", strokeOpacity=0.9, strokeWidth=1.5,
+                             strokeDash=[5, 3]))
 
 
 def _clipped(chart: alt.LayerChart, zoomed: bool = True) -> alt.LayerChart:
