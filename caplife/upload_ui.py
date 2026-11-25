@@ -1,9 +1,54 @@
-"""Shared Streamlit pieces for measurement uploads: accepted file types and reading notes."""
+"""Shared Streamlit pieces for measurement uploads: accepted file types, uploads kept across pages,
+and reading notes."""
 from __future__ import annotations
+
+from dataclasses import dataclass
 
 import streamlit as st
 
 UPLOAD_TYPES = ["csv", "xlsx"]
+
+
+@dataclass(frozen=True)
+class KeptFile:
+    """An uploaded file kept in the session, read like Streamlit's UploadedFile."""
+    name: str
+    data: bytes
+
+    @property
+    def size(self) -> int:
+        return len(self.data)
+
+    def getvalue(self) -> bytes:
+        return self.data
+
+
+PAGE_VISIT = "caplife_page_visit"  # counts arrivals on a page from another page (set in app.py)
+
+
+def kept_file_uploader(label: str, key: str, types=UPLOAD_TYPES) -> KeptFile | None:
+    """A file uploader whose file stays with the session when the user visits another page.
+
+    Streamlit does not keep an uploader's file reliably once its page is left: back on the page the
+    browser shows an empty uploader, and it may report that as the file being removed. So the file is
+    kept here, and the uploader gets a fresh key on every visit to the page. Back on the page the
+    uploader is empty and the kept file is used, with a note and a Remove button; uploading another
+    file replaces it."""
+    store = f"{key}_kept"
+    upload = st.file_uploader(label, type=types, key=f"{key}_{st.session_state.get(PAGE_VISIT, 0)}")
+    if upload is not None:
+        kept = st.session_state.get(store)
+        if kept is None or kept.name != upload.name or kept.size != upload.size:
+            st.session_state[store] = KeptFile(upload.name, upload.getvalue())
+        return st.session_state[store]
+    kept = st.session_state.get(store)
+    if kept is None:
+        return None
+    row = st.container(horizontal=True, vertical_alignment="center", gap="small")
+    row.caption(f"Using **{kept.name}** ({kept.size / 1024:,.1f} KB), uploaded earlier.", width="content")
+    row.button("Remove", key=f"{key}_forget", type="tertiary", icon=":material/close:",
+               on_click=st.session_state.pop, args=(store, None), help="Forget this file and upload another.")
+    return kept
 
 
 def _plural(count: int, word: str) -> str:

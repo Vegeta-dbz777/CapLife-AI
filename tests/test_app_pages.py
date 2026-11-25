@@ -215,3 +215,27 @@ def test_each_chart_zooms_on_its_own_and_resets():
     app.button(key=f"{rul}_reset").click().run()
     assert [2000.0, 9000.0] not in domains(app.session_state[page.REPORT_VIEW].sections[2].charts[0][1].to_dict())
     assert [1000.0, 5000.0] in domains(app.session_state[page.REPORT_VIEW].sections[0].charts[0][1].to_dict())
+
+
+def test_uploaded_file_and_choices_are_kept_when_visiting_other_pages():
+    from caplife.six_rul import example_fleet
+    app = open_workspace("Monitor and Predict")
+    measurements, _ = example_fleet()
+    app.get("file_uploader")[0].upload("bench.csv", measurements.to_csv(index=False).encode(), "text/csv").run()
+    assert not app.exception, app.exception
+    app.selectbox(key="caplife_six_device").set_value("DEMO_04").run()
+    app.number_input(key="caplife_six_limit_DEMO_04_Capacitance_uF").set_value(25.0).run()
+    for elsewhere in (WORKSPACES["Train The AI"], None, WORKSPACES["My Data"]):  # None is Home
+        if elsewhere is None:
+            app.sidebar.button(key="caplife_brand_home").click().run()
+        else:
+            app.sidebar.radio(key=MAIN_KEY).set_value(elsewhere).run()
+        app.sidebar.radio(key=MAIN_KEY).set_value(MONITOR).run()
+        assert not app.exception, app.exception
+        assert any("Using **bench.csv**" in c.value for c in app.caption)  # the upload, kept
+        assert app.selectbox(key="caplife_six_device").value == "DEMO_04"
+        assert app.number_input(key="caplife_six_limit_DEMO_04_Capacitance_uF").value == 25.0
+        assert metric(app, "Capacitors") == "12"
+    app.button(key="caplife_six_upload_forget").click().run()
+    assert not any("Using **bench.csv**" in c.value for c in app.caption)
+    assert not app.metric

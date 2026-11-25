@@ -71,6 +71,10 @@ with st.sidebar:
         st.session_state[MAIN_KEY] = None
     st.radio("Workspace", tuple(WORKFLOWS), format_func=WORKFLOWS.__getitem__, key=MAIN_KEY)
     workflow = st.session_state[MAIN_KEY] or HOME_WORKFLOW
+    # Arriving on a page from another one: uploaders start empty and use the file kept for them.
+    if st.session_state.get("caplife_shown_page") != workflow:
+        st.session_state["caplife_shown_page"] = workflow
+        st.session_state["caplife_page_visit"] = st.session_state.get("caplife_page_visit", 0) + 1
     st.divider()
     st.markdown(f"[Privacy]({PUBLIC_APP_URL}?page=privacy)")
 

@@ -14,7 +14,7 @@ from caplife.tables import table
 
 from caplife.accounts import save_controls, saved_picker
 from caplife.measurement_review import read_experimental_csv
-from caplife.upload_ui import UPLOAD_TYPES, show_notes
+from caplife.upload_ui import kept_file_uploader, show_notes
 from caplife.real_data import RealDataValidationError
 from caplife.rul_example import example_dataset
 from caplife.versioning import code_version
@@ -139,12 +139,11 @@ def _inputs() -> tuple[bytes, bytes] | None:
 
     left, right = st.columns(2)
     with left:
-        measurements = st.file_uploader("Measurement history (CSV or Excel)", type=UPLOAD_TYPES,
-                                        key="caplife_rul_measurements")
+        measurements = kept_file_uploader("Measurement history (CSV or Excel)", key="caplife_rul_measurements")
         st.download_button("Download measurement template", measurement_template_csv(),
                            "caplife_rul_measurements_template.csv", mime="text/csv")
     with right:
-        outcomes = st.file_uploader("Outcomes (CSV or Excel)", type=UPLOAD_TYPES, key="caplife_rul_outcomes")
+        outcomes = kept_file_uploader("Outcomes (CSV or Excel)", key="caplife_rul_outcomes")
         st.download_button("Download outcome template", outcome_template_csv(),
                            "caplife_rul_outcomes_template.csv", mime="text/csv")
     st.caption("Uploads are processed on the app server and are not stored unless you sign in and save them.")
