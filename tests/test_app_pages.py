@@ -199,7 +199,8 @@ def test_each_chart_zooms_on_its_own_and_resets():
     device = app.selectbox(key="caplife_six_device").value
     history = f"caplife_six_zoom_{device}_history_Capacitance_uF"
     rul = f"caplife_six_zoom_{device}_rul"
-    drag = lambda start, stop: {"selection": {"zoom": {"Hours": [start, stop]}, "reset": []}}
+    # The drag selection is named zoom_0, then zoom_1 after a zoom (a fresh, empty one), and so on.
+    drag = lambda start, stop, n=0: {"selection": {f"zoom_{n}": {"Hours": [start, stop]}, "reset": []}}
 
     def domains(spec):
         found = [spec.get("encoding", {}).get("x", {}).get("scale", {}).get("domain")]
@@ -217,13 +218,13 @@ def test_each_chart_zooms_on_its_own_and_resets():
     assert [2000.0, 9000.0] in domains(chart(2, 0))
     assert {b.key for b in app.button if b.key and b.key.startswith("caplife_six_zoom_")} == \
         {f"{history}_reset", f"{rul}_reset"}
-    app.session_state[rul] = {"selection": {"zoom": {}, "reset": []}}  # a click or tap: the zoom stays
+    app.session_state[rul] = {"selection": {"zoom_1": {}, "reset": []}}  # a click or tap: the zoom stays
     app.run()
     assert [2000.0, 9000.0] in domains(chart(2, 0))
-    app.session_state[rul] = drag(3000.0, 6000.0)  # zoom again, inside the zoom
+    app.session_state[rul] = drag(3000.0, 6000.0, 1)  # zoom again, inside the zoom
     app.run()
     assert [3000.0, 6000.0] in domains(chart(2, 0))
-    app.session_state[rul] = {"selection": {"zoom": {}, "reset": [{"Hours": 4500.0}]}}  # a double-click
+    app.session_state[rul] = {"selection": {"zoom_2": {}, "reset": [{"Hours": 4500.0}]}}  # a double-click
     app.run()
     assert [3000.0, 6000.0] not in domains(chart(2, 0))
     app.button(key=f"{history}_reset").click().run()  # Reset zoom by the title

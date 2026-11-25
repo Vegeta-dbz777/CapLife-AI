@@ -7,6 +7,7 @@ import json
 import altair as alt
 
 from caplife.chart_hover import hoverable
+from caplife.six_rul_page import ZOOM_HELP, _rul_chart, _show_zoomable
 import pandas as pd
 import streamlit as st
 
@@ -26,7 +27,6 @@ from caplife.rul_workflow import (
 )
 
 UPLOAD, EXAMPLE, SAVED = "Upload my data", "Use the synthetic example", "My saved datasets"
-RANGE_COLOR, POINT_COLOR, OBSERVED_COLOR = "#3aa597", "#0f6f63", "#d9822b"
 INPUT_ERRORS = (RealDataValidationError, ValueError, pd.errors.ParserError,
                 pd.errors.EmptyDataError, UnicodeError)
 
@@ -92,45 +92,56 @@ def _reason_list(reasons: dict) -> str:
     return "\n".join(f"- **{device}**: {reason}" for device, reason in reasons.items())
 
 
-def _interval_chart(rows: pd.DataFrame, observed: bool) -> alt.Chart:
+def _test_chart(rows: pd.DataFrame, hours: tuple[float, float] | None = None, brush: bool = False) -> alt.LayerChart:
+    """Each test capacitor on its own row: the neural network's predicted failure age and 80% range (purple),
+    what was observed (teal: the failure window, or a triangle where it was still working when testing
+    stopped) and when the forecast was made (grey tick). Styled and hovered like Monitor and Predict's charts;
+    ``hours`` zooms it and ``brush`` lets a drag select hours."""
+    from caplife.six_rul_page import DIVIDER, PURPLE, TEAL, _clipped, _zoom_layers
+    failed = rows["Found failed by (h)"].notna()
     data = pd.DataFrame({
-        "capacitor": rows["Capacitor"], "low": rows["80% range from (h)"],
-        "mid": rows["Predicted failure age (h)"], "high": rows["80% range to (h)"],
+        "Capacitor": rows["Capacitor"], "Hours": rows["Predicted failure age (h)"],
+        "low": rows["80% range from (h)"], "high": rows["80% range to (h)"], "made": rows["Forecast made at (h)"],
+        "lower": rows["Last seen working (h)"], "upper": rows["Found failed by (h)"], "result": rows["Result"],
     })
-    y = alt.Y("capacitor:N", sort=None, title=None)
-    mid_tip = [alt.Tooltip("capacitor:N", title="Capacitor"),
-               alt.Tooltip("mid:Q", title="Predicted failure age (h)", format=",.0f")]
+    data["range"] = [f"{low:,.0f} – {high:,.0f}" for low, high in zip(data["low"], data["high"])]
+    y = alt.Y("Capacitor:N", sort=None, title=None)
+    scale = alt.Scale(domain=list(hours), nice=False) if hours else alt.Undefined
+    x = alt.X("Hours:Q", title="Capacitor age (h)", scale=scale)
+    hour = lambda field, title: alt.Tooltip(f"{field}:Q", title=title, format=",.0f")
+    point = alt.Tooltip("point:N", title="Point")
+    predicted = data.assign(point="Predicted failure")
+    predicted_tip = [point, alt.Tooltip("Capacitor:N"), hour("Hours", "Predicted failure age (h)"),
+                     alt.Tooltip("range:N", title="80% range (h)"), alt.Tooltip("result:N", title="Result")]
+    observed = data.loc[failed.to_numpy()].assign(point="Observed failure")
+    observed_tip = [point, alt.Tooltip("Capacitor:N"), hour("lower", "Last seen working (h)"),
+                    hour("upper", "Found failed by (h)")]
+    running = data.loc[~failed.to_numpy()].assign(point="Still working when testing stopped", Hours=lambda f: f["lower"])
+    running_tip = [point, alt.Tooltip("Capacitor:N"), hour("Hours", "Last check (h)")]
+    made = data.assign(point="Forecast made", Hours=data["made"])
+    made_tip = [point, alt.Tooltip("Capacitor:N"), hour("Hours", "Age (h)")]
     layers = [
-        alt.Chart(data).mark_bar(height=10, opacity=.45, color=RANGE_COLOR, cornerRadius=3).encode(
-            y=y, x=alt.X("low:Q", title="Capacitor age (h)"), x2="high:Q",
-            tooltip=[alt.Tooltip("capacitor:N", title="Capacitor"),
-                     alt.Tooltip("low:Q", title="80% range from (h)", format=",.0f"),
-                     alt.Tooltip("high:Q", title="80% range to (h)", format=",.0f")]),
-        alt.Chart(data).mark_point(filled=True, size=55, color=POINT_COLOR).encode(
-            y=y, x="mid:Q", tooltip=mid_tip),
+        alt.Chart(predicted).mark_bar(height=14, opacity=.32, color=PURPLE, cornerRadius=3).encode(
+            y=y, x=alt.X("low:Q", title="Capacitor age (h)", scale=scale), x2="high:Q", tooltip=predicted_tip),
+        alt.Chart(observed).mark_bar(height=6, color=TEAL, cornerRadius=2).encode(
+            y=y, x=alt.X("lower:Q", scale=scale), x2="upper:Q", tooltip=observed_tip),
+        alt.Chart(made).mark_tick(thickness=2, size=18, color=DIVIDER).encode(y=y, x=x, tooltip=made_tip),
+        alt.Chart(running).mark_point(shape="triangle-right", filled=True, size=80, color=TEAL, opacity=1).encode(
+            y=y, x=x, tooltip=running_tip),
+        alt.Chart(predicted).mark_point(filled=True, size=60, color=PURPLE, opacity=1).encode(
+            y=y, x=x, tooltip=predicted_tip),
     ]
-    if observed:
-        seen = rows.assign(capacitor=rows["Capacitor"], lower=rows["Last seen working (h)"],
-                            upper=rows["Found failed by (h)"])
-        failed = seen.dropna(subset=["upper"])
-        layers.append(alt.Chart(failed).mark_rule(strokeWidth=3, color=OBSERVED_COLOR).encode(
-            y=y, x="lower:Q", x2="upper:Q",
-            tooltip=[alt.Tooltip("lower:Q", title="Last seen working (h)", format=",.0f"),
-                     alt.Tooltip("upper:Q", title="Found failed by (h)", format=",.0f")]))
-        layers.append(alt.Chart(failed).mark_tick(thickness=3, size=14, color=OBSERVED_COLOR).encode(
-            y=y, x="upper:Q", tooltip=[alt.Tooltip("upper:Q", title="Found failed by (h)", format=",.0f")]))
-        running = seen.loc[seen["upper"].isna()]
-        if len(running):
-            layers.append(alt.Chart(running).mark_point(shape="triangle-right", filled=True, size=70,
-                                                        color=OBSERVED_COLOR).encode(
-                y=y, x="lower:Q", tooltip=[alt.Tooltip("lower:Q", title="Still working at (h)", format=",.0f")]))
-    else:
-        latest = rows.assign(capacitor=rows["Capacitor"], latest=rows["Latest reading (h)"])
-        layers.append(alt.Chart(latest).mark_tick(thickness=2, size=18, color=OBSERVED_COLOR).encode(
-            y=y, x="latest:Q", tooltip=[alt.Tooltip("latest:Q", title="Latest reading (h)", format=",.0f")]))
+    hovers = [*hoverable(predicted, x, y, predicted_tip, PURPLE), *hoverable(running, x, y, running_tip, TEAL),
+              *hoverable(made, x, y, made_tip, DIVIDER)]
+    if brush:  # at the bottom: a double-click anywhere on the chart resets the zoom
+        ages = pd.concat([data["low"], data["high"], data["lower"], data["upper"], data["made"]]).dropna()
+        layers[:0] = _zoom_layers(*(hours or (float(ages.min()), float(ages.max()))), exact=bool(hours))
     # Enough room per row that every capacitor label is drawn.
-    return alt.layer(*layers, *hoverable(data, "mid:Q", y, mid_tip, POINT_COLOR)).properties(
-        height=max(150, 42 * len(data)))
+    return _clipped(alt.layer(*layers, *hovers).properties(height=max(160, 44 * len(data))), bool(hours))
+
+
+TEST_LEGEND = ("**Purple**: predicted failure age and its 80% range · **Teal**: when it actually failed (▶ still "
+               "working when testing stopped) · **Grey tick**: when the forecast was made")
 
 
 def _inputs() -> tuple[bytes, bytes] | None:
@@ -231,7 +242,8 @@ def _show_results(result: dict, attempts: int) -> None:
                       "failure window (zero when inside it). The two simpler models show whether the neural network "
                       "adds anything. In the chart, teal bars are the neural network's 80% range with the dot at its "
                       "predicted failure age; orange is when each test capacitor actually failed (between last seen "
-                      "working and found failed), or a triangle where it was still working when testing stopped.")
+                      "working and found failed), or a triangle where it was still working when testing stopped."
+                      + ZOOM_HELP)
     table(
         result["model_table"], hide_index=True, width="stretch",
         column_config={
@@ -241,7 +253,9 @@ def _show_results(result: dict, attempts: int) -> None:
             "Typical 80% range width (h)": st.column_config.NumberColumn(format="%.0f"),
         },
     )
-    st.altair_chart(_interval_chart(result["test_table"], observed=True), width="stretch")
+    test_rows = result["test_table"]
+    test_key = "caplife_rul_zoom_test_" + hashlib.sha256(",".join(test_rows["Capacitor"]).encode()).hexdigest()[:12]
+    _show_zoomable([(test_key, lambda hours: (TEST_LEGEND, _test_chart(test_rows, hours, brush=True)))], columns=1)
     with st.expander("Each test capacitor"):
         table(result["test_table"].round(1), hide_index=True, width="stretch",
                      column_config={"Capacitor": st.column_config.TextColumn(pinned=True)})
@@ -264,8 +278,7 @@ def _show_results(result: dict, attempts: int) -> None:
 
     st.subheader("4 · Remaining-life forecasts",
                  help="Each forecast uses all of a capacitor's readings up to its latest one; remaining life counts "
-                      "from that reading. In the chart, teal bars are the 80% range for the age at failure with the "
-                      "dot at the predicted failure age, and the orange tick is each capacitor's latest reading.")
+                      "from that reading.")
     forecasts, withheld = result["forecasts"], result["forecasts_withheld"]
     if not result["forecast_devices"]:
         st.info("Every capacitor has an outcome row. To forecast a capacitor, include its readings "
@@ -275,16 +288,24 @@ def _show_results(result: dict, attempts: int) -> None:
                  "shown because the test did not pass.")
     else:
         if forecasts is not None and len(forecasts):
-            st.altair_chart(_interval_chart(forecasts, observed=False), width="stretch")
             table(_forecast_display(forecasts), hide_index=True, width="stretch", column_config=FORECAST_COLUMNS)
             history = result.get("forecast_history")
             if history is not None and len(history):
-                from caplife.six_rul_page import _rul_chart
                 st.markdown("##### Remaining-life prediction over time",
                             help="Each point is the forecast the trained model would have made at that reading, "
-                                 "using only the readings up to it. Shaded band: the calibrated 80% range.")
-                device = st.selectbox("Capacitor", list(forecasts["Capacitor"]), key="caplife_rul_forecast_device", persist_state="session")
-                st.altair_chart(_rul_chart(history.loc[history["Capacitor"].eq(device)], None), width="stretch")
+                                 "using only the readings up to it, with its calibrated 80% range. From the latest "
+                                 "reading, remaining life counts down to the predicted end of life, whose 80% range "
+                                 "is shaded." + ZOOM_HELP)
+                device = st.selectbox("Capacitor", list(forecasts["Capacitor"]), key="caplife_rul_forecast_device",
+                                      persist_state="session")
+                row = forecasts.loc[forecasts["Capacitor"].eq(device)].iloc[0]
+                summary = (f"**{device}** · remaining life {_hours(row['Remaining from latest, median (h)'])} h "
+                           f"(80% range {_hours(row['Remaining from latest, 80% range from (h)'])} – "
+                           f"{_hours(row['Remaining from latest, 80% range to (h)'])} h) · predicted failure at "
+                           f"{_hours(row['Predicted failure age (h)'])} h")
+                device_history = history.loc[history["Capacitor"].eq(device)]
+                _show_zoomable([(f"caplife_rul_zoom_rul_{device}", lambda hours: (
+                    summary, _rul_chart(device_history, None, hours=hours, brush=True)))], columns=1)
         if withheld:
             with st.expander(f"Forecast withheld for {len(withheld)} capacitor(s)", icon=":material/block:"):
                 st.markdown(_reason_list(withheld))

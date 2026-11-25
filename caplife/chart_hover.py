@@ -12,6 +12,14 @@ ON_LINE_HIT_SIZE = 1250  # points on a vertical line: about 20 px, so the point 
 _hover_names = itertools.count()
 
 
+def restart_names() -> None:
+    """Number the next chart's hover selections from 0 again. Names only need to be unique within a chart;
+    the same names on every run keep an unchanged chart identical, so the browser does not rebuild it
+    (a rebuild in the middle of a double-click loses the double-click)."""
+    global _hover_names
+    _hover_names = itertools.count()
+
+
 def hoverable(data: pd.DataFrame, x, y, tooltip: list, color: str, on_line: bool = False) -> list:
     """An easy-to-hit hover area around each point (with its tooltip) and a ring on the hovered point.
 
