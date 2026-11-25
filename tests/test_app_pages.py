@@ -135,7 +135,8 @@ def test_train_the_ai_example_passes_and_forecasts():
     assert not app.exception
     assert any("Passed." in s.value for s in app.success)
     assert any("Remaining-life prediction over time" in m.value for m in app.markdown)
-    assert any("Parameters used (6 of 6" in c.value for c in app.caption)
+    assert any("Parameters 6 of 6" in m.value for m in app.markdown)  # a tag under 1 · Data used
+    assert not app.info  # the example's note is in the Data help, not a box
 
 
 def test_my_data_asks_to_sign_in_when_signed_out():
