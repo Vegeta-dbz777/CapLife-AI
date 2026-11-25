@@ -184,3 +184,22 @@ def test_upload_pages_have_no_column_guides_or_file_settings():
         app = open_workspace(label)
         assert not any(e.label in ("Columns and units", "What goes in each file", "File settings: time unit and pressure")
                        for e in app.expander)
+
+
+def test_history_zoom_shows_its_range_and_resets():
+    from caplife import six_rul_page as page
+    app = open_workspace("Monitor and Predict")
+    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
+    device = app.selectbox(key="caplife_six_device").value
+    assert any("Drag across a chart to zoom in" in c.value for c in app.caption)
+    zoom_key = f"caplife_six_history_{device}"
+    app.session_state[page.HISTORY_ZOOM] = {zoom_key: {"hours": (1000.0, 5000.0), "round": 1}}
+    app.run()
+    assert not app.exception, app.exception
+    view = app.session_state[page.REPORT_VIEW]
+    spec = view.sections[0].charts[0][1].to_dict()
+    assert any(layer.get("encoding", {}).get("x", {}).get("scale", {}).get("domain") == [1000.0, 5000.0]
+               for layer in spec["layer"])
+    app.button(key=f"{zoom_key}_reset").click().run()
+    assert app.session_state[page.HISTORY_ZOOM][zoom_key]["hours"] is None
+    assert any("Drag across a chart to zoom in" in c.value for c in app.caption)
