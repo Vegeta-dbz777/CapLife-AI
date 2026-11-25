@@ -451,29 +451,41 @@ def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, refer
     ``alternative`` is the estimated history had the capacitor always run at other conditions,
     drawn gold and dashed next to the measured readings.
     """
-    readings = readings.sort_values("Hours")
+    readings = readings.sort_values("Hours").reset_index(drop=True)
     baseline = readings.bfill().iloc[0]  # each parameter's first available reading
     signals = [signal for signal in SIGNALS if signal in readings and readings[signal].notna().sum() >= 2]
+    count = len(readings)
     charts = []
     for signal in signals:
-        data = readings[["Hours", signal]].dropna().rename(columns={signal: "value"}).reset_index(drop=True)
+        # Each point says what it is, then its age and value, like the other charts on the page.
+        data = (readings[["Hours", signal]].rename(columns={signal: "value"})
+                .assign(point=[f"Measured · reading {n} of {count}" for n in range(1, count + 1)])
+                .dropna(subset=["value"]).reset_index(drop=True))
         other = None
         if alternative is not None and signal in alternative:
-            other = alternative[["Hours", signal]].dropna().rename(columns={signal: "value"})
+            # The estimated history has one point per reading: the same state, reached at another age.
+            other = alternative[["Hours", signal]].rename(columns={signal: "value"}).reset_index(drop=True)
+            other["point"] = [f"At your conditions · reading {n}" for n in range(1, len(other) + 1)]
+            if len(other) == count:
+                other["measured_at"] = readings["Hours"].to_numpy(dtype=float)
+            other = other.dropna(subset=["value"])
         limit = _limit_value(signal, baseline, limits)
         bottom, top, off_chart = _chart_domain(pd.concat([data["value"], *([other["value"]] if other is not None
                                                                            else [])]), limit, DIGITS[signal])
         scale = alt.Scale(domain=[bottom, top], zero=False, nice=False)
-        measured_tip = [alt.Tooltip("Hours:Q", format=",.0f"),
-                        alt.Tooltip("value:Q", title=INDICATOR_LABELS[signal], format=HOVER_FORMAT[signal])]
+        value_title = f"{INDICATOR_LABELS[signal]} ({UNITS[signal]})"
+        measured_tip = [alt.Tooltip("point:N", title="Point"), alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
+                        alt.Tooltip("value:Q", title=value_title, format=HOVER_FORMAT[signal])]
         line = alt.Chart(data).mark_line(color=TEAL, strokeWidth=1.8, point=alt.OverlayMarkDef(
             color=TEAL, size=30, filled=True)).encode(
             x=alt.X("Hours:Q", title="Hours"), y=alt.Y("value:Q", title=UNITS[signal], scale=scale),
             tooltip=measured_tip)
         if off_chart is None:
-            marker = alt.Chart(pd.DataFrame({"limit": [limit]})).mark_rule(color=ORANGE, strokeDash=[5, 4]).encode(
+            limit_row = pd.DataFrame({"limit": [limit], "label": [f"Your limit ({_limit_text(signal, limits)})"]})
+            marker = alt.Chart(limit_row).mark_rule(color=ORANGE, strokeDash=[5, 4]).encode(
                 y=alt.Y("limit:Q", scale=alt.Scale(domain=[bottom, top], nice=False)),
-                tooltip=[alt.Tooltip("limit:Q", title="Limit", format=HOVER_FORMAT[signal])])
+                tooltip=[alt.Tooltip("label:N", title="Point"),
+                         alt.Tooltip("limit:Q", title=value_title, format=HOVER_FORMAT[signal])])
         else:
             # The limit is far outside the readings: say where it is instead of flattening the trend.
             label = f"Limit {limit:,.{DIGITS[signal]}f} {UNITS[signal]} {'↑' if off_chart == 'above' else '↓'}"
@@ -489,9 +501,11 @@ def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, refer
         layers = [line, marker]
         hovers = _hoverable(data, "Hours:Q", alt.Y("value:Q", scale=scale), measured_tip, TEAL)
         if other is not None:
-            other_tip = [alt.Tooltip("Hours:Q", format=",.0f"),
-                         alt.Tooltip("value:Q", title="Had it always run at your conditions",
-                                     format=HOVER_FORMAT[signal])]
+            other_tip = [alt.Tooltip("point:N", title="Point"),
+                         alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
+                         *([alt.Tooltip("measured_at:Q", title="Same state measured at (h)", format=",.0f")]
+                           if "measured_at" in other else []),
+                         alt.Tooltip("value:Q", title=value_title, format=HOVER_FORMAT[signal])]
             layers.append(alt.Chart(other).mark_line(
                 color=GOLD, strokeWidth=2.2, strokeDash=[6, 3],
                 point=alt.OverlayMarkDef(color=GOLD, size=22, filled=True)).encode(
