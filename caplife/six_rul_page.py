@@ -21,7 +21,7 @@ from caplife.file_reader import read_measurement_file
 from caplife.upload_ui import kept_file_uploader, show_notes
 from caplife.real_data import RealDataValidationError, validate_real_measurements
 from caplife.six_rul import (
-    COMMON_SUBSET, INDICATOR_LABELS, LIMIT_KEYS, MIN_READINGS, SixRULModel, current_limit_used,
+    INDICATOR_LABELS, LIMIT_KEYS, MIN_READINGS, SixRULModel, current_limit_used,
     example_fleet, full_limits, limit_used, subset_key, value_at_fraction,
 )
 from caplife import operating_conditions as conditions
@@ -136,10 +136,6 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
         st.caption("Twelve simulated capacitors, two for each of the six ways a capacitor can reach end of life, "
                    "observed part of the way there. Because they are simulated, their true end of life with the "
                    "default limits is known and shown for comparison.")
-        if st.checkbox("Use only capacitance, ESR and leakage current", key="caplife_six_three_only", persist_state="session",
-                       help="Shows how the prediction works when the other three parameters are not measured."):
-            measurements = measurements.loc[:, ["Cap_ID", "Hours", *COMMON_SUBSET,
-                                                *conditions.recorded_columns(measurements)]]
         st.download_button("Download example CSV", measurements.to_csv(index=False),
                            "caplife_six_parameter_example.csv", mime="text/csv")
         return measurements, truth, "Simulated example"
