@@ -617,9 +617,11 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
             color=TEAL, size=26, filled=True)).encode(
             x=x, y=alt.Y("value:Q", title=UNITS[signal], scale=scale), tooltip=measured_tip)
         y_value, y_median = alt.Y("value:Q", scale=scale), alt.Y("median:Q", scale=scale)
-        ahead_tip = [alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
-                     alt.Tooltip("median:Q", title=f"Predicted {INDICATOR_LABELS[signal]} ({UNITS[signal]})",
-                                 format=number),
+        # Without changed conditions the forecast is the one for the recorded conditions.
+        data = data.assign(point="Prediction for Changed Conditions" if reference is not None
+                           else "Prediction for Recorded Conditions")
+        ahead_tip = [alt.Tooltip("point:N", title="Point"), alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
+                     alt.Tooltip("median:Q", title=f"{INDICATOR_LABELS[signal]} ({UNITS[signal]})", format=number),
                      alt.Tooltip("low:Q", title=f"80% range from ({UNITS[signal]})", format=number),
                      alt.Tooltip("high:Q", title=f"80% range to ({UNITS[signal]})", format=number)]
         band = alt.Chart(data).mark_area(color=mine, opacity=.28).encode(
@@ -660,7 +662,7 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
         layers = [window, now, now_label, band, history, path, eol]
         if reference is not None:
             before = reference[0].loc[reference[0]["signal"].eq(signal)].assign(
-                point="Prediction Based on Recorded Conditions")
+                point="Prediction for Recorded Conditions")
             recorded_tip = [alt.Tooltip("point:N", title="Point"),
                             alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
                             alt.Tooltip("median:Q", title=f"{INDICATOR_LABELS[signal]} ({UNITS[signal]})",
