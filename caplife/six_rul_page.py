@@ -124,18 +124,19 @@ def _hours(value) -> str:
     return "—" if value is None or pd.isna(value) else f"{value:,.0f} h"
 
 
-def _short(value: float) -> str:
-    return f"{value / 1000:.1f}k" if value >= 10_000 else f"{value:,.0f}"
+def _compact(value: float) -> str:
+    """Short enough that a range fits its card: 480, 6.6k, 61k."""
+    return f"{value:,.0f}" if value < 1000 else f"{value / 1000:.1f}k" if value < 10_000 else f"{value / 1000:.0f}k"
 
 
 def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
-    source = st.radio("Data", (UPLOAD, EXAMPLE, SAVED), horizontal=True, key="caplife_six_source", persist_state="session")
+    source = st.radio("Data", (UPLOAD, EXAMPLE, SAVED), horizontal=True, key="caplife_six_source", persist_state="session",
+                      help="The simulated example has twelve capacitors, two for each of the six ways a capacitor "
+                           "can reach end of life, observed part of the way there. Because they are simulated, their "
+                           "true end of life with the default limits is known and shown for comparison.")
     template = pd.DataFrame(columns=["Cap_ID", "Hours", *SIGNALS, *CONDITION_COLUMNS]).to_csv(index=False)
     if source == EXAMPLE:
         measurements, truth = _example()
-        st.caption("Twelve simulated capacitors, two for each of the six ways a capacitor can reach end of life, "
-                   "observed part of the way there. Because they are simulated, their true end of life with the "
-                   "default limits is known and shown for comparison.")
         st.download_button("Download example CSV", measurements.to_csv(index=False),
                            "caplife_six_parameter_example.csv", mime="text/csv")
         return measurements, truth, "Simulated example"
@@ -151,7 +152,7 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
     if upload is None:
         return None
     if upload.size > 8 * 1024 * 1024:
-        st.error("The CSV exceeds the 8 MB limit.")
+        st.error(f"{upload.name} exceeds the 8 MB limit.")
         return None
     return _parse(upload.getvalue(), upload.name, save=True)
 
@@ -1373,12 +1374,12 @@ def render() -> None:
             detail += (f" Simulated true remaining life: {truth[device]['eol_h'] - last['Hours']:,.0f} h "
                        f"({truth[device]['eol_cause']}).")
         metrics = [("Remaining useful life", _hours(last["RUL_median_h"]), delta),
-                   ("80% range", f"{_short(last['RUL_low_h'])}–{_short(last['RUL_high_h'])} h", None),
+                   ("80% range", f"{_compact(last['RUL_low_h'])}–{_compact(last['RUL_high_h'])} h", None),
                    ("Predicted end-of-life age", _hours(last["Hours"] + last["RUL_median_h"]), None),
                    ("Overall health", f"{last['Overall_health_pct']:.0f}%", None)]
         metrics_note = detail
-        helps = [detail, "The true remaining life falls inside this range about 80% of the time on simulated "
-                         "test capacitors.", None,
+        helps = [detail, f"{last['RUL_low_h']:,.0f} – {last['RUL_high_h']:,.0f} h. The true remaining life falls "
+                         "inside this range about 80% of the time on simulated test capacitors.", None,
                  f"The lowest parameter health. Limiting indicator: {last['Limiting_indicator']}."]
         for column, (name, value, change), tip in zip(st.columns(4), metrics, helps):
             column.metric(name, value, change, delta_color="normal", help=tip)

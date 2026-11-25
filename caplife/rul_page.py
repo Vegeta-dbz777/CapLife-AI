@@ -27,7 +27,7 @@ from caplife.rul_workflow import (
     run_rul_workflow,
 )
 
-UPLOAD, EXAMPLE, SAVED = "Upload my data", "Use the synthetic example", "My saved datasets"
+UPLOAD, EXAMPLE, SAVED = "Upload my data", "Use simulated example capacitors", "My saved datasets"
 REPORT_VIEW = "caplife_rul_report_view"  # the results as last shown, for the reports (and tests)
 INPUT_ERRORS = (RealDataValidationError, ValueError, pd.errors.ParserError,
                 pd.errors.EmptyDataError, UnicodeError)
@@ -157,19 +157,19 @@ TEST_LEGEND = ("**Purple**: predicted failure age and its 80% range · **Teal**:
 def _inputs() -> tuple[bytes, bytes, str] | None:
     source = st.radio("Data", (UPLOAD, EXAMPLE, SAVED), horizontal=True, key="caplife_rul_source",
                       persist_state="session",
-                      help="The synthetic example has 37 generated capacitors in four experiments, five of them still "
-                           "running. It shows how the page works; its results say nothing about real capacitors.")
+                      help="The simulated example has 37 capacitors in four experiments, five of them still running. It "
+                           "shows how the page works; its results say nothing about real capacitors.")
     if source == SAVED:
         picked = saved_picker("train_rul", "caplife_rul")
         return None if picked is None else (picked[0]["measurements"], picked[0]["outcomes"], picked[1])
     if source == EXAMPLE:
         measurements, outcomes = _example_csvs()
-        left, right = st.columns(2)
-        left.download_button("Download example measurements", measurements, "caplife_rul_example_measurements.csv",
-                             mime="text/csv")
-        right.download_button("Download example outcomes", outcomes, "caplife_rul_example_outcomes.csv",
-                              mime="text/csv")
-        return measurements, outcomes, "Synthetic example"
+        row = st.container(horizontal=True)
+        row.download_button("Download example measurements", measurements, "caplife_rul_example_measurements.csv",
+                            mime="text/csv")
+        row.download_button("Download example outcomes", outcomes, "caplife_rul_example_outcomes.csv",
+                            mime="text/csv")
+        return measurements, outcomes, "Simulated example"
 
     left, right = st.columns(2)
     with left:
@@ -267,9 +267,7 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
         result["model_table"], hide_index=True, width="stretch",
         column_config={
             "Model": st.column_config.TextColumn(pinned=True),
-            "Average miss (h)": st.column_config.NumberColumn(format="%.0f"),
             "Failures inside 80% range": st.column_config.NumberColumn(format="percent"),
-            "Typical 80% range width (h)": st.column_config.NumberColumn(format="%.0f"),
         },
     )
     test_rows = result["test_table"]
@@ -277,7 +275,7 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
     test_charts = _show_zoomable([(test_key, lambda hours: (TEST_LEGEND, _test_chart(test_rows, hours, brush=True)))],
                                  columns=1)
     with st.expander("Each test capacitor"):
-        table(result["test_table"].round(1), hide_index=True, width="stretch",
+        table(result["test_table"], hide_index=True, width="stretch",
                      column_config={"Capacitor": st.column_config.TextColumn(pinned=True)})
 
     checks = (f"Checks: at least {MIN_TEST_FAILURES} observed test failures; the 80% range contains at least "
@@ -350,7 +348,10 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
         checks=checks, warnings=warnings, forecast_message=forecast_message, forecasts=shown_forecasts,
         rul_charts=rul_charts, withheld=withheld, withheld_note=withheld_note,
         tables={"Model comparison": result["model_table"], "Test results": result["test_table"],
-                "Forecasts": forecasts, "Forecast history": history,
+                "Forecasts": forecasts, "Forecast history": None if history is None else history.rename(columns={
+                    "Hours": "Age (h)", "RUL_median_h": "Remaining life, median (h)",
+                    "RUL_low_h": "Remaining life, 80% range from (h)",
+                    "RUL_high_h": "Remaining life, 80% range to (h)"}),
                 "Not used": pd.DataFrame({"Capacitor": list(excluded), "Reason": list(excluded.values())}),
                 "Forecast withheld": pd.DataFrame({"Capacitor": list(withheld), "Reason": list(withheld.values())})})
     st.session_state[REPORT_VIEW] = view

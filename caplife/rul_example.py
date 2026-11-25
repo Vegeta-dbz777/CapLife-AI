@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-ENDPOINT = "Capacitance loss of 20% or more (synthetic)"
+ENDPOINT = "Capacitance loss of 20% or more (simulated)"
 EXPERIMENTS = {"SYN_EXP_A": 1.0, "SYN_EXP_B": 1.12, "SYN_EXP_C": 0.92, "SYN_EXP_D": 1.05}
 DEVICES_PER_EXPERIMENT = 8
 STEP_H = 50

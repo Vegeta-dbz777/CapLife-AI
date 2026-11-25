@@ -177,9 +177,9 @@ MESSAGE_COLOURS = {"error": ("#FDECEA", "#B42318"), "warning": ("#FFF6E0", "#8A5
 
 
 def _markup(text: str) -> str:
-    """Page text (with **bold**) as reportlab paragraph markup."""
+    """Page text (with **bold** and line breaks) as reportlab paragraph markup."""
     parts = escape(str(text)).split("**")
-    return "".join(f"<b>{part}</b>" if index % 2 else part for index, part in enumerate(parts))
+    return "".join(f"<b>{part}</b>" if index % 2 else part for index, part in enumerate(parts)).replace("\n", "<br/>")
 
 
 def _fleet_cell(column: str, value) -> str:
@@ -451,6 +451,7 @@ def xlsx_bytes(report: MonitorReport) -> bytes:
                               "valign": "vcenter"})
     note = book.add_format({"font_color": "#8B3E06", "bg_color": "#FFF4DD", "text_wrap": True, "valign": "vcenter"})
     label = book.add_format({"bold": True, "font_color": navy})
+    hours = book.add_format({"num_format": "#,##0"})  # shown as whole hours; the cell keeps the full value
 
     overview = book.add_worksheet("Overview")
     overview.set_column("A:A", 30)
@@ -475,7 +476,8 @@ def xlsx_bytes(report: MonitorReport) -> bytes:
                 if isinstance(value, (float, np.floating)) and not np.isfinite(value):
                     tab.write_blank(row, index, None)
                 elif isinstance(value, (np.integer, np.floating)):
-                    tab.write_number(row, index, float(value))
+                    tab.write_number(row, index, float(value), hours if str(frame.columns[index]).endswith("(h)")
+                                     else None)
                 elif isinstance(value, (bool, np.bool_)):
                     tab.write_boolean(row, index, bool(value))
                 else:

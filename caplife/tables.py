@@ -95,8 +95,34 @@ def centered_config(data, column_config: dict | None = None, show_index: bool = 
     return config
 
 
+def whole_hours(data, column_config: dict | None) -> tuple:
+    """Numbers in hours (a column named "... (h)") as whole hours with thousands separators, as the cards show them.
+
+    A column whose own settings give another number format keeps it.
+    """
+    if not isinstance(data, pd.DataFrame):
+        return data, column_config
+    hours = [name for name in data.columns
+             if str(name).endswith("(h)") and pd.api.types.is_numeric_dtype(data[name])]
+    if not hours:
+        return data, column_config
+    data, config = data.copy(), dict(column_config or {})
+    for name in hours:
+        data[name] = data[name].round().astype("Int64")
+        own = config.get(name)
+        if own is None and name in config:  # None hides a column: leave it hidden
+            continue
+        if own is None or isinstance(own, str):  # nothing set, or a plain label
+            config[name] = st.column_config.NumberColumn(own, format="localized")
+        elif isinstance(own, dict) and (own.get("type_config") or {}).get("format") in (None, "%.0f"):
+            config[name] = {**own, "type_config": {**(own.get("type_config") or {"type": "number"}),
+                                                   "format": "localized"}}
+    return data, config
+
+
 def table(data=None, *args, column_config: dict | None = None, hide_index: bool | None = None, **kwargs):
-    """``st.dataframe`` with every column centred and sentence-length text wrapped."""
+    """``st.dataframe`` with every column centred, hours shown whole and sentence-length text wrapped."""
+    data, column_config = whole_hours(data, column_config)
     config = centered_config(data, column_config, show_index=not hide_index)
     if kwargs.get("row_height") is None:
         kwargs["row_height"] = wrapped_row_height(long_text_lengths(data))
