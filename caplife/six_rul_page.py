@@ -459,7 +459,7 @@ def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, refer
     for signal in signals:
         # Each point says what it is, then its age and value, like the other charts on the page.
         data = (readings[["Hours", signal]].rename(columns={signal: "value"})
-                .assign(point=[f"Measured · reading {n} of {count}" for n in range(1, count + 1)])
+                .assign(point="Recorded Condition")
                 .dropna(subset=["value"]).reset_index(drop=True))
         other = None
         if alternative is not None and signal in alternative:
@@ -578,24 +578,25 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
             x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale), text="label:N",
             tooltip=NO_TOOLTIP)
         measured_tip = [alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
-                        alt.Tooltip("value:Q", title=f"Measured {INDICATOR_LABELS[signal]}", format=number)]
+                        alt.Tooltip("value:Q", title=f"Measured {INDICATOR_LABELS[signal]} ({UNITS[signal]})", format=number)]
         history = alt.Chart(measured).mark_line(color=TEAL, strokeWidth=1.8, clip=True, point=alt.OverlayMarkDef(
             color=TEAL, size=26, filled=True)).encode(
             x=x, y=alt.Y("value:Q", title=UNITS[signal], scale=scale), tooltip=measured_tip)
         y_value, y_median = alt.Y("value:Q", scale=scale), alt.Y("median:Q", scale=scale)
         ahead_tip = [alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
-                     alt.Tooltip("median:Q", title=f"Predicted {INDICATOR_LABELS[signal]}", format=number),
-                     alt.Tooltip("low:Q", title="80% range from", format=number),
-                     alt.Tooltip("high:Q", title="80% range to", format=number)]
+                     alt.Tooltip("median:Q", title=f"Predicted {INDICATOR_LABELS[signal]} ({UNITS[signal]})",
+                                 format=number),
+                     alt.Tooltip("low:Q", title=f"80% range from ({UNITS[signal]})", format=number),
+                     alt.Tooltip("high:Q", title=f"80% range to ({UNITS[signal]})", format=number)]
         band = alt.Chart(data).mark_area(color=mine, opacity=.28).encode(
             x=x, y=alt.Y("low:Q", scale=scale), y2="high:Q", tooltip=NO_TOOLTIP)
         age = alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f")
-        predicted = alt.Tooltip("median:Q", title=f"Predicted {INDICATOR_LABELS[signal]}", format=number)
+        predicted = alt.Tooltip("median:Q", title=f"Predicted {INDICATOR_LABELS[signal]} ({UNITS[signal]})", format=number)
         start, ahead, final = data.iloc[[0]], data.iloc[1:], data.iloc[[-1]]
         edges = pd.concat([final.assign(value=final["high"], edge="Top of the 80% range at end of life"),
                            final.assign(value=final["low"], edge="Bottom of the 80% range at end of life")])
         edge_tip = [alt.Tooltip("edge:N", title="Point"), age,
-                    alt.Tooltip("value:Q", title=INDICATOR_LABELS[signal], format=number)]
+                    alt.Tooltip("value:Q", title=f"{INDICATOR_LABELS[signal]} ({UNITS[signal]})", format=number)]
         path = alt.layer(
             alt.Chart(data).mark_line(color=mine, strokeWidth=3, strokeDash=[7, 3]).encode(
                 x=x, y=alt.Y("median:Q", scale=scale), tooltip=NO_TOOLTIP),
@@ -624,7 +625,7 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
         if reference is not None:
             before = reference[0].loc[reference[0]["signal"].eq(signal)]
             recorded_tip = [alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
-                            alt.Tooltip("median:Q", title=f"{INDICATOR_LABELS[signal]}, recorded conditions",
+                            alt.Tooltip("median:Q", title=f"Recorded {INDICATOR_LABELS[signal]} ({UNITS[signal]})",
                                         format=number)]
             hovers += _hoverable(before.iloc[1:], x, y_median, recorded_tip, PURPLE)
             recorded_eol_tip = [alt.Tooltip("Hours:Q", title="EOL for Recorded Conditions (h)", format=",.0f")]
@@ -664,7 +665,7 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
         if off_chart is None:
             layers.append(alt.Chart(pd.DataFrame({"limit": [limit]})).mark_rule(color=ORANGE, strokeDash=[5, 4])
                           .encode(y=alt.Y("limit:Q", scale=scale),
-                                  tooltip=[alt.Tooltip("limit:Q", title="Your limit", format=number)]))
+                                  tooltip=[alt.Tooltip("limit:Q", title=f"Your limit ({UNITS[signal]})", format=number)]))
         else:
             label = f"Limit {limit:{number}} {UNITS[signal]} {'↑' if off_chart == 'above' else '↓'}"
             # At the right edge: the left one holds the "Latest reading" label when zoomed in.
