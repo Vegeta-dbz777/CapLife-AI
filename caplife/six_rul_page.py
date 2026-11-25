@@ -427,36 +427,39 @@ def _chart_domain(values: pd.Series, limit: float, digits: int) -> tuple[float, 
     return min(low, limit) - pad, max(high, limit) + pad, None
 
 
-CHART_ZOOM = "caplife_six_chart_zoom"  # per chart: the hours it is zoomed to, and a round number
-ZOOM_HELP = (" Drag across a chart to zoom in on those hours; double-click it, or use Reset zoom by its title, to "
-             "show the full range again. Both work in full screen too.")
-
-
-def _zoom_state(key: str) -> dict:
-    return st.session_state.setdefault(CHART_ZOOM, {}).setdefault(key, {"hours": None, "round": 0})
+ZOOM_HELP = (" Drag across a chart to zoom in on those hours; Reset zoom above its top-right corner (or a "
+             "double-click on the chart) shows the full range again. Both work in full screen too.")
+# A click on the chart's "Reset zoom" label, or a double-click anywhere on it, clears the dragged selection.
+ZOOM_CLEAR = "dblclick, click[event.item && event.item.mark && event.item.mark.name === 'zoom_reset_marks']"
+ZOOM_BLUE = "#4c8fe0"
 
 
 def _zoom_hours(key: str) -> tuple[float, float] | None:
-    """The hours this one chart is zoomed to: its dragged selection. The chart keeps its key while
-    zooming, so it stays open in full screen; a double-click on it clears the selection (full range)."""
-    own = _zoom_state(key)
-    event = st.session_state.get(f"{key}_{own['round']}")
-    if event is not None:
-        picked = ((event.get("selection") or {}).get("zoom") or {}).get("Hours")
-        own["hours"] = ((float(picked[0]), float(picked[1]))
-                        if picked and len(picked) == 2 and picked[1] > picked[0] else None)
-    return own["hours"]
-
-
-def _reset_zoom(key: str) -> None:
-    """Reset zoom by the chart's title: a new round gives the chart a new key, which clears its selection."""
-    own = _zoom_state(key)
-    own.update(hours=None, round=own["round"] + 1)
+    """The hours a chart is zoomed to: its dragged selection, kept in the chart's own state."""
+    event = st.session_state.get(key) or {}
+    picked = ((event.get("selection") or {}).get("zoom") or {}).get("Hours")
+    return (float(picked[0]), float(picked[1])) if picked and len(picked) == 2 and picked[1] > picked[0] else None
 
 
 def _zoom_brush() -> alt.Parameter:
     """Dragging across a chart selects hours to zoom it to."""
-    return alt.selection_interval(name="zoom", encodings=["x"])
+    return alt.selection_interval(name="zoom", encodings=["x"], clear=ZOOM_CLEAR)
+
+
+def _with_reset(chart: alt.LayerChart, zoomed: bool) -> alt.LayerChart:
+    """While zoomed, a "Reset zoom" label just above the chart's top-right corner. It is part of the chart,
+    so it is there in full screen too; clicking it clears the zoom."""
+    if not zoomed:
+        return chart
+    label = alt.Chart(pd.DataFrame({"label": ["⟲ Reset zoom"]})).mark_text(
+        align="right", baseline="bottom", x=alt.expr("width"), y=-6, fontSize=12, fontWeight="bold",
+        color=ZOOM_BLUE, cursor="pointer").encode(
+        text="label:N", tooltip=alt.value("Show the full range")).properties(name="zoom_reset")
+    # Added to the chart's own layers: wrapping the chart in another layer would define its zoom selection twice.
+    shown = chart.copy(deep=False)
+    shown.layer = [*chart.layer, label]
+    shown.padding = {"top": 24, "left": 5, "right": 5, "bottom": 5}
+    return shown
 
 
 def _clipped(chart: alt.LayerChart, zoomed: bool = True) -> alt.LayerChart:
@@ -474,28 +477,38 @@ def _clipped(chart: alt.LayerChart, zoomed: bool = True) -> alt.LayerChart:
     return chart
 
 
-def _show_charts(charts: list[tuple[str, alt.Chart]], keys: list[str] | None = None, columns: int = 2) -> None:
-    """Charts two per row, each under its caption, as the page shows them. With ``keys``, each chart zooms
-    on its own: a drag across it reruns the page (its "zoom" selection), and Reset zoom by its caption
-    returns it to its full range."""
+def _show_charts(charts: list[tuple[str, alt.Chart]], columns: int = 2) -> None:
+    """Charts two per row, each under its caption, as the page shows them."""
     grid = st.columns(columns)
     for index, (caption, chart) in enumerate(charts):
         with grid[index % columns]:
-            if keys is None:
+            if caption:
                 st.caption(caption)
-                st.altair_chart(chart, width="stretch")
-                continue
-            key, own = keys[index], _zoom_state(keys[index])
-            if caption or own["hours"]:
-                row = st.container(horizontal=True, vertical_alignment="center", gap="small")
-                if caption:
-                    row.caption(caption, width="content")  # Reset zoom sits right after it, clear of the toolbar
-                if own["hours"]:
-                    row.button("Reset zoom", icon=":material/zoom_out:", type="tertiary", key=f"{key}_reset",
-                               on_click=_reset_zoom, args=(key,),
-                               help=f"Zoomed in on {own['hours'][0]:,.0f} – {own['hours'][1]:,.0f} h.")
-            st.altair_chart(chart, width="stretch", on_select="rerun", selection_mode="zoom",
-                            key=f"{key}_{own['round']}")
+            st.altair_chart(chart, width="stretch")
+
+
+@st.fragment
+def _zoomable(build, key: str, charts: list, index: int) -> None:
+    """One chart that zooms on its own. A drag across it reruns only this fragment, so zooming is quick,
+    and the chart keeps its key, so it stays open in full screen. ``build(hours)`` returns (caption, chart);
+    the chart as shown is kept in ``charts[index]`` for the PDF report."""
+    hours = _zoom_hours(key)
+    caption, chart = build(hours)
+    charts[index] = (caption, chart)  # the report shows the zoom, without the Reset zoom label
+    if caption:
+        st.caption(caption)
+    st.altair_chart(_with_reset(chart, hours is not None), width="stretch", on_select="rerun",
+                    selection_mode="zoom", key=key)
+
+
+def _show_zoomable(builders: list[tuple[str, object]], columns: int = 2) -> list[tuple[str, alt.Chart]]:
+    """Charts two per row (or one), each zoomable on its own; returns them as shown."""
+    charts: list = [None] * len(builders)
+    grid = st.columns(columns)
+    for index, (key, build) in enumerate(builders):
+        with grid[index % columns]:
+            _zoomable(build, key, charts, index)
+    return charts
 
 
 def _history_signals(readings: pd.DataFrame) -> list[str]:
@@ -510,16 +523,14 @@ def signal_charts(readings: pd.DataFrame, limits: dict | None = None, reference:
         charts = signal_chart_specs(readings, limits, reference, alternative)
         _show_charts(charts)
         return charts
-    keys = {signal: f"{zoom_key}_{signal}" for signal in _history_signals(readings)}
-    charts = signal_chart_specs(readings, limits, reference, alternative,
-                                zoom={signal: _zoom_hours(key) for signal, key in keys.items()}, brush=True)
-    _show_charts(charts, list(keys.values()))
-    return charts
+    build = lambda signal: lambda hours: signal_chart_specs(readings, limits, reference, alternative,
+                                                            zoom={signal: hours}, brush=True, only=signal)[0]
+    return _show_zoomable([(f"{zoom_key}_{signal}", build(signal)) for signal in _history_signals(readings)])
 
 
 def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, reference: bool = False,
                        alternative: pd.DataFrame | None = None, zoom: dict | None = None,
-                       brush: bool = False) -> list[tuple[str, alt.Chart]]:
+                       brush: bool = False, only: str | None = None) -> list[tuple[str, alt.Chart]]:
     """Each parameter's readings joined in time order, two charts per row, with its end-of-life limit.
 
     Parameters with fewer than two readings are skipped, and blank readings are left out of the
@@ -532,6 +543,8 @@ def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, refer
     baseline = readings.bfill().iloc[0]  # each parameter's first available reading
     charts = []
     for signal in _history_signals(readings):
+        if only is not None and signal != only:
+            continue
         hours = (zoom or {}).get(signal)
         x_scale = alt.Scale(domain=list(hours), nice=False) if hours else alt.Undefined
         inside = lambda frame: frame if not hours else frame.loc[frame["Hours"].between(*hours)]
@@ -599,18 +612,19 @@ def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Se
                      reference: tuple[pd.DataFrame, pd.Series] | None = None,
                      zoom_key: str | None = None) -> list[tuple[str, alt.Chart]]:
     """The forecast charts; with ``zoom_key``, each can be zoomed on its own by dragging across it."""
-    keys = {signal: f"{zoom_key}_{signal}" for signal in _measured(readings)} if zoom_key else {}
-    charts = _forecast_chart_specs(readings, forecast, last, limits, zoom, reference,
-                                   picked={signal: _zoom_hours(key) for signal, key in keys.items()},
-                                   brush=bool(keys))
-    _show_charts(charts, list(keys.values()) or None)
-    return charts
+    if zoom_key is None:
+        charts = _forecast_chart_specs(readings, forecast, last, limits, zoom, reference)
+        _show_charts(charts)
+        return charts
+    build = lambda signal: lambda hours: _forecast_chart_specs(
+        readings, forecast, last, limits, zoom, reference, picked={signal: hours}, brush=True, only=signal)[0]
+    return _show_zoomable([(f"{zoom_key}_{signal}", build(signal)) for signal in _measured(readings)])
 
 
 def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Series,
                           limits: dict | None = None, zoom: bool = False,
                           reference: tuple[pd.DataFrame, pd.Series] | None = None, picked: dict | None = None,
-                          brush: bool = False) -> list[tuple[str, alt.Chart]]:
+                          brush: bool = False, only: str | None = None) -> list[tuple[str, alt.Chart]]:
     """Each measured parameter from the first reading to the predicted end of life: the measured
     readings (solid) followed by the forecast path from the latest reading (dashed, with its range).
 
@@ -629,6 +643,8 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
     left = max(first, latest - 0.25 * (right - latest)) if zoom else first
     charts = []
     for signal in _measured(readings):
+        if only is not None and signal != only:
+            continue
         lo, hi = (picked or {}).get(signal) or (left, right)
         hours_scale = alt.Scale(domain=[lo, hi], nice=False)
         x = alt.X("Hours:Q", title="Hours", scale=hours_scale)
@@ -1400,11 +1416,10 @@ def render() -> None:
             if changed:
                 history = _changed_history_cached(original, json.dumps(planned[str(device)], sort_keys=True),
                                                   json.dumps(limits, sort_keys=True), code_version())
-            zoom_key = f"caplife_six_zoom_{device}_rul"
-            chart = _rul_chart(recorded_assessment if changed else assessment, true_eol,
-                               last if changed else None, history, hours=_zoom_hours(zoom_key), brush=True)
-            _show_charts([("", chart)], [zoom_key], columns=1)
-            sections.append(ChartSection("Remaining-life prediction over time", notes, [("", chart)], columns=1))
+            rul_assessment, rul_now = (recorded_assessment, last) if changed else (assessment, None)
+            build = lambda hours: ("", _rul_chart(rul_assessment, true_eol, rul_now, history, hours=hours, brush=True))
+            charts = _show_zoomable([(f"caplife_six_zoom_{device}_rul", build)], columns=1)
+            sections.append(ChartSection("Remaining-life prediction over time", notes, charts, columns=1))
 
     with st.expander("About the model and how well it did on simulated data"):
         _model_card(measured)
