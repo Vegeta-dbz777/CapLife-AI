@@ -18,7 +18,7 @@ from caplife.monitor_report import ChartSection, MonitorReport, PageView, pdf_by
 
 from caplife.accounts import save_controls, saved_picker
 from caplife.file_reader import read_measurement_file
-from caplife.upload_ui import UPLOAD_TYPES, show_notes
+from caplife.upload_ui import kept_file_uploader, show_notes
 from caplife.real_data import RealDataValidationError, validate_real_measurements
 from caplife.six_rul import (
     COMMON_SUBSET, INDICATOR_LABELS, LIMIT_KEYS, MIN_READINGS, SixRULModel, current_limit_used,
@@ -149,7 +149,7 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
             return None
         files, name = picked
         return _parse(files["measurements"], name, save=False)
-    upload = st.file_uploader("Measurement file (CSV or Excel)", type=UPLOAD_TYPES, key="caplife_six_upload")
+    upload = kept_file_uploader("Measurement file (CSV or Excel)", key="caplife_six_upload")
     st.download_button("Download CSV template", template, "caplife_six_parameter_template.csv", mime="text/csv")
     st.caption("Uploads are processed on the app server and are not stored unless you sign in and save them.")
     if upload is None:
