@@ -428,7 +428,8 @@ def _chart_domain(values: pd.Series, limit: float, digits: int) -> tuple[float, 
 
 
 CHART_ZOOM = "caplife_six_chart_zoom"  # per chart: the hours it is zoomed to, and a round number
-ZOOM_HELP = " Drag across a chart to zoom in on those hours; Reset zoom by its title shows the full range again."
+ZOOM_HELP = (" Drag across a chart to zoom in on those hours; double-click it, or use Reset zoom by its title, to "
+             "show the full range again. Both work in full screen too.")
 
 
 def _zoom_state(key: str) -> dict:
@@ -436,17 +437,19 @@ def _zoom_state(key: str) -> dict:
 
 
 def _zoom_hours(key: str) -> tuple[float, float] | None:
-    """The hours this one chart is zoomed to. A drag across it in the last run sets them; the new round
-    gives the chart a new key, so the dragged box is not drawn again over the zoomed chart."""
+    """The hours this one chart is zoomed to: its dragged selection. The chart keeps its key while
+    zooming, so it stays open in full screen; a double-click on it clears the selection (full range)."""
     own = _zoom_state(key)
-    event = st.session_state.get(f"{key}_{own['round']}") or {}
-    picked = (event.get("selection") or {}).get("zoom", {}).get("Hours")
-    if picked and len(picked) == 2 and picked[1] > picked[0]:
-        own.update(hours=(float(picked[0]), float(picked[1])), round=own["round"] + 1)
+    event = st.session_state.get(f"{key}_{own['round']}")
+    if event is not None:
+        picked = ((event.get("selection") or {}).get("zoom") or {}).get("Hours")
+        own["hours"] = ((float(picked[0]), float(picked[1]))
+                        if picked and len(picked) == 2 and picked[1] > picked[0] else None)
     return own["hours"]
 
 
 def _reset_zoom(key: str) -> None:
+    """Reset zoom by the chart's title: a new round gives the chart a new key, which clears its selection."""
     own = _zoom_state(key)
     own.update(hours=None, round=own["round"] + 1)
 
@@ -531,8 +534,7 @@ def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, refer
     for signal in _history_signals(readings):
         hours = (zoom or {}).get(signal)
         x_scale = alt.Scale(domain=list(hours), nice=False) if hours else alt.Undefined
-        inside = lambda frame: (frame if not hours or not frame["Hours"].between(*hours).any()
-                                else frame.loc[frame["Hours"].between(*hours)])
+        inside = lambda frame: frame if not hours else frame.loc[frame["Hours"].between(*hours)]
         # Each point says what it is, then its age and value, like the other charts on the page.
         data = (readings[["Hours", signal]].rename(columns={signal: "value"})
                 .assign(point="Recorded Condition")
@@ -542,7 +544,9 @@ def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, refer
             other = (alternative[["Hours", signal]].rename(columns={signal: "value"})
                      .assign(point="Changed Condition").dropna(subset=["value"]))
         limit = _limit_value(signal, baseline, limits)
-        shown = pd.concat([inside(data)["value"], *([inside(other)["value"]] if other is not None else [])])
+        shown = pd.concat([inside(data)["value"], *([inside(other)["value"]] if other is not None else [])]).dropna()
+        if shown.empty:  # nothing inside the zoomed hours: fit the whole series
+            shown = pd.concat([data["value"], *([other["value"]] if other is not None else [])])
         bottom, top, off_chart = _chart_domain(shown, limit, DIGITS[signal])
         scale = alt.Scale(domain=[bottom, top], zero=False, nice=False)
         value_title = f"{INDICATOR_LABELS[signal]} ({UNITS[signal]})"
@@ -628,17 +632,21 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
         lo, hi = (picked or {}).get(signal) or (left, right)
         hours_scale = alt.Scale(domain=[lo, hi], nice=False)
         x = alt.X("Hours:Q", title="Hours", scale=hours_scale)
-        in_span = lambda frame: (frame.loc[frame["Hours"].between(lo, hi)] if frame["Hours"].between(lo, hi).any()
-                                 else frame)
+        in_span = lambda frame: frame.loc[frame["Hours"].between(lo, hi)]
         data = forecast.loc[forecast["signal"].eq(signal)].reset_index(drop=True)
         measured = readings[["Hours", signal]].rename(columns={signal: "value"}).reset_index(drop=True)
         if zoom:  # keep one reading before the window so the line enters from the edge
             inside = measured["Hours"] >= left
             measured = measured.loc[inside | inside.shift(-1, fill_value=False)]
         limit = _limit_value(signal, baseline, limits)
-        values = pd.concat([in_span(measured)["value"], in_span(data)["low"], in_span(data)["high"]]
-                           + ([in_span(reference[0].loc[reference[0]["signal"].eq(signal)])[column]
-                               for column in ("low", "high")] if reference is not None else []))
+        recorded_path = reference[0].loc[reference[0]["signal"].eq(signal)] if reference is not None else None
+        fit = lambda pick: pd.concat([pick(measured)["value"], pick(data)["low"], pick(data)["high"]]
+                                     + ([pick(recorded_path)[column] for column in ("low", "high")]
+                                        if recorded_path is not None else [])).dropna()
+        # The value axis fits what is inside the shown hours (the whole chart if nothing is).
+        values = fit(in_span)
+        if values.empty:
+            values = fit(lambda frame: frame)
         bottom, top, off_chart = _chart_domain(values, limit, DIGITS[signal])
         if reference is not None:  # room along the bottom for the two end-of-life labels
             bottom -= 0.12 * (top - bottom)
