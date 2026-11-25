@@ -12,7 +12,8 @@ import pandas as pd
 import streamlit as st
 
 from caplife.tables import table
-from caplife.chart_hover import NO_TOOLTIP, hoverable as _hoverable, hoverable_rule as _hoverable_rule
+from caplife.chart_hover import (NO_TOOLTIP, hoverable as _hoverable, hoverable_rule as _hoverable_rule,
+                                 points_over_lines)
 from caplife.monitor_report import ChartSection, MonitorReport, PageView, pdf_bytes, xlsx_bytes
 
 from caplife.accounts import save_controls, saved_picker
@@ -454,7 +455,6 @@ def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, refer
     readings = readings.sort_values("Hours").reset_index(drop=True)
     baseline = readings.bfill().iloc[0]  # each parameter's first available reading
     signals = [signal for signal in SIGNALS if signal in readings and readings[signal].notna().sum() >= 2]
-    count = len(readings)
     charts = []
     for signal in signals:
         # Each point says what it is, then its age and value, like the other charts on the page.
@@ -463,12 +463,8 @@ def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, refer
                 .dropna(subset=["value"]).reset_index(drop=True))
         other = None
         if alternative is not None and signal in alternative:
-            # The estimated history has one point per reading: the same state, reached at another age.
-            other = alternative[["Hours", signal]].rename(columns={signal: "value"}).reset_index(drop=True)
-            other["point"] = [f"At your conditions · reading {n}" for n in range(1, len(other) + 1)]
-            if len(other) == count:
-                other["measured_at"] = readings["Hours"].to_numpy(dtype=float)
-            other = other.dropna(subset=["value"])
+            other = (alternative[["Hours", signal]].rename(columns={signal: "value"})
+                     .assign(point="Changed Condition").dropna(subset=["value"]))
         limit = _limit_value(signal, baseline, limits)
         bottom, top, off_chart = _chart_domain(pd.concat([data["value"], *([other["value"]] if other is not None
                                                                            else [])]), limit, DIGITS[signal])
@@ -501,11 +497,7 @@ def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, refer
         layers = [line, marker]
         hovers = _hoverable(data, "Hours:Q", alt.Y("value:Q", scale=scale), measured_tip, TEAL)
         if other is not None:
-            other_tip = [alt.Tooltip("point:N", title="Point"),
-                         alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
-                         *([alt.Tooltip("measured_at:Q", title="Same state measured at (h)", format=",.0f")]
-                           if "measured_at" in other else []),
-                         alt.Tooltip("value:Q", title=value_title, format=HOVER_FORMAT[signal])]
+            other_tip = measured_tip  # Point (Changed Condition), age and value, like the measured points
             layers.append(alt.Chart(other).mark_line(
                 color=GOLD, strokeWidth=2.2, strokeDash=[6, 3],
                 point=alt.OverlayMarkDef(color=GOLD, size=22, filled=True)).encode(
@@ -610,9 +602,11 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
                 x=x, y=alt.Y("value:Q", scale=scale), tooltip=edge_tip),
         )
         hovers = [*_hoverable(measured.loc[measured["Hours"] >= left], x, y_value, measured_tip, TEAL),
-                  *_hoverable(start, x, y_median, [age, predicted], mine),
-                  *_hoverable(ahead, x, y_median, ahead_tip, mine),
-                  *_hoverable(edges, x, y_value, edge_tip, mine)]
+                  # The latest reading and the end of life sit on vertical lines: larger hover areas.
+                  *_hoverable(start, x, y_median, [age, predicted], mine, on_line=True),
+                  *_hoverable(ahead.iloc[:-1], x, y_median, ahead_tip, mine),
+                  *_hoverable(ahead.iloc[-1:], x, y_median, ahead_tip, mine, on_line=True),
+                  *_hoverable(edges, x, y_value, edge_tip, mine, on_line=True)]
         x_rule = alt.X("Hours:Q", scale=hours_scale)
         eol_tip = [alt.Tooltip("Hours:Q", title="EOL for Changed Conditions (h)" if reference is not None
                                else "Predicted end of life (h)", format=",.0f")]
@@ -623,11 +617,16 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
                    *_hoverable_rule(pd.DataFrame({"Hours": [end]}), x_rule, eol_tip, eol_color)]
         layers = [window, now, now_label, band, history, path, eol]
         if reference is not None:
-            before = reference[0].loc[reference[0]["signal"].eq(signal)]
-            recorded_tip = [alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
-                            alt.Tooltip("median:Q", title=f"Recorded {INDICATOR_LABELS[signal]} ({UNITS[signal]})",
-                                        format=number)]
-            hovers += _hoverable(before.iloc[1:], x, y_median, recorded_tip, PURPLE)
+            before = reference[0].loc[reference[0]["signal"].eq(signal)].assign(
+                point="Prediction Based on Recorded Conditions")
+            recorded_tip = [alt.Tooltip("point:N", title="Point"),
+                            alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f"),
+                            alt.Tooltip("median:Q", title=f"{INDICATOR_LABELS[signal]} ({UNITS[signal]})",
+                                        format=number),
+                            alt.Tooltip("low:Q", title=f"80% range from ({UNITS[signal]})", format=number),
+                            alt.Tooltip("high:Q", title=f"80% range to ({UNITS[signal]})", format=number)]
+            hovers += [*_hoverable(before.iloc[1:-1], x, y_median, recorded_tip, PURPLE),
+                       *_hoverable(before.iloc[-1:], x, y_median, recorded_tip, PURPLE, on_line=True)]
             recorded_eol_tip = [alt.Tooltip("Hours:Q", title="EOL for Recorded Conditions (h)", format=",.0f")]
             hovers += _hoverable_rule(pd.DataFrame({"Hours": [latest + float(reference[1]["RUL_median_h"])]}),
                                       x_rule, recorded_eol_tip, PURPLE)
@@ -676,7 +675,7 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
                           .encode(x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale),
                                   text="label:N", tooltip=NO_TOOLTIP))
         charts.append((f"**{INDICATOR_LABELS[signal]}** · limit: {_limit_text(signal, limits)}",
-                       alt.layer(*layers, *hovers).properties(height=260)))
+                       alt.layer(*layers, *points_over_lines(hovers)).properties(height=260)))
     return charts
 
 
@@ -798,8 +797,8 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
     data = _with_range(data)
     # Every tooltip on this chart: what the point is, then age, remaining life and its 80% range.
     past_tip = [alt.Tooltip("point:N", title="Point"), hour("Hours", "Age (h)"),
-                hour("RUL_median_h", "Remaining life (h)"), alt.Tooltip("range:N", title="80% range (h)")]
-    data = data.assign(point="Prediction at a reading · Recorded Conditions")
+                hour("RUL_median_h", "Remaining Life (h)"), alt.Tooltip("range:N", title="80% Range (h)")]
+    data = data.assign(point="Prediction for Recorded Condition")
     layers += [
         alt.Chart(data).mark_area(color=PURPLE, opacity=.25).encode(
             x=x, y=alt.Y("RUL_low_h:Q", scale=scale), y2="RUL_high_h:Q", tooltip=NO_TOOLTIP),
@@ -812,12 +811,14 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
             x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale), text="label:N",
             tooltip=NO_TOOLTIP),
     ]
-    hovers += _hoverable(data, x, y, past_tip, PURPLE)
+    on_latest = data["Hours"] >= latest  # the prediction at the latest reading sits on its line
+    hovers += _hoverable(data.loc[~on_latest], x, y, past_tip, PURPLE)
+    hovers += _hoverable(data.loc[on_latest], x, y, past_tip, PURPLE, on_line=True)
     hovers += _hoverable_rule(pd.DataFrame({"Hours": [latest]}), alt.X("Hours:Q", scale=hours_scale),
                               [hour("Hours", "Latest reading (h)")], DIVIDER)
     if changed_history is not None and len(changed_history):
         gold = _with_range(changed_history.dropna(subset=["RUL_median_h"])).assign(
-            point="Prediction at a reading · Changed Conditions from then on")
+            point="Prediction for Changed Condition")
         gold_tip = past_tip
         layers += [
             alt.Chart(gold).mark_area(color=GOLD, opacity=.2).encode(
@@ -825,7 +826,9 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
             alt.Chart(gold).mark_line(color=GOLD, strokeWidth=2.4, strokeDash=[6, 3], point=alt.OverlayMarkDef(
                 color=GOLD, size=30, filled=True)).encode(x=x, y=y, tooltip=gold_tip),
         ]
-        hovers += _hoverable(gold, x, y, gold_tip, GOLD)
+        gold_on_line = gold["Hours"] >= latest
+        hovers += _hoverable(gold.loc[~gold_on_line], x, y, gold_tip, GOLD)
+        hovers += _hoverable(gold.loc[gold_on_line], x, y, gold_tip, GOLD, on_line=True)
     # Countdowns from the latest reading to end of life.
     for name, now in nows.items():
         colour = colours[name]
@@ -855,9 +858,9 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
         points = _with_range(pd.DataFrame({"Hours": latest + steps, "median": mid - steps, "low": low - steps,
                                            "high": high - steps}), "low", "high")
         conditions_name = f"{name} Conditions"
-        points["point"] = [f"Latest reading · {conditions_name}"] + [f"Countdown · {conditions_name}"] * 10
+        points["point"] = [f"Latest reading · {conditions_name}"] + [f"Prediction for {name} Condition"] * 10
         point_tip = [alt.Tooltip("point:N", title="Point"), hour("Hours", "Age (h)"),
-                     hour("median", "Remaining life (h)"), alt.Tooltip("range:N", title="80% range (h)")]
+                     hour("median", "Remaining Life (h)"), alt.Tooltip("range:N", title="80% Range (h)")]
         # The last point is the predicted end of life: its hour and the end of life's own 80% range.
         eol_point = pd.DataFrame([{"Hours": ranges[name][1], "median": 0.0, "point": f"EOL for {conditions_name}",
                                    "range": f"{ranges[name][0]:,.0f} – {ranges[name][2]:,.0f}"}])
@@ -869,8 +872,9 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
                        x=x, y=y_median, tooltip=point_tip),
                    alt.Chart(eol_point).mark_point(color=colour, size=60, filled=True, opacity=1).encode(
                        x=x, y=y_median, tooltip=eol_tip)]
-        hovers += _hoverable(points, x, y_median, point_tip, colour)
-        hovers += _hoverable(eol_point, x, y_median, eol_tip, colour)
+        hovers += _hoverable(points.iloc[1:], x, y_median, point_tip, colour)
+        hovers += _hoverable(points.iloc[:1], x, y_median, point_tip, colour, on_line=True)
+        hovers += _hoverable(eol_point, x, y_median, eol_tip, colour, on_line=True)
     if changed:  # labels near the top of the end-of-life lines, on their outer sides and at two heights
         recorded_end, changed_end = ranges["Recorded"][1], ranges["Changed"][1]
         for when, lift, name, outer in ((changed_end, 0.99, "Changed", changed_end >= recorded_end),
@@ -887,7 +891,7 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
         layers.append(alt.Chart(truth).mark_line(color=ORANGE, strokeDash=[6, 4], strokeWidth=2).encode(
             x=x, y=alt.Y("true:Q", scale=scale), tooltip=tip))
         hovers += _hoverable(truth.iloc[::4], x, alt.Y("true:Q", scale=scale), tip, ORANGE)
-    return alt.layer(*layers, *hovers).properties(height=320)
+    return alt.layer(*layers, *points_over_lines(hovers)).properties(height=320)
 
 
 # Labels for use mid-sentence: lower case except abbreviations (ESR, H₂).
