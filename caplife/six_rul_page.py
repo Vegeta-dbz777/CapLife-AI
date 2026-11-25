@@ -637,8 +637,8 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
             measured = measured.loc[inside | inside.shift(-1, fill_value=False)]
         limit = _limit_value(signal, baseline, limits)
         values = pd.concat([in_span(measured)["value"], in_span(data)["low"], in_span(data)["high"]]
-                           + ([in_span(reference[0].loc[reference[0]["signal"].eq(signal)])["median"]]
-                              if reference is not None else []))
+                           + ([in_span(reference[0].loc[reference[0]["signal"].eq(signal)])[column]
+                               for column in ("low", "high")] if reference is not None else []))
         bottom, top, off_chart = _chart_domain(values, limit, DIGITS[signal])
         if reference is not None:  # room along the bottom for the two end-of-life labels
             bottom -= 0.12 * (top - bottom)
@@ -678,8 +678,9 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
         age = alt.Tooltip("Hours:Q", title="Age (h)", format=",.0f")
         predicted = alt.Tooltip("median:Q", title=f"Predicted {INDICATOR_LABELS[signal]} ({UNITS[signal]})", format=number)
         start, ahead, final = data.iloc[[0]], data.iloc[1:], data.iloc[[-1]]
-        edges = pd.concat([final.assign(value=final["high"], edge="Top of the 80% range at end of life"),
-                           final.assign(value=final["low"], edge="Bottom of the 80% range at end of life")])
+        at_eol = "at EOL for Changed Conditions" if reference is not None else "at end of life"
+        edges = pd.concat([final.assign(value=final["high"], edge=f"Top of the 80% range {at_eol}"),
+                           final.assign(value=final["low"], edge=f"Bottom of the 80% range {at_eol}")])
         edge_tip = [alt.Tooltip("edge:N", title="Point"), age,
                     alt.Tooltip("value:Q", title=f"{INDICATOR_LABELS[signal]} ({UNITS[signal]})", format=number)]
         path = alt.layer(
@@ -718,8 +719,16 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
                                         format=number),
                             alt.Tooltip("low:Q", title=f"80% range from ({UNITS[signal]})", format=number),
                             alt.Tooltip("high:Q", title=f"80% range to ({UNITS[signal]})", format=number)]
+            # The ends of its 80% range on its end-of-life line, like the changed forecast's.
+            final_recorded = before.iloc[[-1]]
+            recorded_edges = pd.concat([
+                final_recorded.assign(value=final_recorded["high"], edge="Top of the 80% range at EOL for Recorded "
+                                                                       "Conditions"),
+                final_recorded.assign(value=final_recorded["low"], edge="Bottom of the 80% range at EOL for Recorded "
+                                                                      "Conditions")])
             hovers += [*_hoverable(before.iloc[1:-1], x, y_median, recorded_tip, PURPLE),
-                       *_hoverable(before.iloc[-1:], x, y_median, recorded_tip, PURPLE, on_line=True)]
+                       *_hoverable(before.iloc[-1:], x, y_median, recorded_tip, PURPLE, on_line=True),
+                       *_hoverable(recorded_edges, x, y_value, edge_tip, PURPLE, on_line=True)]
             recorded_eol_tip = [alt.Tooltip("Hours:Q", title="EOL for Recorded Conditions (h)", format=",.0f")]
             hovers += _hoverable_rule(pd.DataFrame({"Hours": [latest + float(reference[1]["RUL_median_h"])]}),
                                       x_rule, recorded_eol_tip, PURPLE)
@@ -735,7 +744,11 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
                     color=GOLD if name == "Changed" else PURPLE, opacity=.17 if name == "Changed" else .2).encode(
                     x=alt.X("from:Q", scale=hours_scale), x2="to:Q", tooltip=NO_TOOLTIP)
                   for name, (low, _, high) in ranges.items()),
-                now, now_label, band, history,
+                now, now_label,
+                # The recorded forecast's 80% range, lighter than the changed one's.
+                alt.Chart(before).mark_area(color=PURPLE, opacity=.2).encode(
+                    x=x, y=alt.Y("low:Q", scale=scale), y2="high:Q", tooltip=NO_TOOLTIP),
+                band, history,
                 *_range_hover(ranges, hours_scale),  # above the band, below the lines and their points
                 path, eol,
                 # Points make the thin dotted line easy to hover.
@@ -744,6 +757,8 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
                     x=x, y=alt.Y("median:Q", scale=scale), tooltip=recorded_tip),
                 alt.Chart(pd.DataFrame({"Hours": [recorded_end]})).mark_rule(
                     color=PURPLE, strokeWidth=2.5, strokeDash=[4, 3]).encode(x=x_rule, tooltip=recorded_eol_tip),
+                alt.Chart(recorded_edges).mark_point(color=PURPLE, size=30, filled=False, strokeWidth=2,
+                                                     opacity=1).encode(x=x, y=y_value, tooltip=edge_tip),
                 # Labels at the median lines, each on the outer side of its line and at its own height.
                 *(alt.Chart(pd.DataFrame({"Hours": [when], "value": [bottom + lift * height], "label": [name]}))
                   .mark_text(align="left" if outer else "right", dx=4 if outer else -4, baseline="bottom",
