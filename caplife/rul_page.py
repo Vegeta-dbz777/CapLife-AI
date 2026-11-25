@@ -348,7 +348,10 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
         checks=checks, warnings=warnings, forecast_message=forecast_message, forecasts=shown_forecasts,
         rul_charts=rul_charts, withheld=withheld, withheld_note=withheld_note,
         tables={"Model comparison": result["model_table"], "Test results": result["test_table"],
-                "Forecasts": forecasts, "Forecast history": history,
+                "Forecasts": forecasts, "Forecast history": None if history is None else history.rename(columns={
+                    "Hours": "Age (h)", "RUL_median_h": "Remaining life, median (h)",
+                    "RUL_low_h": "Remaining life, 80% range from (h)",
+                    "RUL_high_h": "Remaining life, 80% range to (h)"}),
                 "Not used": pd.DataFrame({"Capacitor": list(excluded), "Reason": list(excluded.values())}),
                 "Forecast withheld": pd.DataFrame({"Capacitor": list(withheld), "Reason": list(withheld.values())})})
     st.session_state[REPORT_VIEW] = view

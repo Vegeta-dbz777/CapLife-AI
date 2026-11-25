@@ -158,7 +158,7 @@ def pdf_bytes(view: TrainView) -> bytes:
 
     story += [Paragraph("3 · Verdict", h2),
               message("info" if view.passed else "warning",
-                      view.verdict + ("".join(f"<br/>• {r}" for r in view.reasons) if view.reasons else "")),
+                      view.verdict + "".join(f"\n• {reason}" for reason in view.reasons)),
               Spacer(1, 4), para(view.checks, caption)]
     for warning in view.warnings:
         story += [Spacer(1, 4), message("warning", warning)]
@@ -201,6 +201,8 @@ def xlsx_bytes(view: TrainView) -> bytes:
                               "valign": "vcenter"})
     label = book.add_format({"bold": True, "font_color": navy})
     wrap = book.add_format({"text_wrap": True, "valign": "top"})
+    hours = book.add_format({"num_format": "#,##0"})  # shown as whole hours; the cell keeps the full value
+    percent = book.add_format({"num_format": "0.0%"})
 
     overview = book.add_worksheet("Overview")
     overview.set_column("A:A", 30)
@@ -209,8 +211,8 @@ def xlsx_bytes(view: TrainView) -> bytes:
     overview.set_row(0, 28)
     info = [("Data", view.source), ("Generated", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
             *view.data_metrics, ("Split", view.split), ("Data used", " · ".join(text for _, text in view.tags)),
-            ("Details", view.data_note), ("Verdict", view.verdict), *(("Reason", r) for r in view.reasons),
-            ("Checks", view.checks), *(("Note", w) for w in view.warnings), ("About the forecasts", NOTE)]
+            ("Details", view.data_note), ("Verdict", view.verdict.replace("**", "")),
+            *(("Reason", r) for r in view.reasons), ("Checks", view.checks.removeprefix("Checks: ")), *(("Note", w) for w in view.warnings), ("About the forecasts", NOTE)]
     for row, (key, value) in enumerate(info, start=2):
         overview.write(row, 0, key, label)
         overview.write(row, 1, value, wrap)
@@ -226,7 +228,9 @@ def xlsx_bytes(view: TrainView) -> bytes:
                 if isinstance(value, (float, np.floating)) and not np.isfinite(value):
                     tab.write_blank(row, index, None)
                 elif isinstance(value, (np.integer, np.floating, int, float)) and not isinstance(value, bool):
-                    tab.write_number(row, index, float(value))
+                    name = str(frame.columns[index])
+                    tab.write_number(row, index, float(value), hours if name.endswith("(h)") else
+                                     percent if "inside 80% range" in name else None)
                 else:
                     tab.write(row, index, "" if value is None else str(value))
 
