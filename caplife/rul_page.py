@@ -7,7 +7,8 @@ import json
 import altair as alt
 
 from caplife.chart_hover import hoverable
-from caplife.six_rul_page import ZOOM_HELP, _rul_chart, _show_zoomable
+from caplife.six_rul_page import ZOOM_HELP, _rul_chart, _show_zoomable, _zoom_hours
+from caplife.train_report import TrainView, pdf_bytes, xlsx_bytes
 import pandas as pd
 import streamlit as st
 
@@ -27,6 +28,7 @@ from caplife.rul_workflow import (
 )
 
 UPLOAD, EXAMPLE, SAVED = "Upload my data", "Use the synthetic example", "My saved datasets"
+REPORT_VIEW = "caplife_rul_report_view"  # the results as last shown, for the reports (and tests)
 INPUT_ERRORS = (RealDataValidationError, ValueError, pd.errors.ParserError,
                 pd.errors.EmptyDataError, UnicodeError)
 
@@ -88,6 +90,14 @@ FORECAST_COLUMNS = {
 }
 
 
+def _forecast_summary(forecasts: pd.DataFrame, device: str) -> str:
+    row = forecasts.loc[forecasts["Capacitor"].eq(device)].iloc[0]
+    return (f"**{device}** · remaining life {_hours(row['Remaining from latest, median (h)'])} h "
+            f"(80% range {_hours(row['Remaining from latest, 80% range from (h)'])} – "
+            f"{_hours(row['Remaining from latest, 80% range to (h)'])} h) · predicted failure at "
+            f"{_hours(row['Predicted failure age (h)'])} h")
+
+
 def _reason_list(reasons: dict) -> str:
     return "\n".join(f"- **{device}**: {reason}" for device, reason in reasons.items())
 
@@ -144,14 +154,14 @@ TEST_LEGEND = ("**Purple**: predicted failure age and its 80% range · **Teal**:
                "working when testing stopped) · **Grey tick**: when the forecast was made")
 
 
-def _inputs() -> tuple[bytes, bytes] | None:
+def _inputs() -> tuple[bytes, bytes, str] | None:
     source = st.radio("Data", (UPLOAD, EXAMPLE, SAVED), horizontal=True, key="caplife_rul_source",
                       persist_state="session",
                       help="The synthetic example has 37 generated capacitors in four experiments, five of them still "
                            "running. It shows how the page works; its results say nothing about real capacitors.")
     if source == SAVED:
         picked = saved_picker("train_rul", "caplife_rul")
-        return None if picked is None else (picked[0]["measurements"], picked[0]["outcomes"])
+        return None if picked is None else (picked[0]["measurements"], picked[0]["outcomes"], picked[1])
     if source == EXAMPLE:
         measurements, outcomes = _example_csvs()
         left, right = st.columns(2)
@@ -159,7 +169,7 @@ def _inputs() -> tuple[bytes, bytes] | None:
                              mime="text/csv")
         right.download_button("Download example outcomes", outcomes, "caplife_rul_example_outcomes.csv",
                               mime="text/csv")
-        return measurements, outcomes
+        return measurements, outcomes, "Synthetic example"
 
     left, right = st.columns(2)
     with left:
@@ -179,7 +189,7 @@ def _inputs() -> tuple[bytes, bytes] | None:
             return None
     save_controls("train_rul", {"measurements": measurements.getvalue(), "outcomes": outcomes.getvalue()},
                   measurements.name.rsplit(".", 1)[0], "caplife_rul")
-    return measurements.getvalue(), outcomes.getvalue()
+    return measurements.getvalue(), outcomes.getvalue(), f"{measurements.name} and {outcomes.name}"
 
 
 def _split_settings(experiments: list[str]) -> tuple[str, str | None, str | None]:
@@ -208,7 +218,7 @@ def _split_settings(experiments: list[str]) -> tuple[str, str | None, str | None
     return method, calibration, test
 
 
-def _show_results(result: dict, attempts: int) -> None:
+def _show_results(result: dict, attempts: int, context: dict) -> None:
     roles = result["roles"]
     by_role = result["experiments_by_role"]
     from caplife.real_data import MEASUREMENTS
@@ -218,20 +228,29 @@ def _show_results(result: dict, attempts: int) -> None:
     split = (f" Training experiments: {', '.join(by_role['training'])}. Calibration: "
              f"{', '.join(by_role['calibration'])}. Test: {', '.join(by_role['test'])}."
              if by_role.get("test") else "")
+    data_note = (f"Endpoint: {result['audit']['endpoint']}.{split} The training capacitors gave "
+                 f"{result['training_landmarks']:,} readings to learn from. Parameters used (the ones every capacitor "
+                 f"with an outcome has): {', '.join(used)}. "
+                 + (f"Operating conditions used: {', '.join(operating)}." if operating else
+                    "No operating condition is recorded for every capacitor with an outcome, so none is used."))
     st.subheader("1 · Data used", help=f"Endpoint: {result['audit']['endpoint']}.{split} The training capacitors "
                                        f"gave {result['training_landmarks']:,} readings to learn from.")
     row = st.container(horizontal=True, vertical_alignment="center", gap="small")
+    tags = []
     for name in ("training", "calibration", "test"):
-        row.badge(f"{name.title()} {roles[name]}", color={"training": "blue", "calibration": "violet",
-                                                         "test": "orange"}[name],
+        colour = {"training": "blue", "calibration": "violet", "test": "orange"}[name]
+        row.badge(f"{name.title()} {roles[name]}", color=colour,
                   help=f"{roles[name]} capacitors" + (f" from {', '.join(by_role[name])}" if by_role.get(name) else "")
                        + ".")
+        tags.append((colour, f"{name.title()} {roles[name]}"))
     row.badge(f"Parameters {len(used)} of 6", icon=":material/monitoring:", color="gray",
               help=f"The ones every capacitor with an outcome has: {', '.join(used)}.")
-    row.badge(f"Operating conditions {len(operating)}" if operating else "No operating conditions",
-              icon=":material/thermostat:", color="gray",
+    tags.append(("gray", f"Parameters {len(used)} of 6"))
+    conditions_tag = f"Operating conditions {len(operating)}" if operating else "No operating conditions"
+    row.badge(conditions_tag, icon=":material/thermostat:", color="gray",
               help=(f"Used: {', '.join(operating)}." if operating else
                     "No operating condition is recorded for every capacitor with an outcome, so none is used."))
+    tags.append(("gray", conditions_tag))
     excluded = result["audit"]["devices_excluded"]
     if excluded:
         with st.expander(f"{len(excluded)} capacitor(s) with outcomes could not be used"):
@@ -240,10 +259,10 @@ def _show_results(result: dict, attempts: int) -> None:
     st.subheader("2 · Test on capacitors the model never saw",
                  help="Average miss is how far the predicted failure age fell outside each test capacitor's observed "
                       "failure window (zero when inside it). The two simpler models show whether the neural network "
-                      "adds anything. In the chart, teal bars are the neural network's 80% range with the dot at its "
-                      "predicted failure age; orange is when each test capacitor actually failed (between last seen "
-                      "working and found failed), or a triangle where it was still working when testing stopped."
-                      + ZOOM_HELP)
+                      "adds anything. In the chart, purple is the neural network's predicted failure age and its 80% "
+                      "range; teal is when each test capacitor actually failed (between last seen working and found "
+                      "failed), or a triangle where it was still working when testing stopped; the grey tick is when "
+                      "the forecast was made." + ZOOM_HELP)
     table(
         result["model_table"], hide_index=True, width="stretch",
         column_config={
@@ -255,17 +274,21 @@ def _show_results(result: dict, attempts: int) -> None:
     )
     test_rows = result["test_table"]
     test_key = "caplife_rul_zoom_test_" + hashlib.sha256(",".join(test_rows["Capacitor"]).encode()).hexdigest()[:12]
-    _show_zoomable([(test_key, lambda hours: (TEST_LEGEND, _test_chart(test_rows, hours, brush=True)))], columns=1)
+    test_charts = _show_zoomable([(test_key, lambda hours: (TEST_LEGEND, _test_chart(test_rows, hours, brush=True)))],
+                                 columns=1)
     with st.expander("Each test capacitor"):
         table(result["test_table"].round(1), hide_index=True, width="stretch",
                      column_config={"Capacitor": st.column_config.TextColumn(pinned=True)})
 
-    st.subheader("3 · Verdict",
-                 help=f"Checks: at least {MIN_TEST_FAILURES} observed test failures; the 80% range contains at least "
-                      f"{MIN_TEST_COVERAGE:.0%} of them; the average miss is no worse than predicting the average "
-                      f"lifetime; at most {MAX_CENSOR_CONTRADICTIONS:.0%} of still-working test capacitors get a range "
-                      "that ends before their last check. Passing shows the model worked on these test capacitors "
-                      "under these test conditions, not under different ones.")
+    checks = (f"Checks: at least {MIN_TEST_FAILURES} observed test failures; the 80% range contains at least "
+              f"{MIN_TEST_COVERAGE:.0%} of them; the average miss is no worse than predicting the average lifetime; "
+              f"at most {MAX_CENSOR_CONTRADICTIONS:.0%} of still-working test capacitors get a range that ends before "
+              "their last check. Passing shows the model worked on these test capacitors under these test "
+              "conditions, not under different ones.")
+    st.subheader("3 · Verdict", help=checks)
+    verdict = ("**Passed.** The neural network met every check on the test capacitors, so its forecasts are shown "
+               "below." if result["passed"] else "**Forecasts withheld.** The neural network did not pass:")
+    warnings = []
     if result["passed"]:
         st.success("**Passed.** The neural network met every check on the test capacitors, "
                    "so its forecasts are shown below.")
@@ -273,23 +296,28 @@ def _show_results(result: dict, attempts: int) -> None:
         st.warning("**Forecasts withheld.** The neural network did not pass:\n\n"
                    + "\n".join(f"- {reason}" for reason in result["reasons"]))
     if attempts > 1:
-        st.warning(f"You have trained {attempts} different splits of this data. Choosing the split after seeing "
-                   "results weakens the test; report every split you tried.")
+        warnings.append(f"You have trained {attempts} different splits of this data. Choosing the split after seeing "
+                        "results weakens the test; report every split you tried.")
+        st.warning(warnings[-1])
 
     st.subheader("4 · Remaining-life forecasts",
                  help="Each forecast uses all of a capacitor's readings up to its latest one; remaining life counts "
                       "from that reading.")
     forecasts, withheld = result["forecasts"], result["forecasts_withheld"]
+    forecast_message, rul_charts, shown_forecasts = None, [], None
+    history = result.get("forecast_history")
     if not result["forecast_devices"]:
-        st.info("Every capacitor has an outcome row. To forecast a capacitor, include its readings "
-                "without an outcome row.")
+        forecast_message = ("Every capacitor has an outcome row. To forecast a capacitor, include its readings "
+                            "without an outcome row.")
+        st.info(forecast_message)
     elif not result["passed"]:
-        st.write(f"{len(result['forecast_devices'])} capacitor(s) have no outcome row. Their forecasts are not "
-                 "shown because the test did not pass.")
+        forecast_message = (f"{len(result['forecast_devices'])} capacitor(s) have no outcome row. Their forecasts "
+                            "are not shown because the test did not pass.")
+        st.write(forecast_message)
     else:
         if forecasts is not None and len(forecasts):
-            table(_forecast_display(forecasts), hide_index=True, width="stretch", column_config=FORECAST_COLUMNS)
-            history = result.get("forecast_history")
+            shown_forecasts = _forecast_display(forecasts)
+            table(shown_forecasts, hide_index=True, width="stretch", column_config=FORECAST_COLUMNS)
             if history is not None and len(history):
                 st.markdown("##### Remaining-life prediction over time",
                             help="Each point is the forecast the trained model would have made at that reading, "
@@ -298,30 +326,52 @@ def _show_results(result: dict, attempts: int) -> None:
                                  "is shaded." + ZOOM_HELP)
                 device = st.selectbox("Capacitor", list(forecasts["Capacitor"]), key="caplife_rul_forecast_device",
                                       persist_state="session")
-                row = forecasts.loc[forecasts["Capacitor"].eq(device)].iloc[0]
-                summary = (f"**{device}** · remaining life {_hours(row['Remaining from latest, median (h)'])} h "
-                           f"(80% range {_hours(row['Remaining from latest, 80% range from (h)'])} – "
-                           f"{_hours(row['Remaining from latest, 80% range to (h)'])} h) · predicted failure at "
-                           f"{_hours(row['Predicted failure age (h)'])} h")
+                summary = _forecast_summary(forecasts, device)
                 device_history = history.loc[history["Capacitor"].eq(device)]
                 _show_zoomable([(f"caplife_rul_zoom_rul_{device}", lambda hours: (
                     summary, _rul_chart(device_history, None, hours=hours, brush=True)))], columns=1)
+                # The report has every forecast capacitor's chart (zoomed as left on the page).
+                rul_charts = [(_forecast_summary(forecasts, name), _rul_chart(
+                    history.loc[history["Capacitor"].eq(name)], None,
+                    hours=_zoom_hours(f"caplife_rul_zoom_rul_{name}"))) for name in forecasts["Capacitor"]]
         if withheld:
             with st.expander(f"Forecast withheld for {len(withheld)} capacitor(s)", icon=":material/block:"):
                 st.markdown(_reason_list(withheld))
                 st.caption(f"A forecast is withheld when early readings go more than {TRAINING_RANGE_MARGIN:.0%} of "
                            "the training range beyond what the training capacitors showed.")
 
-    st.subheader("Downloads")
+    withheld_note = (f"A forecast is withheld when early readings go more than {TRAINING_RANGE_MARGIN:.0%} of the "
+                     "training range beyond what the training capacitors showed.")
+    view = TrainView(
+        source=context["source"], data_metrics=context["metrics"], split=context["split"],
+        tags=tags, data_note=data_note, excluded=excluded, model_table=result["model_table"],
+        test_legend=TEST_LEGEND, test_chart=test_charts[0][1], test_table=result["test_table"].round(1),
+        passed=result["passed"], verdict=verdict, reasons=[] if result["passed"] else list(result["reasons"]),
+        checks=checks, warnings=warnings, forecast_message=forecast_message, forecasts=shown_forecasts,
+        rul_charts=rul_charts, withheld=withheld, withheld_note=withheld_note,
+        tables={"Model comparison": result["model_table"], "Test results": result["test_table"],
+                "Forecasts": forecasts, "Forecast history": history,
+                "Not used": pd.DataFrame({"Capacitor": list(excluded), "Reason": list(excluded.values())}),
+                "Forecast withheld": pd.DataFrame({"Capacitor": list(withheld), "Reason": list(withheld.values())})})
+    st.session_state[REPORT_VIEW] = view
+
+    st.subheader("Downloads", help="The PDF report is the page as shown, with every forecast capacitor's "
+                                   "remaining-life chart; the Excel workbook has every table in full. Both are built "
+                                   "when you click.")
     report = {**result["report"], "splits_tried_on_this_data_in_session": attempts}
-    cols = st.columns(3)
-    cols[0].download_button("Download full report (JSON)", json.dumps(report, indent=2, allow_nan=False),
-                            "caplife_rul_report.json", mime="application/json", type="primary")
-    cols[1].download_button("Download test results (CSV)", result["test_table"].to_csv(index=False),
-                            "caplife_rul_test_results.csv", mime="text/csv")
+    row = st.container(horizontal=True)
+    row.download_button("Report (PDF)", lambda: pdf_bytes(view), "caplife_train_report.pdf", mime="application/pdf",
+                        type="primary", icon=":material/picture_as_pdf:", key="caplife_rul_report_pdf")
+    row.download_button("Report (Excel)", lambda: xlsx_bytes(view), "caplife_train_report.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        icon=":material/table_view:", key="caplife_rul_report_xlsx")
+    row.download_button("Full report (JSON)", json.dumps(report, indent=2, allow_nan=False),
+                        "caplife_rul_report.json", mime="application/json", icon=":material/data_object:")
+    row.download_button("Test results (CSV)", result["test_table"].to_csv(index=False),
+                        "caplife_rul_test_results.csv", mime="text/csv", icon=":material/download:")
     if forecasts is not None and len(forecasts):
-        cols[2].download_button("Download forecasts (CSV)", forecasts.to_csv(index=False),
-                                "caplife_rul_forecasts.csv", mime="text/csv")
+        row.download_button("Forecasts (CSV)", forecasts.to_csv(index=False), "caplife_rul_forecasts.csv",
+                            mime="text/csv", icon=":material/download:")
 
 
 def render() -> None:
@@ -352,7 +402,7 @@ def render() -> None:
     payload = _inputs()
     if payload is None:
         return
-    measurements, outcomes = payload
+    measurements, outcomes, source = payload
     settings = ("hours", "auto")  # hours unless a column says Days or Weeks; gauge pressure is detected
     try:
         outcome_frame = read_outcomes(outcomes, settings[0])
@@ -364,10 +414,10 @@ def render() -> None:
     experiments = sorted(outcome_frame["Experiment_ID"].astype(str).str.strip().unique()) \
         if "Experiment_ID" in outcome_frame else []
     measured = measurement_frame["Cap_ID"].astype(str).str.strip().nunique() if "Cap_ID" in measurement_frame else 0
-    cards = st.columns(3)
-    cards[0].metric("Capacitors measured", measured)
-    cards[1].metric("With an outcome", len(outcome_frame))
-    cards[2].metric("Experiments", len(experiments))
+    metrics = [("Capacitors measured", f"{measured}"), ("With an outcome", f"{len(outcome_frame)}"),
+               ("Experiments", f"{len(experiments)}")]
+    for card, (name, value) in zip(st.columns(3), metrics):
+        card.metric(name, value)
 
     method, calibration, test = _split_settings(experiments)
     data_key = hashlib.sha256(measurements + b"\0" + outcomes).hexdigest()
@@ -387,5 +437,9 @@ def render() -> None:
         st.error(f"The model could not be trained: {error}")
         return
     attempts = len(st.session_state.get("caplife_rul_tried", {}).get(data_key, ()))
-    _show_results(result, attempts)
+    split = (f"Split by experiment: {calibration} calibrates the 80% range, {test} tests the model, and the other "
+             "experiments train it." if method == SPLIT_BY_EXPERIMENT else
+             "Split by capacitor: about 20% of eligible capacitors calibrate the 80% range, 20% test the model and "
+             "the rest train it.")
+    _show_results(result, attempts, {"source": source, "metrics": metrics, "split": split})
 

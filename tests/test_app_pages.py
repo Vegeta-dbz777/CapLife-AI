@@ -253,3 +253,26 @@ def test_uploaded_file_and_choices_are_kept_when_visiting_other_pages():
     app.button(key="caplife_six_upload_forget").click().run()
     assert not any("Using **bench.csv**" in c.value for c in app.caption)
     assert not app.metric
+
+
+def test_train_the_ai_report_pdf_and_excel_match_the_page():
+    import io
+    from openpyxl import load_workbook
+    from pypdf import PdfReader
+    from caplife.train_report import pdf_bytes, xlsx_bytes
+    app = open_workspace("Train The AI")
+    app.radio(key="caplife_rul_source").set_value("Use the synthetic example").run()
+    app.selectbox(key="caplife_rul_calibration").set_value("SYN_EXP_C").run()
+    app.selectbox(key="caplife_rul_test").set_value("SYN_EXP_B").run()
+    next(b for b in app.button if b.label == "Train and test the model").click().run()
+    assert not app.exception
+    view = app.session_state["caplife_rul_report_view"]
+    assert view.source == "Synthetic example" and view.passed and view.rul_charts
+    pdf = pdf_bytes(view)
+    assert pdf.startswith(b"%PDF")
+    text = " ".join(page.extract_text() for page in PdfReader(io.BytesIO(pdf)).pages)
+    for heading in ("1 · Data used", "2 · Test on capacitors the model never saw", "3 · Verdict",
+                    "4 · Remaining-life forecasts", "Passed."):
+        assert heading in text
+    sheets = load_workbook(io.BytesIO(xlsx_bytes(view))).sheetnames
+    assert sheets[0] == "Overview" and {"Model comparison", "Test results", "Forecasts"} <= set(sheets)
