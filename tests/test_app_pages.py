@@ -187,7 +187,7 @@ def test_upload_pages_have_no_column_guides_or_file_settings():
 
 
 def test_each_chart_zooms_on_its_own_and_resets():
-    """A chart's zoom is its dragged selection (kept under the same key, so full screen stays open)."""
+    """A chart's zoom is its dragged selection, kept in the chart's own state (so full screen stays open)."""
     from caplife import six_rul_page as page
     app = open_workspace("Monitor and Predict")
     app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
@@ -196,20 +196,34 @@ def test_each_chart_zooms_on_its_own_and_resets():
     rul = f"caplife_six_zoom_{device}_rul"
     drag = lambda start, stop: {"selection": {"zoom": {"Hours": [start, stop]}}}
     for key, hours in ((history, (1000.0, 5000.0)), (rul, (2000.0, 9000.0))):  # as a drag in the browser
-        app.session_state[f"{key}_0"] = drag(*hours)
+        app.session_state[key] = drag(*hours)
     app.run()
     assert not app.exception, app.exception
-    domain = lambda chart: [layer.get("encoding", {}).get("x", {}).get("scale", {}).get("domain")
-                            for layer in chart.to_dict()["layer"]]
+
+    def domains(spec):
+        found = [spec.get("encoding", {}).get("x", {}).get("scale", {}).get("domain")]
+        for layer in spec.get("layer", []):
+            found += domains(layer)
+        return found
+
     sections = app.session_state[page.REPORT_VIEW].sections
-    assert [1000.0, 5000.0] in domain(sections[0].charts[0][1])        # the zoomed chart
-    assert [1000.0, 5000.0] not in domain(sections[0].charts[1][1])    # the others keep their range
-    assert [2000.0, 9000.0] in domain(sections[2].charts[0][1])
-    assert {b.key for b in app.button if b.key and b.key.endswith("_reset") and "zoom" in b.key} == \
-        {f"{history}_reset", f"{rul}_reset"}
-    app.button(key=f"{history}_reset").click().run()
-    assert app.session_state[page.CHART_ZOOM][history]["hours"] is None
-    assert app.session_state[page.CHART_ZOOM][rul]["hours"] == (2000.0, 9000.0)
-    app.session_state[f"{rul}_0"] = {"selection": {"zoom": {}}}  # a double-click clears the selection
+    assert [1000.0, 5000.0] in domains(sections[0].charts[0][1].to_dict())       # the zoomed chart
+    assert [1000.0, 5000.0] not in domains(sections[0].charts[1][1].to_dict())   # the others keep their range
+    assert [2000.0, 9000.0] in domains(sections[2].charts[0][1].to_dict())
+    assert "Reset zoom" not in str(sections[2].charts[0][1].to_dict())           # the label is for the page only
+    app.session_state[rul] = {"selection": {"zoom": {}}}  # Reset zoom (or a double-click) clears the selection
     app.run()
-    assert app.session_state[page.CHART_ZOOM][rul]["hours"] is None
+    assert [2000.0, 9000.0] not in domains(app.session_state[page.REPORT_VIEW].sections[2].charts[0][1].to_dict())
+    assert [1000.0, 5000.0] in domains(app.session_state[page.REPORT_VIEW].sections[0].charts[0][1].to_dict())
+
+
+def test_reset_label_clears_the_zoom_in_the_chart_itself():
+    import altair as alt
+    import pandas as pd
+    from caplife import six_rul_page as page
+    chart = alt.layer(alt.Chart(pd.DataFrame({"Hours": [0, 1], "v": [1, 2]})).mark_line().encode(
+        x="Hours:Q", y="v:Q").add_params(page._zoom_brush()))
+    spec = page._with_reset(chart, True).to_dict()
+    assert "zoom_reset" in str(spec) and "Reset zoom" in str(spec)
+    assert "zoom_reset_marks" in str(spec)  # the brush clears on a click on the label
+    assert page._with_reset(chart, False) is chart
