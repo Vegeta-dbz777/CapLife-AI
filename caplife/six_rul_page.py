@@ -427,75 +427,112 @@ def _chart_domain(values: pd.Series, limit: float, digits: int) -> tuple[float, 
     return min(low, limit) - pad, max(high, limit) + pad, None
 
 
-def _show_charts(charts: list[tuple[str, alt.Chart]], keys: list[str] | None = None) -> None:
-    """Charts two per row, each under its caption, as the page shows them. With ``keys``, a drag across a
-    chart (its "zoom" selection) reruns the page, which reads it from the chart's state."""
-    columns = st.columns(2)
+CHART_ZOOM = "caplife_six_chart_zoom"  # per chart: the hours it is zoomed to, and a round number
+ZOOM_HELP = " Drag across a chart to zoom in on those hours; Reset zoom by its title shows the full range again."
+
+
+def _zoom_state(key: str) -> dict:
+    return st.session_state.setdefault(CHART_ZOOM, {}).setdefault(key, {"hours": None, "round": 0})
+
+
+def _zoom_hours(key: str) -> tuple[float, float] | None:
+    """The hours this one chart is zoomed to. A drag across it in the last run sets them; the new round
+    gives the chart a new key, so the dragged box is not drawn again over the zoomed chart."""
+    own = _zoom_state(key)
+    event = st.session_state.get(f"{key}_{own['round']}") or {}
+    picked = (event.get("selection") or {}).get("zoom", {}).get("Hours")
+    if picked and len(picked) == 2 and picked[1] > picked[0]:
+        own.update(hours=(float(picked[0]), float(picked[1])), round=own["round"] + 1)
+    return own["hours"]
+
+
+def _reset_zoom(key: str) -> None:
+    own = _zoom_state(key)
+    own.update(hours=None, round=own["round"] + 1)
+
+
+def _zoom_brush() -> alt.Parameter:
+    """Dragging across a chart selects hours to zoom it to."""
+    return alt.selection_interval(name="zoom", encodings=["x"])
+
+
+def _clipped(chart: alt.LayerChart, zoomed: bool = True) -> alt.LayerChart:
+    """While zoomed, every mark is clipped to the plot, so the chart draws nothing outside its axes.
+    Otherwise the chart is left as it is (labels at the edge may run past the plot)."""
+    if not zoomed:
+        return chart
+    for layer in chart.layer:
+        if isinstance(layer, alt.LayerChart):
+            _clipped(layer, zoomed)
+        elif isinstance(layer.mark, str):
+            layer.mark = alt.MarkDef(type=layer.mark, clip=True)
+        else:
+            layer.mark.clip = True
+    return chart
+
+
+def _show_charts(charts: list[tuple[str, alt.Chart]], keys: list[str] | None = None, columns: int = 2) -> None:
+    """Charts two per row, each under its caption, as the page shows them. With ``keys``, each chart zooms
+    on its own: a drag across it reruns the page (its "zoom" selection), and Reset zoom by its caption
+    returns it to its full range."""
+    grid = st.columns(columns)
     for index, (caption, chart) in enumerate(charts):
-        with columns[index % 2]:
-            st.caption(caption)
-            if keys:
-                st.altair_chart(chart, width="stretch", on_select="rerun", selection_mode="zoom", key=keys[index])
-            else:
+        with grid[index % columns]:
+            if keys is None:
+                st.caption(caption)
                 st.altair_chart(chart, width="stretch")
+                continue
+            key, own = keys[index], _zoom_state(keys[index])
+            if caption or own["hours"]:
+                row = st.container(horizontal=True, vertical_alignment="center", gap="small")
+                if caption:
+                    row.caption(caption, width="content")  # Reset zoom sits right after it, clear of the toolbar
+                if own["hours"]:
+                    row.button("Reset zoom", icon=":material/zoom_out:", type="tertiary", key=f"{key}_reset",
+                               on_click=_reset_zoom, args=(key,),
+                               help=f"Zoomed in on {own['hours'][0]:,.0f} – {own['hours'][1]:,.0f} h.")
+            st.altair_chart(chart, width="stretch", on_select="rerun", selection_mode="zoom",
+                            key=f"{key}_{own['round']}")
 
 
-HISTORY_ZOOM = "caplife_six_history_zoom"  # per capacitor: the hours zoomed in on, and a round number
+def _history_signals(readings: pd.DataFrame) -> list[str]:
+    return [signal for signal in SIGNALS if signal in readings and readings[signal].notna().sum() >= 2]
 
 
 def signal_charts(readings: pd.DataFrame, limits: dict | None = None, reference: bool = False,
                   alternative: pd.DataFrame | None = None, zoom_key: str | None = None
                   ) -> list[tuple[str, alt.Chart]]:
-    """The history charts. With ``zoom_key``, dragging across any chart zooms all of them to those hours."""
+    """The history charts. With ``zoom_key``, each chart can be zoomed on its own by dragging across it."""
     if zoom_key is None:
         charts = signal_chart_specs(readings, limits, reference, alternative)
         _show_charts(charts)
         return charts
-    own = st.session_state.setdefault(HISTORY_ZOOM, {}).setdefault(zoom_key, {"hours": None, "round": 0})
-    widget = lambda index: f"{zoom_key}_{own['round']}_{index}"
-    # A drag on any chart in the last run sets the hours for all of them; a new round gives the charts
-    # new keys, so the dragged box is not drawn again over the zoomed charts.
-    for index in range(len(SIGNALS)):
-        event = st.session_state.get(widget(index)) or {}
-        picked = (event.get("selection") or {}).get("zoom", {}).get("Hours")
-        if picked and len(picked) == 2 and picked[1] > picked[0]:
-            own.update(hours=(float(picked[0]), float(picked[1])), round=own["round"] + 1)
-            break
-
-    def reset():
-        own.update(hours=None, round=own["round"] + 1)
-
-    row = st.container(horizontal=True, vertical_alignment="center")
-    if own["hours"]:
-        start, stop = own["hours"]
-        row.badge(f"Zoomed in: {start:,.0f} – {stop:,.0f} h", icon=":material/zoom_in:", color="blue")
-        row.button("Reset zoom", icon=":material/zoom_out:", on_click=reset, key=f"{zoom_key}_reset")
-    else:
-        row.caption("Drag across a chart to zoom in on those hours.")
-    charts = signal_chart_specs(readings, limits, reference, alternative, hours=own["hours"], brush=True)
-    _show_charts(charts, [widget(index) for index in range(len(charts))])
+    keys = {signal: f"{zoom_key}_{signal}" for signal in _history_signals(readings)}
+    charts = signal_chart_specs(readings, limits, reference, alternative,
+                                zoom={signal: _zoom_hours(key) for signal, key in keys.items()}, brush=True)
+    _show_charts(charts, list(keys.values()))
     return charts
 
 
 def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, reference: bool = False,
-                       alternative: pd.DataFrame | None = None, hours: tuple[float, float] | None = None,
+                       alternative: pd.DataFrame | None = None, zoom: dict | None = None,
                        brush: bool = False) -> list[tuple[str, alt.Chart]]:
     """Each parameter's readings joined in time order, two charts per row, with its end-of-life limit.
 
     Parameters with fewer than two readings are skipped, and blank readings are left out of the
     line. ``reference`` labels the limit as the default reference limit (Analyze measurements).
     ``alternative`` is the estimated history had the capacitor always run at other conditions,
-    drawn gold and dashed next to the measured readings. ``hours`` zooms every chart to that range (the
-    value axis then fits the points inside it), and ``brush`` lets a drag across a chart select a range.
+    drawn gold and dashed next to the measured readings. ``zoom`` maps a parameter to the hours its chart
+    is zoomed to (the value axis then fits the points inside), and ``brush`` lets a drag select hours.
     """
     readings = readings.sort_values("Hours").reset_index(drop=True)
-    x_scale = alt.Scale(domain=list(hours), nice=False) if hours else alt.Undefined
-    inside = lambda frame: (frame if not hours else
-                            frame.loc[frame["Hours"].between(*hours)] if frame["Hours"].between(*hours).any() else frame)
     baseline = readings.bfill().iloc[0]  # each parameter's first available reading
-    signals = [signal for signal in SIGNALS if signal in readings and readings[signal].notna().sum() >= 2]
     charts = []
-    for signal in signals:
+    for signal in _history_signals(readings):
+        hours = (zoom or {}).get(signal)
+        x_scale = alt.Scale(domain=list(hours), nice=False) if hours else alt.Undefined
+        inside = lambda frame: (frame if not hours or not frame["Hours"].between(*hours).any()
+                                else frame.loc[frame["Hours"].between(*hours)])
         # Each point says what it is, then its age and value, like the other charts on the page.
         data = (readings[["Hours", signal]].rename(columns={signal: "value"})
                 .assign(point="Recorded Condition")
@@ -546,7 +583,7 @@ def signal_chart_specs(readings: pd.DataFrame, limits: dict | None = None, refer
                 x=x, y=alt.Y("value:Q", scale=scale), tooltip=other_tip))
             hovers += _hoverable(inside(other), x, alt.Y("value:Q", scale=scale), other_tip, GOLD)
         charts.append((f"**{INDICATOR_LABELS[signal]}** · {kind}: {_limit_text(signal, limits)}",
-                       alt.layer(*layers, *hovers).properties(height=260)))
+                       _clipped(alt.layer(*layers, *hovers).properties(height=260), bool(hours))))
     return charts
 
 
@@ -555,20 +592,27 @@ _signal_charts = signal_charts
 
 def _forecast_charts(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Series,
                      limits: dict | None = None, zoom: bool = False,
-                     reference: tuple[pd.DataFrame, pd.Series] | None = None) -> list[tuple[str, alt.Chart]]:
-    charts = _forecast_chart_specs(readings, forecast, last, limits, zoom, reference)
-    _show_charts(charts)
+                     reference: tuple[pd.DataFrame, pd.Series] | None = None,
+                     zoom_key: str | None = None) -> list[tuple[str, alt.Chart]]:
+    """The forecast charts; with ``zoom_key``, each can be zoomed on its own by dragging across it."""
+    keys = {signal: f"{zoom_key}_{signal}" for signal in _measured(readings)} if zoom_key else {}
+    charts = _forecast_chart_specs(readings, forecast, last, limits, zoom, reference,
+                                   picked={signal: _zoom_hours(key) for signal, key in keys.items()},
+                                   brush=bool(keys))
+    _show_charts(charts, list(keys.values()) or None)
     return charts
 
 
 def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: pd.Series,
                           limits: dict | None = None, zoom: bool = False,
-                          reference: tuple[pd.DataFrame, pd.Series] | None = None) -> list[tuple[str, alt.Chart]]:
+                          reference: tuple[pd.DataFrame, pd.Series] | None = None, picked: dict | None = None,
+                          brush: bool = False) -> list[tuple[str, alt.Chart]]:
     """Each measured parameter from the first reading to the predicted end of life: the measured
     readings (solid) followed by the forecast path from the latest reading (dashed, with its range).
 
     ``reference`` is the forecast and assessment with the recorded operating conditions, drawn in grey
     on the same time axis when the user changed the conditions, so the effect on each parameter shows.
+    ``picked`` maps a parameter to the hours its chart is zoomed to by a drag (``brush``).
     """
     baseline = readings.iloc[0]
     first, latest = float(readings["Hours"].min()), float(last["Hours"])
@@ -579,19 +623,22 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
         right = max(right, latest + float(reference[1]["RUL_high_h"]))
     # Zoomed in, the chart shows the latest readings (a fifth of the width) and the forecast.
     left = max(first, latest - 0.25 * (right - latest)) if zoom else first
-    hours_scale = alt.Scale(domain=[left, right], nice=False)
-    x = alt.X("Hours:Q", title="Hours", scale=hours_scale)
     charts = []
     for signal in _measured(readings):
+        lo, hi = (picked or {}).get(signal) or (left, right)
+        hours_scale = alt.Scale(domain=[lo, hi], nice=False)
+        x = alt.X("Hours:Q", title="Hours", scale=hours_scale)
+        in_span = lambda frame: (frame.loc[frame["Hours"].between(lo, hi)] if frame["Hours"].between(lo, hi).any()
+                                 else frame)
         data = forecast.loc[forecast["signal"].eq(signal)].reset_index(drop=True)
         measured = readings[["Hours", signal]].rename(columns={signal: "value"}).reset_index(drop=True)
         if zoom:  # keep one reading before the window so the line enters from the edge
             inside = measured["Hours"] >= left
             measured = measured.loc[inside | inside.shift(-1, fill_value=False)]
         limit = _limit_value(signal, baseline, limits)
-        values = pd.concat([measured.loc[measured["Hours"] >= left, "value"], data["low"], data["high"]]
-                           + ([reference[0].loc[reference[0]["signal"].eq(signal), "median"]] if reference is not None
-                              else []))
+        values = pd.concat([in_span(measured)["value"], in_span(data)["low"], in_span(data)["high"]]
+                           + ([in_span(reference[0].loc[reference[0]["signal"].eq(signal)])["median"]]
+                              if reference is not None else []))
         bottom, top, off_chart = _chart_domain(values, limit, DIGITS[signal])
         if reference is not None:  # room along the bottom for the two end-of-life labels
             bottom -= 0.12 * (top - bottom)
@@ -616,6 +663,8 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
         history = alt.Chart(measured).mark_line(color=TEAL, strokeWidth=1.8, clip=True, point=alt.OverlayMarkDef(
             color=TEAL, size=26, filled=True)).encode(
             x=x, y=alt.Y("value:Q", title=UNITS[signal], scale=scale), tooltip=measured_tip)
+        if brush:
+            history = history.add_params(_zoom_brush())
         y_value, y_median = alt.Y("value:Q", scale=scale), alt.Y("median:Q", scale=scale)
         # Without changed conditions the forecast is the one for the recorded conditions.
         data = data.assign(point="Prediction for Changed Conditions" if reference is not None
@@ -645,7 +694,7 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
             alt.Chart(edges).mark_point(color=mine, size=30, filled=False, strokeWidth=2, opacity=1).encode(
                 x=x, y=alt.Y("value:Q", scale=scale), tooltip=edge_tip),
         )
-        hovers = [*_hoverable(measured.loc[measured["Hours"] >= left], x, y_value, measured_tip, TEAL),
+        hovers = [*_hoverable(in_span(measured), x, y_value, measured_tip, TEAL),
                   # The latest reading and the end of life sit on vertical lines: larger hover areas.
                   *_hoverable(start, x, y_median, [age, predicted], mine, on_line=True),
                   *_hoverable(ahead.iloc[:-1], x, y_median, ahead_tip, mine),
@@ -712,14 +761,15 @@ def _forecast_chart_specs(readings: pd.DataFrame, forecast: pd.DataFrame, last: 
         else:
             label = f"Limit {limit:{number}} {UNITS[signal]} {'↑' if off_chart == 'above' else '↓'}"
             # At the right edge: the left one holds the "Latest reading" label when zoomed in.
-            layers.append(alt.Chart(pd.DataFrame({"Hours": [right], "value": [top if off_chart == "above" else bottom],
+            layers.append(alt.Chart(pd.DataFrame({"Hours": [hi], "value": [top if off_chart == "above" else bottom],
                                                   "label": [label]}))
                           .mark_text(align="right", dx=-4, baseline="top" if off_chart == "above" else "bottom",
                                      dy=4 if off_chart == "above" else -4, color=ORANGE, fontSize=11)
                           .encode(x=alt.X("Hours:Q", scale=hours_scale), y=alt.Y("value:Q", scale=scale),
                                   text="label:N", tooltip=NO_TOOLTIP))
         charts.append((f"**{INDICATOR_LABELS[signal]}** · limit: {_limit_text(signal, limits)}",
-                       alt.layer(*layers, *points_over_lines(hovers)).properties(height=260)))
+                       _clipped(alt.layer(*layers, *points_over_lines(hovers)).properties(height=260),
+                                (picked or {}).get(signal) is not None)))
     return charts
 
 
@@ -797,12 +847,14 @@ def _with_range(frame: pd.DataFrame, low: str = "RUL_low_h", high: str = "RUL_hi
 
 
 def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd.Series | None = None,
-               changed_history: pd.DataFrame | None = None) -> alt.Chart:
+               changed_history: pd.DataFrame | None = None, hours: tuple[float, float] | None = None,
+               brush: bool = False) -> alt.Chart:
     """Remaining life predicted at every reading (purple, from the readings available then), and from the
     latest reading a countdown to end of life with its 80% range and end-of-life range, like the parameter
     forecasts. ``assessment`` uses the recorded conditions; with changed ones, ``changed_history`` is the
     prediction at each reading had the capacitor run at them from then on, and ``changed_now`` the one at
-    the latest reading (gold line, countdown and end of life)."""
+    the latest reading (gold line, countdown and end of life). ``hours`` zooms the chart to those ages (the
+    remaining-life axis then fits what is inside), and ``brush`` lets a drag across it select them."""
     data = assessment.dropna(subset=["RUL_median_h"])
     recorded_now = data.iloc[-1]
     latest = float(recorded_now["Hours"])
@@ -811,11 +863,16 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
     if true_eol is not None:
         right = max(right, true_eol)
     first = float(data["Hours"].min())
-    hours_scale = alt.Scale(domain=[first, right * 1.02], nice=False)
-    highs = [float(data["RUL_high_h"].max()), *(float(now["RUL_high_h"]) for now in nows.values())]
+    hours_scale = alt.Scale(domain=list(hours) if hours else [first, right * 1.02], nice=False)
+    # The top of the remaining-life axis: the highest range end shown (inside the zoomed hours, if any).
+    shown = [data[["Hours", "RUL_high_h"]].rename(columns={"RUL_high_h": "high"}),
+             *(_countdown(now)[["Hours", "high"]] for now in nows.values())]
     if changed_history is not None and changed_history["RUL_high_h"].notna().any():
-        highs.append(float(changed_history["RUL_high_h"].max()))
-    top = max(highs) * 1.08
+        shown.append(changed_history[["Hours", "RUL_high_h"]].rename(columns={"RUL_high_h": "high"}))
+    shown = pd.concat(shown).dropna()
+    if hours and shown["Hours"].between(*hours).any():
+        shown = shown.loc[shown["Hours"].between(*hours)]
+    top = max(float(shown["high"].max()), 1.0) * 1.08
     # A little room below zero, so lines ending at zero are not drawn on the chart's edge.
     scale = alt.Scale(domain=[-0.05 * top, top], nice=False)
     x = alt.X("Hours:Q", title="Capacitor age (h)", scale=hours_scale)
@@ -847,7 +904,8 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
         alt.Chart(data).mark_area(color=PURPLE, opacity=.25).encode(
             x=x, y=alt.Y("RUL_low_h:Q", scale=scale), y2="RUL_high_h:Q", tooltip=NO_TOOLTIP),
         alt.Chart(data).mark_line(color=PURPLE, strokeWidth=2.2, point=alt.OverlayMarkDef(
-            color=PURPLE, size=30, filled=True)).encode(x=x, y=y, tooltip=past_tip),
+            color=PURPLE, size=30, filled=True)).encode(x=x, y=y, tooltip=past_tip)
+        .add_params(*([_zoom_brush()] if brush else [])),
         alt.Chart(pd.DataFrame({"Hours": [latest]})).mark_rule(color=DIVIDER, strokeWidth=3).encode(
             x=alt.X("Hours:Q", scale=hours_scale), tooltip=[hour("Hours", "Latest reading (h)")]),
         alt.Chart(pd.DataFrame({"Hours": [latest], "value": [top], "label": ["Latest reading"]})).mark_text(
@@ -935,7 +993,7 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
         layers.append(alt.Chart(truth).mark_line(color=ORANGE, strokeDash=[6, 4], strokeWidth=2).encode(
             x=x, y=alt.Y("true:Q", scale=scale), tooltip=tip))
         hovers += _hoverable(truth.iloc[::4], x, alt.Y("true:Q", scale=scale), tip, ORANGE)
-    return alt.layer(*layers, *points_over_lines(hovers)).properties(height=320)
+    return _clipped(alt.layer(*layers, *points_over_lines(hovers)).properties(height=320), bool(hours))
 
 
 # Labels for use mid-sentence: lower case except abbreviations (ESR, H₂).
@@ -1240,7 +1298,7 @@ def render() -> None:
                      "reached by the standard aging rules (electrolyte aging 2× per 10 °C of core temperature and "
                      "with the cube of the voltage ratio; gas from leakage current, 2× per 20 °C), and gas, "
                      "pressure and expansion gains scale with how much faster gas forms per unit of aging. Real "
-                     "capacitors follow these rules only approximately.")
+                     "capacitors follow these rules only approximately." + ZOOM_HELP)
     alternative = conditions.alternative_history(original, planned[str(device)]) if planned.get(str(device)) else None
     notes = []
     if planned.get(str(device)):
@@ -1249,7 +1307,7 @@ def render() -> None:
                      "An estimated history at your conditions needs a recorded core or ambient temperature.")
         st.caption(notes[-1])
     sections.append(ChartSection(history_title, notes, _signal_charts(
-        readings, limits, alternative=alternative, zoom_key=f"caplife_six_history_{device}")))
+        readings, limits, alternative=alternative, zoom_key=f"caplife_six_zoom_{device}_history")))
     has_rul = "RUL_median_h" in assessment and pd.notna(last.get("RUL_median_h"))
     forecast = None
     if has_rul and not bool(last["End_of_life_reached"]):
@@ -1261,7 +1319,7 @@ def render() -> None:
                  "Latest reading). Purple: the trend network's median forecast from there (dashed) and its 80% range "
                  f"(band). Grey line: the predicted end of life at {last['Hours'] + last['RUL_median_h']:,.0f} h, "
                  f"with its 80% range shaded grey. Orange dashed line: your limit. {_first_to_limit(forecast)} is "
-                 "expected to reach its limit first.")
+                 "expected to reach its limit first." + ZOOM_HELP)
         zoom = st.toggle("Zoom in on the forecast", key="caplife_six_forecast_zoom", persist_state="session",
                          help="Show the latest readings and the forecast instead of the whole history.")
         reference = None
@@ -1274,7 +1332,8 @@ def render() -> None:
             st.caption(note + " Hover a shaded range for its hours.")
             notes.append(note)
         sections.append(ChartSection("Predicted parameter trends to end of life", notes,
-                                     _forecast_charts(readings, forecast, last, limits, zoom, reference)))
+                                     _forecast_charts(readings, forecast, last, limits, zoom, reference,
+                                                      zoom_key=f"caplife_six_zoom_{device}_forecast")))
     if assessment["RUL_median_h"].notna().any() if "RUL_median_h" in assessment else False:
         true_eol = truth[device]["eol_h"] if truth and default_limits and not planned.get(str(device)) else None
         changed = recorded_assessment is not None
@@ -1286,7 +1345,7 @@ def render() -> None:
                          + (" Purple: with the recorded conditions. Gold: with your changed conditions; left of the "
                             "line, each point is the prediction at that reading had the capacitor run at your "
                             "conditions from then on." if changed else "")
-                         + (" Orange dashed: the simulated true remaining life." if true_eol else ""))
+                         + (" Orange dashed: the simulated true remaining life." if true_eol else "") + ZOOM_HELP)
         notes = []
         if changed:
             notes.append("Purple: with the recorded conditions. Gold: with your changed conditions.")
@@ -1301,9 +1360,10 @@ def render() -> None:
             if changed:
                 history = _changed_history_cached(original, json.dumps(planned[str(device)], sort_keys=True),
                                                   json.dumps(limits, sort_keys=True), code_version())
+            zoom_key = f"caplife_six_zoom_{device}_rul"
             chart = _rul_chart(recorded_assessment if changed else assessment, true_eol,
-                               last if changed else None, history)
-            st.altair_chart(chart, width="stretch")
+                               last if changed else None, history, hours=_zoom_hours(zoom_key), brush=True)
+            _show_charts([("", chart)], [zoom_key], columns=1)
             sections.append(ChartSection("Remaining-life prediction over time", notes, [("", chart)], columns=1))
 
     with st.expander("About the model and how well it did on simulated data"):

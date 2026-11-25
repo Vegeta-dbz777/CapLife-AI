@@ -186,20 +186,25 @@ def test_upload_pages_have_no_column_guides_or_file_settings():
                        for e in app.expander)
 
 
-def test_history_zoom_shows_its_range_and_resets():
+def test_each_chart_zooms_on_its_own_and_resets():
     from caplife import six_rul_page as page
     app = open_workspace("Monitor and Predict")
     app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
     device = app.selectbox(key="caplife_six_device").value
-    assert any("Drag across a chart to zoom in" in c.value for c in app.caption)
-    zoom_key = f"caplife_six_history_{device}"
-    app.session_state[page.HISTORY_ZOOM] = {zoom_key: {"hours": (1000.0, 5000.0), "round": 1}}
+    history = f"caplife_six_zoom_{device}_history_Capacitance_uF"
+    rul = f"caplife_six_zoom_{device}_rul"
+    app.session_state[page.CHART_ZOOM] = {history: {"hours": (1000.0, 5000.0), "round": 1},
+                                          rul: {"hours": (2000.0, 9000.0), "round": 1}}
     app.run()
     assert not app.exception, app.exception
-    view = app.session_state[page.REPORT_VIEW]
-    spec = view.sections[0].charts[0][1].to_dict()
-    assert any(layer.get("encoding", {}).get("x", {}).get("scale", {}).get("domain") == [1000.0, 5000.0]
-               for layer in spec["layer"])
-    app.button(key=f"{zoom_key}_reset").click().run()
-    assert app.session_state[page.HISTORY_ZOOM][zoom_key]["hours"] is None
-    assert any("Drag across a chart to zoom in" in c.value for c in app.caption)
+    domain = lambda chart: [layer.get("encoding", {}).get("x", {}).get("scale", {}).get("domain")
+                            for layer in chart.to_dict()["layer"]]
+    sections = app.session_state[page.REPORT_VIEW].sections
+    assert [1000.0, 5000.0] in domain(sections[0].charts[0][1])        # the zoomed chart
+    assert [1000.0, 5000.0] not in domain(sections[0].charts[1][1])    # the others keep their range
+    assert [2000.0, 9000.0] in domain(sections[2].charts[0][1])
+    assert {b.key for b in app.button if b.key and b.key.endswith("_reset") and "zoom" in b.key} == \
+        {f"{history}_reset", f"{rul}_reset"}
+    app.button(key=f"{history}_reset").click().run()
+    assert app.session_state[page.CHART_ZOOM][history]["hours"] is None
+    assert app.session_state[page.CHART_ZOOM][rul]["hours"] == (2000.0, 9000.0)
