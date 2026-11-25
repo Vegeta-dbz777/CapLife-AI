@@ -128,7 +128,7 @@ def test_monitor_takes_user_limits_and_forecasts_parameter_trends():
 
 def test_train_the_ai_example_passes_and_forecasts():
     app = open_workspace("Train The AI")
-    app.radio(key="caplife_rul_source").set_value("Use the synthetic example").run()
+    app.radio(key="caplife_rul_source").set_value("Use simulated example capacitors").run()
     app.selectbox(key="caplife_rul_calibration").set_value("SYN_EXP_C").run()
     app.selectbox(key="caplife_rul_test").set_value("SYN_EXP_B").run()
     next(b for b in app.button if b.label == "Train and test the model").click().run()
@@ -261,13 +261,13 @@ def test_train_the_ai_report_pdf_and_excel_match_the_page():
     from pypdf import PdfReader
     from caplife.train_report import pdf_bytes, xlsx_bytes
     app = open_workspace("Train The AI")
-    app.radio(key="caplife_rul_source").set_value("Use the synthetic example").run()
+    app.radio(key="caplife_rul_source").set_value("Use simulated example capacitors").run()
     app.selectbox(key="caplife_rul_calibration").set_value("SYN_EXP_C").run()
     app.selectbox(key="caplife_rul_test").set_value("SYN_EXP_B").run()
     next(b for b in app.button if b.label == "Train and test the model").click().run()
     assert not app.exception
     view = app.session_state["caplife_rul_report_view"]
-    assert view.source == "Synthetic example" and view.passed and view.rul_charts
+    assert view.source == "Simulated example" and view.passed and view.rul_charts
     pdf = pdf_bytes(view)
     assert pdf.startswith(b"%PDF")
     text = " ".join(page.extract_text() for page in PdfReader(io.BytesIO(pdf)).pages)
