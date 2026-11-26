@@ -340,6 +340,8 @@ class TrainedModel(SixRULModel):
         """The lab's calibrated widening of the 80% range early and late in life (one value: both)."""
         self.adjustments = {key: early for key in self.adjustments}
         self.near_adjustments = {key: early if late is None else late for key in self.adjustments}
+        # Two stages only: the built-in model's 80-95% stage does not apply to a lab's calibration.
+        self.mid_adjustments, self.mid_limit = self.near_adjustments, self.near_limit
 
     def late(self, readings: pd.DataFrame, measured, limits) -> np.ndarray:
         """At every reading from the third: whether it is late in life (some parameter past LATE_STAGE of its limit)."""
