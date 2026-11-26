@@ -174,3 +174,20 @@ def test_a_saved_model_loads_back_identical_and_refuses_other_versions(passing, 
     assert not fine_tune.describe(older)["usable"]
     with pytest.raises(fine_tune.ModelFormatError, match="Train it again"):
         fine_tune.load(older)
+
+
+def test_the_range_is_calibrated_separately_early_and_late_in_life(passing):
+    from caplife import fine_tune
+    widening = passing["report"]["calibration_log_adjustment"]
+    assert set(widening) == {"early", "late"}
+    model = passing["model"]
+    assert set(model.adjustments.values()) == {widening["early"]}
+    assert set(model.near_adjustments.values()) == {widening["late"]}
+    assert model.near_limit == fine_tune.LATE_STAGE
+    # A model saved before early/late calibration had one widening; it still loads, with it throughout.
+    files = fine_tune.package(model, {})
+    description = json.loads(files["model.json"])
+    for key in ("late_adjustment", "late_from"):
+        description.pop(key)
+    older = fine_tune.load({**files, "model.json": json.dumps(description).encode()})
+    assert set(older.near_adjustments.values()) == {widening["early"]}

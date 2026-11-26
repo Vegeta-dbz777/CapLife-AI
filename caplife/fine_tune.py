@@ -44,6 +44,9 @@ REPLAY_WEIGHT = 0.5
 EPOCHS = 30
 LEARNING_RATE = 5e-4
 Z90 = float(ndtri(0.9))
+# The 80% range is calibrated separately early and late in life: once some parameter has used this share of
+# its limit, the readings show how fast the capacitor is wearing and the range can be much tighter.
+LATE_STAGE = 0.5
 BUILT_IN_DIR = Path(__file__).resolve().parents[1] / "artifacts" / "six_rul"
 REPLAY_SEED = 4242
 
@@ -322,20 +325,25 @@ class TrainedModel(SixRULModel):
     """A ``SixRULModel`` with fine-tuned networks, the lab's calibration and, optionally, sudden failures."""
 
     def __init__(self, base: SixRULModel, net, path_net, adjustment: float, sudden: SuddenModel | None,
-                 path_adjust: np.ndarray | None = None):
+                 path_adjust: np.ndarray | None = None, late_adjustment: float | None = None):
         self.metadata = copy.deepcopy(base.metadata)
         self.net, self.path_net = net, path_net
         self.path_adjust = base.path_adjust if path_adjust is None else path_adjust
-        self.adjustments = {key: adjustment for key in base.adjustments}
-        self.near_adjustments = dict(self.adjustments)
-        self.near_limit = base.near_limit
+        self.adjustments = dict(base.adjustments)
+        self.near_limit = LATE_STAGE  # the built-in "near a limit" widening becomes the late-life one
         self.train_max = base.train_max
         self.sudden = sudden
+        self.set_adjustment(adjustment, late_adjustment)
 
-    def set_adjustment(self, adjustment: float) -> None:
-        """The lab's calibrated widening of the 80% range, for every combination of parameters."""
-        self.adjustments = {key: adjustment for key in self.adjustments}
-        self.near_adjustments = dict(self.adjustments)
+    def set_adjustment(self, early: float, late: float | None = None) -> None:
+        """The lab's calibrated widening of the 80% range early and late in life (one value: both)."""
+        self.adjustments = {key: early for key in self.adjustments}
+        self.near_adjustments = {key: early if late is None else late for key in self.adjustments}
+
+    def late(self, readings: pd.DataFrame, measured, limits) -> np.ndarray:
+        """At every reading from the third: whether it is late in life (some parameter past LATE_STAGE of its limit)."""
+        seen = pd.DataFrame(six_rul._network_inputs(readings, limits)[1], columns=SIGNALS)[list(measured)]
+        return seen.to_numpy()[MIN_READINGS - 1:].max(axis=1) >= self.near_limit
 
     def raw_quantiles(self, readings: pd.DataFrame, measured, limits) -> np.ndarray:
         """Wear-out percentiles of log(remaining + offset) at every reading from the third, before calibration."""
@@ -361,32 +369,55 @@ class TrainedModel(SixRULModel):
             return table
         readings, measured = self._prepare(readings, measured)
         q, chance = self.combined(readings, measured, limits)
-        pad = self.adjustments[six_rul.subset_key(measured)]
+        key = six_rul.subset_key(measured)
+        pad = np.where(self.late(readings, measured, limits), self.near_adjustments[key], self.adjustments[key])
         rows = table.index[MIN_READINGS - 1:]
         live = ~table.loc[rows, "End_of_life_reached"].to_numpy(dtype=bool)
-        table.loc[rows[live], "RUL_low_h"] = six_rul._to_hours(q[live, 0] - pad)
+        table.loc[rows[live], "RUL_low_h"] = six_rul._to_hours(q[live, 0] - pad[live])
         table.loc[rows[live], "RUL_median_h"] = six_rul._to_hours(q[live, 1])
-        table.loc[rows[live], "RUL_high_h"] = six_rul._to_hours(q[live, 2] + pad)
+        table.loc[rows[live], "RUL_high_h"] = six_rul._to_hours(q[live, 2] + pad[live])
         table.loc[rows, "Sudden_failure_chance"] = chance
         return table
 
 
-def calibrate(model: TrainedModel, histories: dict, rows: pd.DataFrame, measured, limits) -> float | None:
-    """Split-conformal widening (log space) from one reading per calibration capacitor, conservative for
-    failures known only to lie between two checks; None when a still-working capacitor decides it."""
-    scores = []
-    for row in rows.itertuples(index=False):
-        history = histories[row.device]
-        part = history.loc[history["Hours"] <= row.age_h].reset_index(drop=True)
-        q, _ = model.combined(part, measured, limits)
-        low = np.log(row.remaining_lower_h + RUL_OFFSET_H)
-        high = np.log(row.remaining_upper_h + RUL_OFFSET_H) if np.isfinite(row.remaining_upper_h) else np.inf
-        scores.append(max(q[-1, 0] - low, high - q[-1, 2]))
-    rank = math.ceil((len(scores) + 1) * INTERVAL_MASS)
-    if rank > len(scores):
+def calibrate(model: TrainedModel, histories: dict, rows: pd.DataFrame, measured, limits) -> tuple | None:
+    """Split-conformal widening (log space) of the 80% range, (early, late) in life; None when it cannot be finite.
+
+    Every reading of every calibration capacitor is scored, conservatively for failures known only to lie
+    between two checks, and each capacitor counts equally. Within each stage the widening is the weighted
+    quantile at 80% x (1 + 1/capacitors), the usual finite-sample conformal level. Using every reading instead
+    of one per capacitor keeps a single unlucky reading from setting the whole range.
+    """
+    found = []
+    for device, group in rows.groupby("device", sort=False):
+        history = histories[device]
+        q, _ = model.combined(history, measured, limits)
+        late = model.late(history, measured, limits)
+        ages = history["Hours"].to_numpy(dtype=float)[MIN_READINGS - 1:]
+        for row in group.itertuples(index=False):
+            index = int(np.flatnonzero(np.isclose(ages, row.age_h))[0])
+            low = np.log(row.remaining_lower_h + RUL_OFFSET_H)
+            high = np.log(row.remaining_upper_h + RUL_OFFSET_H) if np.isfinite(row.remaining_upper_h) else np.inf
+            found.append((device, bool(late[index]), max(q[index, 0] - low, high - q[index, 2])))
+    scores = pd.DataFrame(found, columns=["device", "late", "score"])
+
+    def widening(part: pd.DataFrame) -> float | None:
+        if part.empty:
+            return None
+        devices = part["device"].nunique()
+        level = min(1.0, INTERVAL_MASS * (1 + 1 / devices))
+        weights = 1 / part.groupby("device")["device"].transform("size").to_numpy(dtype=float)
+        order = np.argsort(part["score"].to_numpy())
+        values, cumulative = part["score"].to_numpy()[order], np.cumsum(weights[order]) / weights.sum()
+        value = float(values[min(np.searchsorted(cumulative, level - 1e-12), len(values) - 1)])
+        return max(value, 0.0) if np.isfinite(value) else None
+
+    early, late = widening(scores.loc[~scores["late"]]), widening(scores.loc[scores["late"]])
+    if early is None and late is None:
         return None
-    value = float(np.sort(scores)[rank - 1])
-    return max(value, 0.0) if np.isfinite(value) else None
+    if (early is None and not scores.loc[~scores["late"]].empty) or (late is None and not scores.loc[scores["late"]].empty):
+        return None  # a stage whose range cannot be finite (still-working capacitors decide it)
+    return (early if early is not None else late, late if late is not None else early)
 
 
 def train(histories: dict, labels: dict, modes: dict, training: list, signals: tuple[str, ...],
@@ -448,7 +479,9 @@ def package(model: TrainedModel, info: dict) -> dict[str, bytes]:
                   "lows": model.sudden.lows.tolist(), "highs": model.sudden.highs.tolist()}
     description = {
         "format": MODEL_FORMAT, "inputs": _inputs_signature(), "hidden": model.metadata.get("hidden", six_rul.HIDDEN),
-        "adjustment": next(iter(model.adjustments.values())), "path_adjust": np.asarray(model.path_adjust).tolist(),
+        "adjustment": next(iter(model.adjustments.values())),
+        "late_adjustment": next(iter(model.near_adjustments.values())), "late_from": model.near_limit,
+        "path_adjust": np.asarray(model.path_adjust).tolist(),
         "sudden": sudden, "info": info,
     }
     files["model.json"] = json.dumps(description, allow_nan=False).encode("utf-8")
@@ -485,6 +518,7 @@ def load(files: dict[str, bytes]) -> TrainedModel:
         duration = DurationModel(np.asarray(part["center"]), np.asarray(part["spread"]), network, part["scale"])
         sudden = SuddenModel(duration, tuple(part["signals"]), tuple(part["conditions"]),
                              np.asarray(part["lows"]), np.asarray(part["highs"]))
+    # Models saved before early/late calibration have one widening for the whole life.
     model = TrainedModel(base, net, path_net, description["adjustment"], sudden,
-                         np.asarray(description["path_adjust"]))
+                         np.asarray(description["path_adjust"]), description.get("late_adjustment"))
     return model

@@ -545,9 +545,10 @@ def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method:
     modes = {device: fine_tune.failure_mode(histories[device], by_label[device], signals, limits) for device in used}
     trained_model = fine_tune.train(histories, by_label, modes, sorted(set(parts["training"]["device"])),
                                     signals, conditions, limits)
-    adjustment = fine_tune.calibrate(trained_model, histories, calibration, signals, limits)
+    # The range is calibrated on every reading of the calibration capacitors, early and late in life.
+    adjustment = fine_tune.calibrate(trained_model, histories, parts["calibration"], signals, limits)
     calibrated = adjustment is not None
-    trained_model.set_adjustment(adjustment or 0.0)
+    trained_model.set_adjustment(*(adjustment or (0.0, 0.0)))
 
     base = fine_tune.built_in()
     average_band, average_calibrated = _average_lifetime(parts["training"], calibration, test)
@@ -590,7 +591,7 @@ def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method:
         "passed": not reasons,
         "withheld_reasons": reasons,
         "warnings": warnings,
-        "calibration_log_adjustment": adjustment,
+        "calibration_log_adjustment": None if adjustment is None else {"early": adjustment[0], "late": adjustment[1]},
         "models": scores,
         "forecast_devices": forecast_devices,
         "forecasts": [] if forecasts is None else forecasts.to_dict(orient="records"),
