@@ -540,4 +540,7 @@
 /* On touch screens a table's toolbar is always shown, above the table; keep it clear of the heading above. */
 @media (hover: none) {
   .stElementContainer:has([data-testid="stDataFrame"]) { margin-top: 1.75rem; }
+  /* A heading's link icon (Streamlit's link to that heading) sticks after a tap on a touch screen and pushes
+     the heading onto a second line; the app does not use heading links. */
+  [data-testid="stHeaderActionElements"] a { display: none; }
 }
