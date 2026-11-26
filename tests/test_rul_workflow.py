@@ -159,3 +159,18 @@ def test_the_trained_model_answers_for_other_limits(passing, example):
     assert remaining[0] < remaining[1] < remaining[2]  # a looser limit leaves more life
     path = passing["model"].forecast(history, remaining[1], passing["parameters"])
     assert set(path["signal"]) == set(passing["parameters"])
+
+
+def test_a_saved_model_loads_back_identical_and_refuses_other_versions(passing, example):
+    from caplife import fine_tune
+    measurements, _ = example
+    files = fine_tune.package(passing["model"], {"trained_on": "Simulated example"})
+    loaded = fine_tune.load(files)
+    history = measurements.loc[measurements["Cap_ID"].eq("SYN_RUNNING_2")].reset_index(drop=True)
+    pd.testing.assert_frame_equal(passing["model"].assess(history, passing["parameters"]),
+                                  loaded.assess(history, passing["parameters"]))
+    assert fine_tune.describe(files) == {"trained_on": "Simulated example", "usable": True}
+    older = {**files, "model.json": files["model.json"].replace(b'"format": 1', b'"format": 0')}
+    assert not fine_tune.describe(older)["usable"]
+    with pytest.raises(fine_tune.ModelFormatError, match="Train it again"):
+        fine_tune.load(older)

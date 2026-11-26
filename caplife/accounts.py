@@ -16,7 +16,7 @@ import streamlit as st
 
 from caplife.tables import table
 
-from caplife.storage import KINDS, DatasetStore, StorageError
+from caplife.storage import KINDS, MAX_MODELS_PER_USER, MODEL_KIND, DatasetStore, StorageError
 
 
 def _secret(section: str):
@@ -144,6 +144,31 @@ def save_controls(kind: str, files: dict[str, bytes], default_name: str, key: st
                 st.error(str(error))
             else:
                 st.success(f"Saved “{name.strip()}”. Open it any time from **My Data** or this page.")
+
+
+def save_model_controls(model, info: dict, default_name: str, key: str, worse_than_built_in: bool = False) -> None:
+    """Let a signed-in user keep a trained model that passed its test, to use it on Monitor and Predict."""
+    if not saving_available():
+        if auth_configured() and current_user() is None and storage_url():
+            st.caption("Sign in (top right) to save this model to your account.")
+        return
+    with st.container(border=True, key=f"{key}_box"):
+        st.markdown("**Save this model**",
+                    help="Saved models are private to your account and listed in My Data, with how they did on "
+                         f"their test. You can keep up to {MAX_MODELS_PER_USER}.")
+        if worse_than_built_in:
+            st.caption("On your test capacitors this model did worse than the built-in model (see the warning "
+                       "above). You can still save it.")
+        name = st.text_input("Model name", value=default_name[:80], max_chars=80, key=f"{key}_name")
+        if st.button("Save model", type="primary", icon=":material/save:", key=f"{key}_save",
+                     disabled=not name.strip()):
+            from caplife.fine_tune import package
+            try:
+                store().save(current_user()["id"], MODEL_KIND, name, package(model, info))
+            except StorageError as error:
+                st.error(str(error))
+            else:
+                st.success(f"Saved “{' '.join(name.split())}”. It is listed in **My Data**.")
 
 
 @st.cache_data(show_spinner=False, ttl=600, max_entries=16)
@@ -276,6 +301,42 @@ def _dataset_row(user: dict, row, timezone) -> None:
                       on_click=_delete_dataset, args=(user["id"], dataset_id))
 
 
+def _model_row(user: dict, row, timezone) -> None:
+    """One saved model: its name, how it did on its test, what its data covered and a delete button."""
+    from caplife.fine_tune import describe
+    model_id = int(row.id)
+    info = describe(_load_cached(storage_url(), user["id"], model_id))
+    with st.container(border=True, horizontal=True, vertical_alignment="center", gap="small",
+                      key=f"caplife_mydata_model_{model_id}"):
+        with st.container(gap=None):
+            st.markdown(f"**{row.name}**")
+            st.caption(f"Trained on {info.get('trained_on', 'your data')} · saved "
+                       f"{local_time(row.created_at, timezone)} · {row.size_bytes / 1024:,.0f} KB")
+            scores = info.get("scores", {})
+            trained, built_in = scores.get("trained", {}), scores.get("built_in", {})
+            if trained.get("miss_h") is not None:
+                test = (f"Test: missed by {trained['miss_h']:,.0f} h on average, {trained['inside']:.0%} of failures "
+                        "inside its 80% range")
+                if built_in.get("miss_h") is not None:
+                    test += f" (built-in model: {built_in['miss_h']:,.0f} h)"
+                st.caption(test + (" · learned sudden failures" if info.get("sudden") else ""))
+            if not info["usable"]:
+                st.caption(":orange[Saved by a different version of CapLife: train it again to use it.]")
+        with st.popover("", icon=":material/info:", help=f"What “{row.name}” was trained on", width="content",
+                        key=f"caplife_mydata_model_info_{model_id}"):
+            st.markdown(f"**{row.name}**")
+            if info.get("endpoint"):
+                st.markdown(f"- **Endpoint:** {info['endpoint']}")
+            if info.get("split"):
+                st.markdown(f"- **Split:** {info['split']}")
+            st.markdown("\n".join(f"- **{what}:** {value}" for what, value in info.get("tested", [])))
+        with st.popover("", icon=":material/delete:", help=f"Delete “{row.name}”", width="content",
+                        key=f"caplife_mydata_model_del_menu_{model_id}"):
+            st.write(f"Delete **{row.name}**? This cannot be undone.")
+            st.button("Delete", type="primary", icon=":material/delete:", key=f"caplife_mydata_model_remove_{model_id}",
+                      on_click=_delete_dataset, args=(user["id"], model_id))
+
+
 def render_my_data() -> None:
     """The My Data page: list, open and delete the signed-in user's datasets."""
     st.header("My Data")
@@ -286,10 +347,13 @@ def render_my_data() -> None:
     if data_store is None:
         st.info("Saving is not set up on this deployment yet.")
         return
-    st.write(f"Datasets saved by **{user['email'] or user['name']}**. Only you can see them.")
-    saved = data_store.list(user["id"])
+    st.write(f"Datasets and trained models saved by **{user['email'] or user['name']}**. Only you can see them.")
+    everything = data_store.list(user["id"])
+    saved = everything.loc[everything["kind"].isin(list(KINDS))]
+    models = everything.loc[everything["kind"].eq(MODEL_KIND)]
+    st.subheader("Datasets")
     if saved.empty:
-        st.info("Nothing saved yet. Upload a dataset below to keep it for later.")
+        st.info("No datasets saved yet. Upload one below to keep it for later.")
     else:
         timezone = viewer_timezone()
         order = st.segmented_control(
@@ -300,12 +364,19 @@ def render_my_data() -> None:
         for row in saved.itertuples(index=False):
             _dataset_row(user, row, timezone)
     _upload_dataset(user, data_store)
+    st.subheader("Trained models", help="Models you trained on Train The AI and saved after they passed their test.")
+    if models.empty:
+        st.info("No trained models yet. Train one on **Train The AI**; once it passes its test, save it there.")
+    else:
+        timezone = viewer_timezone()
+        for row in models.itertuples(index=False):
+            _model_row(user, row, timezone)
     with st.expander("Delete everything"):
-        st.write("Permanently remove every dataset saved to your account.")
+        st.write("Permanently remove every dataset and trained model saved to your account.")
         confirm = st.checkbox("I understand this cannot be undone", key="caplife_mydata_confirm")
         if st.button("Delete all my data", disabled=not confirm, key="caplife_mydata_delete_all"):
             removed = data_store.delete_all(user["id"])
             _load_cached.clear()
-            st.success(f"Deleted {removed} dataset(s).")
-    st.caption("Datasets are stored in the database configured for this app, compressed and labelled with your "
-               "account ID. Signing out does not delete them; use the buttons above.")
+            st.success(f"Deleted {removed} saved item(s).")
+    st.caption("Datasets and models are stored in the database configured for this app, compressed and labelled "
+               "with your account ID. Signing out does not delete them; use the buttons above.")

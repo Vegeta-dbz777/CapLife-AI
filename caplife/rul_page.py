@@ -14,7 +14,7 @@ import streamlit as st
 
 from caplife.tables import table
 
-from caplife.accounts import save_controls, saved_picker
+from caplife.accounts import save_controls, save_model_controls, saved_picker
 from caplife.measurement_review import read_experimental_csv
 from caplife.upload_ui import kept_file_uploader, show_notes
 from caplife.real_data import RealDataValidationError
@@ -104,6 +104,23 @@ def _forecast_summary(forecasts: pd.DataFrame, device: str) -> str:
             f"{_hours(row['Remaining from latest, 80% range to (h)'])} h) · predicted failure at "
             f"{_hours(row['Predicted failure age (h)'])} h"
             + (f" · chance of sudden failure {row[SUDDEN]:.0f}%" if SUDDEN in row else ""))
+
+
+def _model_info(result: dict, context: dict) -> dict:
+    """What a saved model was trained on and how it did on its test, for My Data (and Monitor and Predict)."""
+    from caplife.real_data import MEASUREMENTS
+    from caplife.six_rul import CONDITION_LABELS
+    score = lambda name: {"miss_h": result["report"]["models"][name]["mean_distance_to_observed_window_h"],
+                          "inside": result["report"]["models"][name]["definite_80pct_band_coverage_observed_events"]}
+    return {
+        "trained_on": context["source"], "split": context["split"], "endpoint": result["audit"]["endpoint"],
+        "limits": result["limits"], "parameters": list(result["parameters"]),
+        "parameter_names": [MEASUREMENTS[signal][0].split(" (")[0] for signal in result["parameters"]],
+        "conditions": [CONDITION_LABELS[name] for name in result["operating_conditions"]],
+        "scores": {"trained": score("trained"), "built_in": score("built_in"), "average": score("intercept_only")},
+        "failure_modes": result["failure_modes"], "sudden": result["model"].sudden is not None,
+        "tested": [list(row) for row in result["tested"]], "warnings": list(result.get("warnings", [])),
+    }
 
 
 def _reason_list(reasons: dict) -> str:
@@ -347,6 +364,9 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
                         "settings after seeing results weakens the test; report every one you tried.")
     for warning in warnings:
         st.warning(warning)
+    if result["passed"]:
+        save_model_controls(result["model"], _model_info(result, context), context["default_name"],
+                            "caplife_rul_model", worse_than_built_in=bool(result.get("warnings")))
 
     st.subheader("4 · Remaining-life forecasts",
                  help="Each forecast uses all of a capacitor's readings up to its latest one; remaining life counts "
@@ -501,5 +521,7 @@ def render() -> None:
              "experiments train it." if method == SPLIT_BY_EXPERIMENT else
              "Split by capacitor: about 20% of eligible capacitors calibrate the 80% range, 20% test the model and "
              "the rest train it.")
-    _show_results(result, attempts, {"source": source, "metrics": metrics, "split": split})
+    default_name = source.split(" and ")[0].rsplit(".", 1)[0] + " model"
+    _show_results(result, attempts, {"source": source, "metrics": metrics, "split": split,
+                                     "default_name": default_name})
 
