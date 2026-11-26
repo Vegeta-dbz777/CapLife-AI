@@ -62,6 +62,8 @@ class PageView:
     health_cards: list[dict]
     sections: list[ChartSection]
     model: str = "Built-in model"                         # which model gave remaining life and trends
+    plan: pd.DataFrame | None = None                      # the maintenance planning list
+    plan_horizon: float | None = None
     disclaimer: str = DISCLAIMER
 
 
@@ -377,6 +379,27 @@ def pdf_bytes(report: MonitorReport) -> bytes:
     if view.fleet_note:
         story += [Spacer(1, 4), para(view.fleet_note, caption)]
 
+    # Maintenance planning, as on the page
+    if view.plan is not None and view.plan_horizon is not None:
+        story += [Paragraph(f"Maintenance planning: the next {view.plan_horizon:,.0f} h", h2)]
+        if view.plan.empty:
+            story.append(para(f"No capacitor is likely to reach end of life within the next "
+                              f"{view.plan_horizon:,.0f} h: every 80% range starts later.", body))
+        else:
+            plan = view.plan.rename(columns={"Chance within plan (%)": f"Chance within {view.plan_horizon:,.0f} h (%)"})
+            columns = list(plan.columns)
+            rows = [[Paragraph(_markup(c), head_cell) for c in columns]]
+            for record in plan.itertuples(index=False):
+                rows.append([Paragraph(_markup(_fleet_cell(c, v)), cell) for c, v in zip(columns, record)])
+            grid = Table(rows, colWidths=[width / len(columns)] * len(columns), repeatRows=1, hAlign="LEFT")
+            grid.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F0F2F6")),
+                                      ("LINEBELOW", (0, 0), (-1, -1), 0.4, line),
+                                      ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                                      ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
+            story += [Spacer(1, 4), grid, Spacer(1, 3),
+                      para("Counted from each capacitor's latest reading. Could fail from: the early end of the 80% "
+                           "range; most likely: the predicted remaining life.", caption)]
+
     # Capacitor detail: inputs, metrics and health, as on the page
     detail = [Paragraph("Capacitor detail", h2), para(f"Capacitor: **{view.device}**", body), Spacer(1, 4)]
     if view.parameter_note:
@@ -488,6 +511,8 @@ def xlsx_bytes(report: MonitorReport) -> bytes:
                     tab.write(row, index, value)
 
     sheet("Fleet", report.fleet)
+    if view is not None and view.plan is not None and view.plan_horizon is not None:
+        sheet(f"Plan, next {view.plan_horizon:,.0f} h".replace(",", ""), view.plan)
     detail = report.readings.merge(report.assessment, on="Hours", how="left")
     sheet(f"{report.device} history", detail)
     if report.forecast is not None and len(report.forecast):

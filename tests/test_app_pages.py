@@ -314,3 +314,31 @@ def test_train_the_ai_tests_every_experiment_in_turn_by_default():
     # Every capacitor outside the calibration experiment is tested once, by a model that never saw its experiment.
     assert view.test_table["Experiment"].nunique() == 3 and len(view.test_table) == turns["Test capacitors"].sum()
     assert view.turns is not None and view.split.startswith("Every experiment in turn")
+
+
+def test_maintenance_plan_lists_capacitors_that_could_fail_within_the_hours_planned():
+    import json
+    import caplife.six_rul_page as page
+    from caplife.versioning import code_version
+    measurements, _ = __import__("caplife.six_rul", fromlist=["example_fleet"]).example_fleet()
+    results = page._assess_cached(measurements, json.dumps({}), json.dumps({}), code_version())
+    short, long = page._maintenance_plan(results, 2_000), page._maintenance_plan(results, 30_000)
+    assert set(short["Capacitor"]) <= set(long["Capacitor"]) and len(long) > len(short) > 0
+    # Listed: the 80% range starts within the plan; the most likely first.
+    assert (short["Could fail from (h)"] <= 2_000).all()
+    assert short[page.CHANCE].is_monotonic_decreasing
+    # The chance is 50% at the median and 90% at the top of the 80% range.
+    assert round(page._chance_by(400, 200, 400, 800), 3) == 0.5
+    assert round(page._chance_by(800, 200, 400, 800), 2) == 0.9
+
+
+def test_monitor_and_predict_shows_the_maintenance_plan_and_its_report_copy():
+    app = open_workspace("Monitor and Predict")
+    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
+    assert not app.exception, app.exception
+    assert app.number_input(key="caplife_six_plan_horizon").value == 2_000
+    view = app.session_state["caplife_six_report_view"]
+    assert view.plan_horizon == 2_000 and len(view.plan) > 0
+    app.number_input(key="caplife_six_plan_horizon").set_value(100.0).run()
+    view = app.session_state["caplife_six_report_view"]
+    assert view.plan.empty and any("No capacitor is likely" in s.value for s in app.success)

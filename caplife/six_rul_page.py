@@ -21,7 +21,7 @@ from caplife.file_reader import read_measurement_file
 from caplife.upload_ui import kept_file_uploader, show_notes
 from caplife.real_data import RealDataValidationError, validate_real_measurements
 from caplife.six_rul import (
-    INDICATOR_LABELS, LIMIT_KEYS, MIN_READINGS, SixRULModel, current_limit_used,
+    INDICATOR_LABELS, LIMIT_KEYS, MIN_READINGS, RUL_OFFSET_H, SixRULModel, current_limit_used,
     example_fleet, full_limits, limit_used, subset_key, value_at_fraction,
 )
 from caplife import operating_conditions as conditions
@@ -129,6 +129,86 @@ def _example() -> tuple[pd.DataFrame, dict]:
 # Health is the share of a parameter's allowance to its limit that is still unused. "Good" needs
 # under 30% of it used (for ESR, a rise of under 30% towards the 2x limit); past 60% is "Critical".
 GOOD_HEALTH_PCT, WATCH_HEALTH_PCT = 70, 40
+
+
+PLAN_HORIZON = "caplife_six_plan_horizon"
+CHANCE = "Chance within plan (%)"
+
+
+def _chance_by(horizon: float, low: float, mid: float, high: float) -> float:
+    """Chance that end of life comes within ``horizon`` hours, from the 10th/50th/90th percentiles of remaining
+    life (a normal on the log scale with its own spread below and above the median)."""
+    from scipy.special import ndtr
+    log = lambda hours: np.log(max(float(hours), 0.0) + RUL_OFFSET_H)
+    side = (log(mid) - log(low)) if horizon < mid else (log(high) - log(mid))
+    spread = max(side / 1.2816, 1e-6)
+    return float(ndtr((log(horizon) - log(mid)) / spread))
+
+
+def _maintenance_plan(results: dict, horizon: float) -> pd.DataFrame:
+    """Capacitors that could reach end of life within ``horizon`` operating hours of their latest reading
+    (the early end of their 80% range is inside it), most urgent first; those already at end of life lead."""
+    rows = []
+    for device, (readings, assessment) in results.items():
+        last = assessment.iloc[-1]
+        reached = bool(last["End_of_life_reached"])
+        low, mid, high = (last.get(column, np.nan) for column in ("RUL_low_h", "RUL_median_h", "RUL_high_h"))
+        if not reached and (pd.isna(low) or low > horizon):
+            continue
+        row = {"Capacitor": device, "Status": _status(last["Overall_health_pct"], reached),
+               CHANCE: 100.0 if reached else 100 * _chance_by(horizon, low, mid, high),
+               "Could fail from (h)": 0.0 if reached else low, "Most likely (h)": 0.0 if reached else mid,
+               "Limiting indicator": last["Limiting_indicator"], "Latest reading (h)": last["Hours"]}
+        if "Sudden_failure_chance" in assessment and pd.notna(last.get("Sudden_failure_chance", np.nan)):
+            row["Sudden failure (%)"] = 100 * last["Sudden_failure_chance"]
+        rows.append(row)
+    columns = ["Capacitor", "Status", CHANCE, "Could fail from (h)", "Most likely (h)", "Limiting indicator",
+               "Latest reading (h)"]
+    plan = pd.DataFrame(rows)
+    if plan.empty:
+        return pd.DataFrame(columns=columns)
+    return plan.sort_values([CHANCE, "Could fail from (h)"], ascending=[False, True]).reset_index(drop=True)
+
+
+def _plan_section(results: dict) -> tuple[pd.DataFrame, float]:
+    """The maintenance planning list; picking a row opens that capacitor below."""
+    st.subheader("Maintenance planning",
+                 help="Which capacitors could reach end of life soon: those whose 80% range starts within the "
+                      "hours you plan for, counted from each capacitor's latest reading, most likely first. Pick a "
+                      "row to open that capacitor under Capacitor detail.")
+    left, _ = st.columns(2)
+    horizon = float(left.number_input(
+        "Plan for the next … operating hours", min_value=100.0, max_value=1_000_000.0, value=2_000.0, step=500.0,
+        format="%.0f", key=PLAN_HORIZON, persist_state="session",
+        help="Counted from each capacitor's latest reading."))
+    plan = _maintenance_plan(results, horizon)
+    if plan.empty:
+        st.success(f"No capacitor is likely to reach end of life within the next {horizon:,.0f} h: every 80% range "
+                   "starts later.", icon=":material/event_available:")
+        return plan, horizon
+
+    def open_capacitor():
+        rows = st.session_state["caplife_six_plan_table"].selection.rows
+        if rows:
+            st.session_state["caplife_six_device"] = plan.iloc[rows[0]]["Capacitor"]
+
+    table(plan, hide_index=True, width="stretch", on_select=open_capacitor, selection_mode="single-row",
+          key="caplife_six_plan_table", column_config={
+              "Capacitor": st.column_config.TextColumn(pinned=True),
+              CHANCE: st.column_config.ProgressColumn(
+                  f"Chance within {horizon:,.0f} h", min_value=0, max_value=100, format="%.0f%%",
+                  help="The chance of reaching end of life within the hours you plan for, from the predicted "
+                       "remaining life and its 80% range."),
+              "Could fail from (h)": st.column_config.NumberColumn(
+                  help="The early end of the 80% range: hours after the latest reading."),
+              "Most likely (h)": st.column_config.NumberColumn(
+                  help="The predicted remaining life (median): hours after the latest reading."),
+              "Sudden failure (%)": st.column_config.NumberColumn(
+                  format="%.0f", help="The chance that a sudden failure, rather than a parameter reaching its "
+                                      "limit, ends the capacitor's life.")})
+    st.download_button("Maintenance plan (CSV)", plan.to_csv(index=False), "caplife_maintenance_plan.csv",
+                       mime="text/csv", icon=":material/download:", key="caplife_six_plan_csv")
+    return plan, horizon
 
 
 def _status(health: float, reached: bool) -> str:
@@ -1440,6 +1520,8 @@ def render() -> None:
     if fleet_note:
         st.caption(fleet_note)
 
+    plan, horizon = _plan_section(results)
+
     st.subheader("Capacitor detail")
     device = st.selectbox("Capacitor", list(results), key="caplife_six_device", persist_state="session")
     readings, assessment = results[device]
@@ -1601,7 +1683,7 @@ def render() -> None:
     view = PageView(source=label, fleet_metrics=fleet_metrics, fleet=fleet, fleet_note=fleet_note, device=str(device),
                     parameter_note=parameter_note, limits=_limit_boxes(limits, measured), conditions=condition_boxes,
                     badges=badges, messages=messages, metrics=metrics, metrics_note=metrics_note,
-                    health_cards=health_cards, sections=sections,
+                    health_cards=health_cards, sections=sections, plan=plan, plan_horizon=horizon,
                     model=f"{trained['name']} (trained on {trained.get('trained_on', 'your data')})" if trained
                     else "Built-in model", disclaimer=TRAINED_DISCLAIMER if trained else DISCLAIMER)
     st.session_state[REPORT_VIEW] = view  # the page as last shown, for the report (and tests)
