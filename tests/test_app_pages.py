@@ -287,3 +287,11 @@ def test_train_the_ai_report_pdf_and_excel_match_the_page():
         assert heading in text
     sheets = load_workbook(io.BytesIO(xlsx_bytes(view))).sheetnames
     assert sheets[0] == "Overview" and {"Model comparison", "Test results", "Forecasts"} <= set(sheets)
+
+
+def test_suggested_model_names_drop_the_measurements_part_of_the_file_name():
+    from caplife.rul_page import _model_name
+    assert _model_name("batch_A_measurements.csv and batch_A_outcomes.csv") == "batch_A model"
+    assert _model_name("Lab readings v2.xlsx and outcomes.xlsx") == "Lab readings v2 model"
+    assert _model_name("Simulated example") == "Simulated example model"  # a saved dataset's or the example's name
+    assert _model_name("measurements.csv and outcomes.csv") == "My model"

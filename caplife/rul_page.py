@@ -106,6 +106,15 @@ def _forecast_summary(forecasts: pd.DataFrame, device: str) -> str:
             + (f" · chance of sudden failure {row[SUDDEN]:.0f}%" if SUDDEN in row else ""))
 
 
+def _model_name(source: str) -> str:
+    """A suggested name for a model trained on this data: "Lab run 3 model", "batch_A model" (from batch_A_measurements.csv)."""
+    import re
+    stem = source.split(" and ")[0].rsplit(".", 1)[0] if source.endswith((".csv", ".xlsx")) or " and " in source \
+        else source
+    stem = re.sub(r"[\s_\-]*(measurements?|readings?|history)$", "", stem, flags=re.IGNORECASE).strip(" _-")
+    return f"{stem or 'My'} model"
+
+
 def _model_info(result: dict, context: dict) -> dict:
     """What a saved model was trained on and how it did on its test, for My Data (and Monitor and Predict)."""
     from caplife.real_data import MEASUREMENTS
@@ -521,7 +530,7 @@ def render() -> None:
              "experiments train it." if method == SPLIT_BY_EXPERIMENT else
              "Split by capacitor: about 20% of eligible capacitors calibrate the 80% range, 20% test the model and "
              "the rest train it.")
-    default_name = source.split(" and ")[0].rsplit(".", 1)[0] + " model"
+    default_name = _model_name(source)
     _show_results(result, attempts, {"source": source, "metrics": metrics, "split": split,
                                      "default_name": default_name})
 
