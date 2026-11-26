@@ -280,6 +280,7 @@ def test_my_data_sorts_newest_or_oldest_first(database, monkeypatch):
 def train_example(app: AppTest) -> AppTest:
     app.sidebar.radio(key=WORKSPACE_KEY).set_value("Train an RUL model on uploaded outcomes").run()
     app.radio(key="caplife_rul_source").set_value("Use simulated example capacitors").run()
+    app.radio(key="caplife_rul_split_v2").set_value("One test experiment").run()
     app.selectbox(key="caplife_rul_calibration").set_value("SYN_EXP_C").run()
     app.selectbox(key="caplife_rul_test").set_value("SYN_EXP_B").run()
     next(b for b in app.button if b.label == "Train and test the model").click().run()

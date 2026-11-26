@@ -6,7 +6,7 @@ import pytest
 from caplife.real_data import RealDataValidationError
 from caplife.rul_example import example_dataset
 from caplife.rul_workflow import (
-    SPLIT_BY_DEVICE, SPLIT_BY_EXPERIMENT, device_roles, outcome_template_csv, read_outcomes,
+    SPLIT_BY_DEVICE, SPLIT_BY_EXPERIMENT, SPLIT_ROTATE, device_roles, outcome_template_csv, read_outcomes,
     run_rul_workflow,
 )
 from caplife.six_indicator_validation import OUTCOME_COLUMNS
@@ -191,3 +191,22 @@ def test_the_range_is_calibrated_separately_early_and_late_in_life(passing):
         description.pop(key)
     older = fine_tune.load({**files, "model.json": json.dumps(description).encode()})
     assert set(older.near_adjustments.values()) == {widening["early"]}
+
+
+
+def test_every_experiment_in_turn_pools_the_tests_and_forecasts_from_a_final_model(example):
+    measurements, outcomes = example
+    steps = []
+    result = run_rul_workflow(measurements, outcomes, SPLIT_ROTATE, "SYN_EXP_A",
+                              progress=lambda share, text: steps.append(share))
+    turns = result["turns"]
+    assert turns["Test experiment"].tolist() == ["SYN_EXP_B", "SYN_EXP_C", "SYN_EXP_D"]
+    # Every eligible capacitor outside the calibration experiment is a test capacitor once.
+    assert result["roles"]["test"] == int(turns["Test capacitors"].sum()) == len(result["test_table"])
+    assert set(result["test_table"]["Experiment"]) == {"SYN_EXP_B", "SYN_EXP_C", "SYN_EXP_D"}
+    # The final model trains on every experiment except the calibration one.
+    assert result["experiments_by_role"]["training"] == ["SYN_EXP_B", "SYN_EXP_C", "SYN_EXP_D"]
+    assert steps[0] == 0 and steps[-1] == 1 and steps == sorted(steps)
+    json.dumps(result["report"], allow_nan=False)
+    with pytest.raises(ValueError, match="calibration experiment"):
+        run_rul_workflow(measurements, outcomes, SPLIT_ROTATE, "NOT_AN_EXPERIMENT")

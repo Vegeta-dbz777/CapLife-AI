@@ -46,6 +46,7 @@ class TrainView:
     withheld: dict
     withheld_note: str
     tested: pd.DataFrame | None = None              # what the user's data covered
+    turns: pd.DataFrame | None = None               # each experiment as the test, when tested in turn
     tested_note: str = ""
     tables: dict = field(default_factory=dict)      # every table in full, for the Excel workbook
 
@@ -140,7 +141,10 @@ def pdf_bytes(view: TrainView) -> bytes:
     def chart_image(chart):
         png = chart_png(chart, 1100)
         w, h = ImageReader(BytesIO(png)).getSize()
-        return Image(BytesIO(png), width=width, height=width * h / w)
+        # A tall chart (many test capacitors) is scaled down to fit a page, keeping its shape.
+        tallest = page_h - 2 * 28 - 40
+        scale = min(width / w, tallest / h)
+        return Image(BytesIO(png), width=w * scale, height=h * scale, hAlign="LEFT")
 
     def reasons(items: dict) -> list:
         return [para(f"• **{device}**: {reason}", caption) for device, reason in items.items()]
@@ -158,7 +162,11 @@ def pdf_bytes(view: TrainView) -> bytes:
         story += [Spacer(1, 6), para("**What your data tested**", caption), Spacer(1, 3), grid(view.tested, [0.25, 0.75]),
                   Spacer(1, 2), para(view.tested_note, caption)]
 
-    story += [Paragraph("2 · Test on capacitors the model never saw", h2), grid(view.model_table), Spacer(1, 8),
+    story += [Paragraph("2 · Test on capacitors the model never saw", h2), grid(view.model_table), Spacer(1, 8)]
+    if view.turns is not None and len(view.turns):
+        story += [KeepTogether([para("**Each experiment as the test**", caption), Spacer(1, 3), grid(view.turns)]),
+                  Spacer(1, 8)]
+    story += [
               KeepTogether([para(view.test_legend, caption), Spacer(1, 3), chart_image(view.test_chart)]),
               Spacer(1, 6), para("**Each test capacitor**", caption), Spacer(1, 3), grid(view.test_table)]
 
