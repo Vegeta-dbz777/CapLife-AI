@@ -362,3 +362,11 @@ def test_choosing_a_trained_model_signed_out_asks_to_sign_in(database, monkeypat
     assert not app.exception, app.exception
     assert any("Sign in (top right) to use the models you trained" in i.value for i in app.info)
     assert app.session_state["caplife_six_model_key"] == "built-in"
+
+
+def test_an_app_update_gets_a_fresh_store(database, monkeypatch):
+    # Streamlit Cloud updates the code without restarting: a store made by the old code must not be reused.
+    first = accounts.store()
+    assert accounts.store() is first
+    monkeypatch.setattr(accounts, "code_version", lambda: "after-an-update")
+    assert accounts.store() is not first

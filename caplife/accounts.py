@@ -16,6 +16,7 @@ import streamlit as st
 
 from caplife.tables import table
 
+from caplife.versioning import code_version
 from caplife.storage import KINDS, MAX_MODELS_PER_USER, MODEL_KIND, DatasetStore, StorageError
 
 
@@ -67,7 +68,9 @@ def storage_url() -> str | None:
 
 
 @st.cache_resource(show_spinner=False)
-def _open_store(url: str) -> DatasetStore:
+def _open_store(url: str, version: str = "") -> DatasetStore:
+    """One store per database and app version: Streamlit Cloud applies an update without restarting, so a
+    store made by the old code (with its old rules, such as which kinds it accepts) must not outlive it."""
     return DatasetStore(url)
 
 
@@ -76,7 +79,7 @@ def store() -> DatasetStore | None:
     if not url:
         return None
     try:
-        return _open_store(url)
+        return _open_store(url, code_version())
     except Exception:  # Unreachable database: run without saving rather than fail the page.
         st.warning("Saved datasets are unavailable right now because the database could not be reached.")
         return None
@@ -173,7 +176,7 @@ def save_model_controls(model, info: dict, default_name: str, key: str, worse_th
 
 @st.cache_data(show_spinner=False, ttl=600, max_entries=16)
 def _load_cached(url: str, owner: str, dataset_id: int) -> dict[str, bytes]:
-    return _open_store(url).load(owner, dataset_id)
+    return _open_store(url, code_version()).load(owner, dataset_id)
 
 
 def saved_picker(kind: str, key: str) -> tuple[dict[str, bytes], str] | None:
