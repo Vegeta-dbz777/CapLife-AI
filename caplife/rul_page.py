@@ -18,7 +18,7 @@ from caplife.tables import table
 
 from caplife.accounts import save_controls, save_model_controls, saved_picker
 from caplife.measurement_review import read_experimental_csv
-from caplife.upload_ui import kept_file_uploader, show_notes
+from caplife.upload_ui import kept_file_uploader, matched_file, show_notes
 from caplife.real_data import RealDataValidationError
 from caplife.rul_example import example_dataset
 from caplife.versioning import code_version
@@ -231,15 +231,19 @@ def _inputs() -> tuple[bytes, bytes, str] | None:
         st.download_button("Download outcome template", outcome_template_csv(),
                            "caplife_rul_outcomes_template.csv", mime="text/csv")
     st.caption("Uploads are processed on the app server and are not stored unless you sign in and save them.")
-    if measurements is None or outcomes is None:
-        return None
     for upload in (measurements, outcomes):
-        if upload.size > 8 * 1024 * 1024:
+        if upload is not None and upload.size > 8 * 1024 * 1024:
             st.error(f"{upload.name} exceeds the 8 MB limit.")
             return None
-    save_controls("train_rul", {"measurements": measurements.getvalue(), "outcomes": outcomes.getvalue()},
-                  measurements.name.rsplit(".", 1)[0], "caplife_rul")
-    return measurements.getvalue(), outcomes.getvalue(), f"{measurements.name} and {outcomes.name}"
+    matched = {}
+    for kind, upload, place in (("measurements", measurements, left), ("outcomes", outcomes, right)):
+        if upload is not None:
+            with place:
+                matched[kind] = matched_file(upload.name, upload.getvalue(), kind, f"caplife_rul_{kind}")
+    if measurements is None or outcomes is None or None in matched.values():
+        return None
+    save_controls("train_rul", matched, measurements.name.rsplit(".", 1)[0], "caplife_rul")
+    return matched["measurements"], matched["outcomes"], f"{measurements.name} and {outcomes.name}"
 
 
 def _limit_inputs(measured: tuple[str, ...]) -> dict:

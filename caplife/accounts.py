@@ -243,12 +243,18 @@ def _upload_dataset(user: dict, data_store: DatasetStore) -> None:
                                                           key=f"caplife_mydata_up_meas_{round_}"),
                        "outcomes": right.file_uploader("Outcomes (CSV or Excel)", type=types,
                                                        key=f"caplife_mydata_up_out_{round_}")}
+        from caplife.upload_ui import matched_file
+        matched = {}
+        for label, upload in uploads.items():
+            if upload is not None:
+                with (st.container() if kind == "six_parameter" else (left if label == "measurements" else right)):
+                    matched[label] = matched_file(upload.name, upload.getvalue(), label, f"caplife_mydata_{label}")
         first = uploads["measurements"]
         name = st.text_input("Name", value=first.name.rsplit(".", 1)[0][:80] if first else "", max_chars=80,
                              key=f"caplife_mydata_up_name_{round_}_{first.name if first else ''}")
-        ready = all(uploads.values()) and bool(name.strip())
+        ready = all(uploads.values()) and None not in matched.values() and bool(name.strip())
         if st.button("Save dataset", type="primary", disabled=not ready, key="caplife_mydata_upload_save"):
-            files = {label: upload.getvalue() for label, upload in uploads.items()}
+            files = dict(matched)
             problem = _check_files(kind, files, first.name)
             if problem:
                 st.error(f"The file could not be used: {problem}")

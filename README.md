@@ -170,6 +170,16 @@ and pressure is taken as absolute unless a capacitor's first reading is below
 80 kPa, which is read as gauge pressure and converted. The page lists every
 adjustment; no reading is invented.
 
+Any other column names work too. After upload, a **Columns** table lists each column
+of the file with a few example values and a *Use as* choice, guessed from its name
+(`Serial number` → Capacitor ID, `Cap (nF)` → Capacitance in nF, `ESR (mOhm)` →
+ESR in mΩ, `Failed at (h)` → Failed by). Choose the unit the values are in and they
+are converted (nF/mF, mΩ, nA/mA, mm, bar/psi, kHz, days/weeks/months); columns
+marked *Not used* are left out. The page reads nothing until the capacitor ID and
+time (and, for outcomes, every outcome column) are chosen. A matched file is saved
+in its matched form, so it opens again from My Data without matching. The logic is
+in `caplife/column_match.py`.
+
 ## Run the app locally (Windows / macOS / Linux)
 
 1. Install Python 3.11 or 3.12 (Python 3.13 may work depending on installed packages).
