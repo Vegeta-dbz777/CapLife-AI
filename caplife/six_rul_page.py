@@ -14,7 +14,7 @@ import streamlit as st
 from caplife.tables import table
 from caplife.chart_hover import (NO_TOOLTIP, hoverable as _hoverable, hoverable_rule as _hoverable_rule,
                                  points_over_lines, restart_names)
-from caplife.monitor_report import ChartSection, MonitorReport, PageView, pdf_bytes, xlsx_bytes
+from caplife.monitor_report import DISCLAIMER, ChartSection, MonitorReport, PageView, pdf_bytes, xlsx_bytes
 
 from caplife.accounts import save_controls, saved_picker
 from caplife.file_reader import read_measurement_file
@@ -29,6 +29,11 @@ from caplife.six_sim import ATMOSPHERE_KPA, CONDITION_COLUMNS, EOL_LIMITS, LIMIT
 from caplife.versioning import code_version
 
 ARTIFACT_DIR = Path(__file__).resolve().parents[1] / "artifacts" / "six_rul"
+MODEL_KEY = "caplife_six_model_key"  # which model the page uses: built-in, or trained:<owner>:<id>
+BUILT_IN_KEY = "built-in"
+BUILT_IN, MINE = "Built-in model", "My trained model"
+TRAINED_DISCLAIMER = ("Model trained on Train The AI: tested only on its own test capacitors; beyond those it relies on "
+                      "simulated training. Not a maintenance or safety tool.")
 UPLOAD, EXAMPLE, SAVED = "Upload my data", "Use simulated example capacitors", "My saved datasets"
 UNITS = {"Capacitance_uF": "µF", "ESR_ohm": "Ω", "Leakage_uA": "µA", "Case_Expansion_um": "µm",
          "H2_Generated_mL_STP": "mL", "Pressure_Abs_kPa": "kPa"}
@@ -86,8 +91,30 @@ def _load_model(version: str) -> SixRULModel:
     return SixRULModel(ARTIFACT_DIR)
 
 
-def _model() -> SixRULModel:
+@st.cache_resource(show_spinner="Loading your trained model…", max_entries=8)
+def _load_trained(url: str, owner: str, model_id: int, version: str) -> SixRULModel:
+    """A model the user saved on Train The AI, read from their own account (the key names the owner)."""
+    from caplife.accounts import _open_store
+    from caplife.fine_tune import load
+    return load(_open_store(url).load(owner, model_id))
+
+
+def _model_for(key: str) -> SixRULModel:
+    """The built-in model, or ``trained:<owner>:<id>``: one the user trained and saved."""
+    if key.startswith("trained:"):
+        from caplife.accounts import storage_url
+        owner, model_id = key.removeprefix("trained:").rsplit(":", 1)  # account IDs may contain ":"
+        return _load_trained(storage_url(), owner, int(model_id), code_version())
     return _load_model(code_version())
+
+
+def _model_key() -> str:
+    return st.session_state.get(MODEL_KEY, BUILT_IN_KEY)
+
+
+def _model() -> SixRULModel:
+    """The model every prediction on the page comes from: built-in, or the trained one the user chose."""
+    return _model_for(_model_key())
 
 
 @st.cache_data(show_spinner=False)
@@ -210,14 +237,14 @@ def _parse(payload: bytes, label: str, save: bool,
 
 
 @st.cache_data(show_spinner="Assessing capacitors…", max_entries=8)
-def _assess_cached(measurements: pd.DataFrame, limits_json: str, planned_json: str,
-                   version: str) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
+def _assess_cached(measurements: pd.DataFrame, limits_json: str, planned_json: str, version: str,
+                   model_key: str = BUILT_IN_KEY) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
     """Each capacitor's readings as the model sees them and its assessment.
 
     Operating conditions a user changed replace the newest reading's conditions, so the predictions
     from that reading on assume them; earlier predictions are unchanged.
     """
-    model = _model()
+    model = _model_for(model_key)
     limits, planned = json.loads(limits_json), json.loads(planned_json)
     results = {}
     for device, readings in measurements.groupby("Cap_ID", sort=True):
@@ -229,16 +256,17 @@ def _assess_cached(measurements: pd.DataFrame, limits_json: str, planned_json: s
 
 
 @st.cache_data(show_spinner=False, max_entries=16)
-def _forecast_cached(readings: pd.DataFrame, remaining_h: float, limits_json: str, version: str) -> pd.DataFrame:
-    return _model().forecast(readings, remaining_h, _measured(readings), json.loads(limits_json))
+def _forecast_cached(readings: pd.DataFrame, remaining_h: float, limits_json: str, version: str,
+                     model_key: str = BUILT_IN_KEY) -> pd.DataFrame:
+    return _model_for(model_key).forecast(readings, remaining_h, _measured(readings), json.loads(limits_json))
 
 
 @st.cache_data(show_spinner="Predicting with your conditions…", max_entries=16)
 def _changed_history_cached(readings: pd.DataFrame, planned_json: str, limits_json: str,
-                            version: str) -> pd.DataFrame:
+                            version: str, model_key: str = BUILT_IN_KEY) -> pd.DataFrame:
     """At every reading from the third, the remaining life predicted if the capacitor ran at the planned
     conditions from that reading on (each from the readings available then)."""
-    model, planned, limits = _model(), json.loads(planned_json), json.loads(limits_json)
+    model, planned, limits = _model_for(model_key), json.loads(planned_json), json.loads(limits_json)
     measured, rows = _measured(readings), []
     for end in range(MIN_READINGS - 1, len(readings)):
         part = conditions.with_planned(readings.iloc[:end + 1].reset_index(drop=True), planned)
@@ -253,7 +281,7 @@ def _measured(readings: pd.DataFrame) -> tuple[str, ...]:
 
 def _assess(measurements: pd.DataFrame, limits: dict, planned: dict) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
     return _assess_cached(measurements, json.dumps(limits, sort_keys=True), json.dumps(planned, sort_keys=True),
-                          code_version())
+                          code_version(), _model_key())
 
 
 def _device_limits(devices) -> dict:
@@ -319,6 +347,9 @@ def _fleet_table(results: dict, truth: dict | None, limits: dict | None = None) 
                                               if has_rul else f"Needs {MIN_READINGS} readings"),
             "Predicted end-of-life age (h)": last["Hours"] + last["RUL_median_h"] if has_rul else np.nan,
         }
+        if "Sudden_failure_chance" in assessment:  # a trained model that learned sudden failures
+            chance = last.get("Sudden_failure_chance", np.nan)
+            row["Sudden failure (%)"] = 100 * chance if has_rul and pd.notna(chance) else np.nan
         row.update(conditions.summary_columns(results[device][0]))
         if truth:
             # The simulated truth uses the default limits; it does not apply once a user changes them.
@@ -1185,9 +1216,37 @@ def _model_card(measured: tuple[str, ...]) -> None:
                "`python -m caplife.six_rul`.")
 
 
-def _parameter_note(measured: tuple[str, ...]) -> str:
-    accuracy = _model().metrics_for(measured)
+def _trained_card(info: dict) -> None:
+    """The trained model's own story: what it learned from and how it did on capacitors it never saw."""
+    st.markdown(
+        f"- **What it is:** the built-in AI, trained further on Train The AI with {info.get('trained_on', 'your data')}. "
+        "It has the same two networks, so every feature here works with it: any of the six parameters, your "
+        "limits, operating conditions and each parameter's path to end of life."
+        + (" It also learned how likely a sudden failure (open circuit, short, vent) is." if info.get("sudden") else "")
+        + f"\n- **Endpoint in its data:** {info.get('endpoint', 'not recorded')}"
+        + (f"\n- **Split:** {info['split']}" if info.get("split") else ""))
+    scores = info.get("scores", {})
+    rows = [{"Model": name, "Average miss (h)": scores.get(key, {}).get("miss_h"),
+             "Failures inside 80% range": scores.get(key, {}).get("inside")}
+            for name, key in (("This trained model", "trained"), ("Built-in model", "built_in"),
+                              ("Average lifetime only", "average"))]
+    st.markdown("**Test on capacitors it never saw**")
+    table(pd.DataFrame(rows), hide_index=True, width="stretch", column_config={
+        "Failures inside 80% range": st.column_config.NumberColumn(format="percent")})
+    st.markdown("**What its data tested**\n\n" + "\n".join(f"- **{what}:** {value}"
+                                                           for what, value in info.get("tested", [])))
+    st.caption("Answers about conditions, limits or parameters outside these come from what the AI knew before "
+               "training on that data.")
+
+
+def _parameter_note(measured: tuple[str, ...], trained: dict | None = None) -> str:
     missing = [signal for signal in SIGNALS if signal not in measured]
+    if trained:
+        miss = trained["scores"]["trained"]["miss_h"]
+        return (f"Using {len(measured)} of 6 parameters: {_names(measured)} (not in the data: {_names(missing)}). "
+                f"“{trained['name']}” was tested with {', '.join(trained['parameter_names'])}"
+                + (f" and missed by {miss:,.0f} h on average." if miss is not None else "."))
+    accuracy = _model().metrics_for(measured)
     return (f"Using {len(measured)} of 6 parameters: {_names(measured)} "
             f"(not in the data: {_names(missing)}). Typical error with these on simulated capacitors: "
             f"{accuracy['median_absolute_error_h']:,.0f} h ({accuracy['median_relative_error']:.0%}).")
@@ -1282,17 +1341,67 @@ def _condition_inputs(device: str, recorded: pd.Series, effective: pd.Series
     return boxes, badges
 
 
+def _model_choice() -> dict | None:
+    """Which model the page uses. Returns the chosen trained model's description, or None for the built-in one.
+
+    Offered to everyone, like My saved datasets: a signed-out visitor who picks a trained model is asked to sign
+    in, and the page keeps using the built-in model until a usable trained model is chosen."""
+    from caplife import accounts
+    from caplife.fine_tune import describe
+    from caplife.storage import MODEL_KIND
+    st.session_state[MODEL_KEY] = BUILT_IN_KEY
+    choice = st.radio("Model", (BUILT_IN, MINE), horizontal=True, key="caplife_six_model_source",
+                      persist_state="session",
+                      help="Built-in: the AI that learned from simulated capacitors. My trained model: one you "
+                           "trained on Train The AI and saved; every prediction on this page then comes from it, "
+                           "with all the same features.")
+    if choice == BUILT_IN:
+        return None
+    user = accounts.current_user()
+    if user is None:
+        st.info("Sign in (top right) to use the models you trained on Train The AI. Until then, the page uses the "
+                "built-in model.")
+        return None
+    data_store = accounts.store()
+    if data_store is None:
+        st.info("Saving is not set up on this deployment yet, so the page uses the built-in model.")
+        return None
+    saved = data_store.list(user["id"], MODEL_KIND)
+    if saved.empty:
+        st.info("You have no trained models yet. Train one on **Train The AI** and save it once it passes its test. "
+                "Until then, the page uses the built-in model.")
+        return None
+    timezone = accounts.viewer_timezone()
+    labels = {int(row.id): f"{row.name} · {accounts.local_time(row.created_at, timezone)}"
+              for row in saved.itertuples(index=False)}
+    names = {int(row.id): row.name for row in saved.itertuples(index=False)}
+    chosen = int(st.selectbox("Trained model", list(labels), format_func=labels.get, key="caplife_six_model_id",
+                              persist_state="session"))
+    try:
+        info = describe(accounts._load_cached(accounts.storage_url(), user["id"], chosen))
+    except accounts.StorageError as error:
+        st.error(str(error))
+        return None
+    if not info["usable"]:
+        st.warning(f"“{names[chosen]}” was saved by a different version of CapLife. Train it again on Train The AI "
+                   "to use it; until then, the page uses the built-in model.")
+        return None
+    st.session_state[MODEL_KEY] = f"trained:{user['id']}:{chosen}"
+    return {**info, "name": names[chosen]}
+
+
 def render() -> None:
     st.header("Monitor and Predict",
               help="Upload measurement histories of capacitance, ESR, leakage current, case expansion, generated "
                    "hydrogen and internal pressure (any of them), optionally with operating conditions. CapLife "
                    "scores each parameter's health against its limit, and a neural network predicts remaining useful "
-                   "life with an 80% range. Demonstration model: trained on simulated capacitors; its accuracy on "
-                   "real capacitors has not been tested.")
+                   "life with an 80% range. Choose the built-in model, trained on simulated capacitors (its "
+                   "accuracy on real capacitors has not been tested), or one you trained on Train The AI.")
     loaded = _load()
     if loaded is None:
         return
     measurements, truth, label = loaded
+    trained = _model_choice()
     devices = sorted(measurements["Cap_ID"].astype(str).unique())
     all_limits = _device_limits(devices)
     planned = _device_conditions(devices)
@@ -1318,7 +1427,10 @@ def render() -> None:
               "Temperature (°C)": st.column_config.NumberColumn(format="%.0f", help="Latest core temperature, or "
                                                                 "ambient where core was not recorded."),
               "Voltage / rated": st.column_config.NumberColumn(format="%.0f%%"),
-              "Ripple / rated": st.column_config.NumberColumn(format="%.0f%%")}
+              "Ripple / rated": st.column_config.NumberColumn(format="%.0f%%"),
+              "Sudden failure (%)": st.column_config.NumberColumn(
+                  format="%.0f", help="The chance that a sudden failure (open circuit, short, vent), rather than "
+                                      "a parameter reaching its limit, ends the capacitor's life.")}
     if truth:
         config["Simulated true end of life (h)"] = st.column_config.NumberColumn(format="%.0f")
     table(fleet, hide_index=True, width="stretch", column_config=config)
@@ -1333,7 +1445,7 @@ def render() -> None:
     readings, assessment = results[device]
     original = measurements.loc[measurements["Cap_ID"].astype(str).eq(str(device))].sort_values("Hours")
     measured = _measured(readings)
-    parameter_note = _parameter_note(measured) if len(measured) < len(SIGNALS) else None
+    parameter_note = _parameter_note(measured, trained) if len(measured) < len(SIGNALS) else None
     if parameter_note:
         st.caption(parameter_note)
     with st.container(border=True):
@@ -1368,8 +1480,9 @@ def render() -> None:
             factor = conditions.aging_rule_factor(conditions.latest(original), planned[str(device)])
             if factor is not None:
                 detail += (f" The standard aging rule (2× per 10 °C of core temperature, cube of the voltage ratio) "
-                           f"would give {_hours(recorded_last['RUL_median_h'] * factor)}; on simulated capacitors "
-                           "the network catches about two thirds of such a change.")
+                           f"would give {_hours(recorded_last['RUL_median_h'] * factor)}"
+                           + ("." if trained else "; on simulated capacitors the network catches about two thirds "
+                                                  "of such a change."))
         if truth and default_limits and not planned.get(str(device)):
             detail += (f" Simulated true remaining life: {truth[device]['eol_h'] - last['Hours']:,.0f} h "
                        f"({truth[device]['eol_cause']}).")
@@ -1378,8 +1491,14 @@ def render() -> None:
                    ("Predicted end-of-life age", _hours(last["Hours"] + last["RUL_median_h"]), None),
                    ("Overall health", f"{last['Overall_health_pct']:.0f}%", None)]
         metrics_note = detail
-        helps = [detail, f"{last['RUL_low_h']:,.0f} – {last['RUL_high_h']:,.0f} h. The true remaining life falls "
-                         "inside this range about 80% of the time on simulated test capacitors.", None,
+        if pd.notna(last.get("Sudden_failure_chance", np.nan)):
+            detail += (f" Chance its life ends in a sudden failure (open circuit, short, vent) rather than at a limit: "
+                       f"{last['Sudden_failure_chance']:.0%}.")
+        coverage = ("about 80% of the time on simulated test capacitors" if not trained else
+                    f"for {trained['scores']['trained']['inside']:.0%} of the failures on the test capacitors of "
+                    f"“{trained['name']}”")
+        helps = [detail, f"{last['RUL_low_h']:,.0f} – {last['RUL_high_h']:,.0f} h. The true remaining life fell "
+                         f"inside this range {coverage}.", None,
                  f"The lowest parameter health. Limiting indicator: {last['Limiting_indicator']}."]
         for column, (name, value, change), tip in zip(st.columns(4), metrics, helps):
             column.metric(name, value, change, delta_color="normal", help=tip)
@@ -1388,8 +1507,8 @@ def render() -> None:
             say("info", f"**{INDICATOR_LABELS[used_now.idxmax()]} is within 5% of your limit**, so end of life is "
                         "close and the 80% range is wider.")
         if bool(last.get("Outside_training_range")):
-            say("warning", "Some readings go beyond the simulated training capacitors, so this prediction is an "
-                           "extrapolation.")
+            beyond = "what the model was trained on" if trained else "the simulated training capacitors"
+            say("warning", f"Some readings go beyond {beyond}, so this prediction is an extrapolation.")
     health_cards = _health_card_data(readings, assessment, limits)
     _health_cards(health_cards)
 
@@ -1415,7 +1534,7 @@ def render() -> None:
     forecast = None
     if has_rul and not bool(last["End_of_life_reached"]):
         forecast = _forecast_cached(readings, float(last["RUL_median_h"]), json.dumps(limits, sort_keys=True),
-                                    code_version())
+                                    code_version(), _model_key())
         st.markdown(
             "##### Predicted parameter trends to end of life",
             help=f"Teal: the {len(readings)} measured readings up to {last['Hours']:,.0f} h (the thick line marked "
@@ -1429,7 +1548,8 @@ def render() -> None:
         notes = ["Zoomed in on the forecast."] if zoom else []
         if recorded_last is not None:
             reference = (_forecast_cached(original, float(recorded_last["RUL_median_h"]),
-                                          json.dumps(limits, sort_keys=True), code_version()), recorded_last)
+                                          json.dumps(limits, sort_keys=True), code_version(), _model_key()),
+                         recorded_last)
             note = ("Gold: forecast and end of life (shaded 80% range) with your changed operating "
                     "conditions. Purple dotted: with the recorded conditions, and its shaded range.")
             st.caption(note + " Hover a shaded range for its hours.")
@@ -1462,14 +1582,18 @@ def render() -> None:
             history = None
             if changed:
                 history = _changed_history_cached(original, json.dumps(planned[str(device)], sort_keys=True),
-                                                  json.dumps(limits, sort_keys=True), code_version())
+                                                  json.dumps(limits, sort_keys=True), code_version(), _model_key())
             rul_assessment, rul_now = (recorded_assessment, last) if changed else (assessment, None)
             build = lambda hours: ("", _rul_chart(rul_assessment, true_eol, rul_now, history, hours=hours, brush=True))
             charts = _show_zoomable([(f"caplife_six_zoom_{device}_rul", build)], columns=1)
             sections.append(ChartSection("Remaining-life prediction over time", notes, charts, columns=1))
 
-    with st.expander("About the model and how well it did on simulated data"):
-        _model_card(measured)
+    if trained:
+        with st.expander(f"About “{trained['name']}” and how well it did on its test"):
+            _trained_card(trained)
+    else:
+        with st.expander("About the model and how well it did on simulated data"):
+            _model_card(measured)
 
     st.subheader("Downloads", help="The PDF and Excel reports cover the fleet, the selected capacitor (limits, "
                                    "operating conditions, health, forecasts, remaining life) and a data check. They "
@@ -1477,7 +1601,9 @@ def render() -> None:
     view = PageView(source=label, fleet_metrics=fleet_metrics, fleet=fleet, fleet_note=fleet_note, device=str(device),
                     parameter_note=parameter_note, limits=_limit_boxes(limits, measured), conditions=condition_boxes,
                     badges=badges, messages=messages, metrics=metrics, metrics_note=metrics_note,
-                    health_cards=health_cards, sections=sections)
+                    health_cards=health_cards, sections=sections,
+                    model=f"{trained['name']} (trained on {trained.get('trained_on', 'your data')})" if trained
+                    else "Built-in model", disclaimer=TRAINED_DISCLAIMER if trained else DISCLAIMER)
     st.session_state[REPORT_VIEW] = view  # the page as last shown, for the report (and tests)
     report = lambda: _report(label, fleet, str(device), readings, assessment, measured, limits, all_limits,
                              conditions.latest(original), planned.get(str(device), {}), forecast, measurements, view)

@@ -1,6 +1,7 @@
 """Sign-in and saved datasets in the running app, with a stand-in for the identity provider."""
 from pathlib import Path
 
+import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
 
@@ -310,3 +311,54 @@ def test_signed_out_visitors_are_asked_to_sign_in_to_save_a_model(database, monk
     app = train_example(run_app())
     assert not [b for b in app.button if b.key == "caplife_rul_model_save"]
     assert any("Sign in (top right) to save this model" in c.value for c in app.caption)
+
+
+@pytest.fixture(scope="module")
+def lab_model_files():
+    from caplife import fine_tune
+    from caplife.rul_workflow import SPLIT_BY_EXPERIMENT, run_rul_workflow
+    result = run_rul_workflow(*example_dataset(), SPLIT_BY_EXPERIMENT, "SYN_EXP_C", "SYN_EXP_B")
+    info = {"trained_on": "Simulated example", "endpoint": result["audit"]["endpoint"], "sudden": False,
+            "parameter_names": ["Capacitance"], "tested": [list(row) for row in result["tested"]],
+            "scores": {"trained": {"miss_h": 100.0, "inside": 1.0}, "built_in": {"miss_h": 200.0, "inside": 0.5},
+                       "average": {"miss_h": 480.0, "inside": 1.0}}}
+    return fine_tune.package(result["model"], info)
+
+
+def open_monitor(app: AppTest) -> AppTest:
+    app.sidebar.radio(key=WORKSPACE_KEY).set_value("Six-parameter RUL prediction (demonstration model)").run()
+    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
+    assert not app.exception, app.exception
+    return app
+
+
+def test_monitor_and_predict_runs_on_a_chosen_trained_model(database, monkeypatch, lab_model_files):
+    from caplife.six_rul_page import REPORT_VIEW
+    from caplife.storage import MODEL_KIND
+    monkeypatch.setattr(accounts, "current_user", lambda: ALICE)
+    model_id = database.save(ALICE["id"], MODEL_KIND, "Lab model", lab_model_files)
+    app = open_monitor(run_app())
+    built_in = app.session_state[REPORT_VIEW]
+    assert built_in.model == "Built-in model"
+    app.radio(key="caplife_six_model_source").set_value("My trained model").run()
+    assert not app.exception, app.exception
+    assert app.selectbox(key="caplife_six_model_id").value == model_id
+    view = app.session_state[REPORT_VIEW]
+    assert view.model == "Lab model (trained on Simulated example)"
+    assert app.session_state["caplife_six_model_key"] == f"trained:{ALICE['id']}:{model_id}"
+    # Every remaining life on the page now comes from the trained model.
+    column = "Remaining life, median (h)"
+    assert not view.fleet[column].equals(built_in.fleet[column])
+    assert any(e.label == "About “Lab model” and how well it did on its test" for e in app.expander)
+    # Back to the built-in model, the page is as before.
+    app.radio(key="caplife_six_model_source").set_value("Built-in model").run()
+    pd.testing.assert_series_equal(app.session_state[REPORT_VIEW].fleet[column], built_in.fleet[column])
+
+
+def test_choosing_a_trained_model_signed_out_asks_to_sign_in(database, monkeypatch):
+    monkeypatch.setattr(accounts, "current_user", lambda: None)
+    app = open_monitor(run_app())
+    app.radio(key="caplife_six_model_source").set_value("My trained model").run()
+    assert not app.exception, app.exception
+    assert any("Sign in (top right) to use the models you trained" in i.value for i in app.info)
+    assert app.session_state["caplife_six_model_key"] == "built-in"
