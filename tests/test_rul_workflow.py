@@ -1,3 +1,4 @@
+import io
 import json
 
 import pandas as pd
@@ -210,3 +211,19 @@ def test_every_experiment_in_turn_pools_the_tests_and_forecasts_from_a_final_mod
     json.dumps(result["report"], allow_nan=False)
     with pytest.raises(ValueError, match="calibration experiment"):
         run_rul_workflow(measurements, outcomes, SPLIT_ROTATE, "NOT_AN_EXPERIMENT")
+
+
+def test_new_readings_and_outcomes_are_added_to_a_models_training_data():
+    from caplife.retrain import merge_measurements, merge_outcomes
+    old = b"Cap_ID,Hours,Capacitance_uF\nA,0,100\nA,10,99\n"
+    new = b"Cap,Time (h),Capacitance\nA,20,98\nB,0,100\nA,10,99.5\n"
+    merged, note = merge_measurements(old, new)
+    frame = pd.read_csv(io.BytesIO(merged))
+    assert frame[["Cap_ID", "Hours"]].values.tolist() == [["A", 0], ["A", 10], ["A", 20], ["B", 0]]
+    assert frame.loc[1, "Capacitance_uF"] == 99.5  # the newer reading wins
+    assert note == "Added 2 readings, including 1 new capacitor."
+    header = "Cap_ID,Experiment_ID,Endpoint,Last_alive_h,Failure_by_h\n"
+    merged, note = merge_outcomes((header + "A,E1,x,10,\n").encode(), (header + "A,E1,x,20,30\nB,E2,x,10,\n").encode())
+    frame = pd.read_csv(io.BytesIO(merged), dtype=str, keep_default_na=False)
+    assert frame.values.tolist() == [["A", "E1", "x", "20", "30"], ["B", "E2", "x", "10", ""]]
+    assert note == "Outcomes: 1 new outcome, 1 outcome updated."

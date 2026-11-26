@@ -16,7 +16,7 @@ import streamlit as st
 
 from caplife.tables import table
 
-from caplife.accounts import save_controls, save_model_controls, saved_picker
+from caplife.accounts import models_to_train_again, save_controls, save_model_controls, saved_picker
 from caplife.measurement_review import read_experimental_csv
 from caplife.upload_ui import kept_file_uploader, matched_file, show_notes
 from caplife.real_data import RealDataValidationError
@@ -30,6 +30,8 @@ from caplife.rul_workflow import (
 )
 
 UPLOAD, EXAMPLE, SAVED = "Upload my data", "Use simulated example capacitors", "My saved datasets"
+RETRAIN = "Train a saved model again"
+RETRAIN_KEY = "caplife_rul_retrain_model"  # the saved model being trained again (its ID)
 REPORT_VIEW = "caplife_rul_report_view"  # the results as last shown, for the reports (and tests)
 SUDDEN = "Chance of sudden failure (%)"
 LIMITS_KEY = "caplife_rul_limit_"
@@ -143,6 +145,7 @@ def _model_info(result: dict, context: dict) -> dict:
         "scores": {"trained": score("trained"), "built_in": score("built_in"), "average": score("intercept_only")},
         "failure_modes": result["failure_modes"], "sudden": result["model"].sudden is not None,
         "tested": [list(row) for row in result["tested"]], "warnings": list(result.get("warnings", [])),
+        "settings": context.get("settings", {}),
     }
 
 
@@ -204,11 +207,91 @@ TEST_LEGEND = ("**Purple**: predicted failure age and its 80% range · **Teal**:
                "working when testing stopped) · **Grey tick**: when the forecast was made")
 
 
-def _inputs() -> tuple[bytes, bytes, str] | None:
-    source = st.radio("Data", (UPLOAD, EXAMPLE, SAVED), horizontal=True, key="caplife_rul_source",
+def _apply_settings(settings: dict) -> None:
+    """Fill in the limits and split a saved model was trained with."""
+    from caplife.six_rul import LIMIT_KEYS
+    from caplife.six_rul_page import _shown_limit
+    for signal, limit_key in LIMIT_KEYS.items():
+        if limit_key in settings.get("limits", {}):
+            st.session_state[LIMITS_KEY + signal] = _shown_limit(signal, settings["limits"][limit_key])
+    labels = {SPLIT_ROTATE: ROTATE, SPLIT_BY_EXPERIMENT: ONE_TEST, SPLIT_BY_DEVICE: BY_CAPACITOR}
+    if settings.get("method") in labels:
+        st.session_state["caplife_rul_split_v2"] = labels[settings["method"]]
+    for key, value in (("caplife_rul_calibration", settings.get("calibration")),
+                       ("caplife_rul_test", settings.get("test"))):
+        if value is not None:
+            st.session_state[key] = value
+
+
+def _retrain_inputs() -> dict | None:
+    """A saved model's own training data, with any newer readings and outcomes added on top."""
+    from caplife.fine_tune import describe
+    from caplife.retrain import merge_measurements, merge_outcomes, training_data
+    models = models_to_train_again()
+    if models is None:
+        return None
+    ready = {model_id: (name, files) for model_id, name, files in models if training_data(files) is not None}
+    if not ready:
+        st.info("None of your saved models can be trained again yet: only models saved from now on keep the data "
+                "they were trained on. Train one with your files under **Upload my data** and save it.")
+        return None
+    if st.session_state.get(RETRAIN_KEY) not in ready:
+        st.session_state[RETRAIN_KEY] = next(iter(ready))
+    model_id = st.selectbox("Model to train again", tuple(ready), format_func=lambda key: ready[key][0],
+                            key=RETRAIN_KEY, persist_state="session",
+                            help="Its data and the limits and split it was trained with are filled in. Add newer "
+                                 "readings or outcomes below: a capacitor in both takes its outcome from the new "
+                                 "file.")
+    name, files = ready[model_id]
+    info = describe(files)
+    if st.session_state.get("caplife_rul_retrain_applied") != model_id:
+        st.session_state["caplife_rul_retrain_applied"] = model_id
+        _apply_settings(info.get("settings", {}))
+    data = training_data(files)
+    left, right = st.columns(2)
+    with left:
+        measurements = kept_file_uploader("New measurements (optional)", key="caplife_rul_new_measurements")
+    with right:
+        outcomes = kept_file_uploader("New outcomes (optional)", key="caplife_rul_new_outcomes")
+    notes, added = [], []
+    for kind, upload, place, merge in (("measurements", measurements, left, merge_measurements),
+                                       ("outcomes", outcomes, right, merge_outcomes)):
+        if upload is None:
+            continue
+        if upload.size > 8 * 1024 * 1024:
+            st.error(f"{upload.name} exceeds the 8 MB limit.")
+            return None
+        with place:
+            matched = matched_file(upload.name, upload.getvalue(), kind, f"caplife_rul_new_{kind}")
+        if matched is None:
+            return None
+        try:
+            data[kind], note = merge(data[kind], matched)
+        except INPUT_ERRORS as error:
+            st.error(f"{upload.name} could not be added: {error}")
+            return None
+        notes.append(note)
+        added.append(upload.name)
+    source = f"{info.get('trained_on', name)}" + (f" plus {' and '.join(added)}" if added else "")
+    return {"measurements": data["measurements"], "outcomes": data["outcomes"], "source": source,
+            "replaces": (model_id, name), "notes": notes}
+
+
+def _inputs() -> dict | None:
+    source = st.radio("Data", (UPLOAD, EXAMPLE, SAVED, RETRAIN), horizontal=True, key="caplife_rul_source",
                       persist_state="session",
                       help="The simulated example has 37 capacitors in four experiments, five of them still running. It "
-                           "shows how the page works; its results say nothing about real capacitors.")
+                           "shows how the page works; its results say nothing about real capacitors. Train a saved "
+                           "model again: the data a model you saved was trained on, with newer readings and "
+                           "outcomes added.")
+    if source == RETRAIN:
+        return _retrain_inputs()
+    found = _plain_inputs(source)
+    return None if found is None else {"measurements": found[0], "outcomes": found[1], "source": found[2],
+                                       "replaces": None, "notes": []}
+
+
+def _plain_inputs(source: str) -> tuple[bytes, bytes, str] | None:
     if source == SAVED:
         picked = saved_picker("train_rul", "caplife_rul")
         return None if picked is None else (picked[0]["measurements"], picked[0]["outcomes"], picked[1])
@@ -419,7 +502,8 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
         st.warning(warning)
     if result["passed"]:
         save_model_controls(result["model"], _model_info(result, context), context["default_name"],
-                            "caplife_rul_model", worse_than_built_in=bool(result.get("warnings")))
+                            "caplife_rul_model", worse_than_built_in=bool(result.get("warnings")),
+                            training=context.get("training"), replaces=context.get("replaces"))
 
     st.subheader("4 · Remaining-life forecasts",
                  help="Each forecast uses all of a capacitor's readings up to its latest one; remaining life counts "
@@ -538,7 +622,7 @@ def render() -> None:
     payload = _inputs()
     if payload is None:
         return
-    measurements, outcomes, source = payload
+    measurements, outcomes, source = payload["measurements"], payload["outcomes"], payload["source"]
     settings = ("hours", "auto")  # hours unless a column says Days or Weeks; gauge pressure is detected
     try:
         outcome_frame = read_outcomes(outcomes, settings[0])
@@ -546,7 +630,8 @@ def render() -> None:
     except INPUT_ERRORS as error:
         st.error(f"The files could not be read: {error}")
         return
-    show_notes(list(dict.fromkeys(measurement_frame.attrs.get("notes", []) + outcome_frame.attrs.get("notes", []))))
+    show_notes(list(dict.fromkeys(payload["notes"] + measurement_frame.attrs.get("notes", [])
+                                  + outcome_frame.attrs.get("notes", []))))
     experiments = sorted(outcome_frame["Experiment_ID"].astype(str).str.strip().unique()) \
         if "Experiment_ID" in outcome_frame else []
     measured = measurement_frame["Cap_ID"].astype(str).str.strip().nunique() if "Cap_ID" in measurement_frame else 0
@@ -587,7 +672,10 @@ def render() -> None:
                                   "model, and the other experiments train it.",
              SPLIT_BY_DEVICE: "Split by capacitor: about 20% of eligible capacitors calibrate the 80% range, 20% test "
                               "the model and the rest train it."}[method]
-    default_name = _model_name(source)
-    _show_results(result, attempts, {"source": source, "metrics": metrics, "split": split,
-                                     "default_name": default_name})
+    replaces = payload["replaces"]
+    default_name = replaces[1] if replaces else _model_name(source)
+    _show_results(result, attempts, {
+        "source": source, "metrics": metrics, "split": split, "default_name": default_name, "replaces": replaces,
+        "training": {"measurements": measurements, "outcomes": outcomes},
+        "settings": {"limits": limits, "method": method, "calibration": calibration, "test": test}})
 

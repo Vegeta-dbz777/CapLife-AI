@@ -84,3 +84,15 @@ def test_trained_models_have_their_own_allowance(store):
     listed = store.list("alice", MODEL_KIND)
     assert len(listed) == MAX_MODELS_PER_USER
     assert store.load("alice", int(listed["id"].iloc[0])) == {"model.pt": weights}
+
+
+def test_a_model_is_replaced_in_place_and_only_by_its_owner(store):
+    from caplife.storage import MODEL_KIND, StorageError
+    first = store.save("alice", MODEL_KIND, "Lab model", {"model.json": b"{}"})
+    assert store.replace("alice", first, "Lab model v2", {"model.json": b'{"v": 2}'}) == first
+    saved = store.list("alice", MODEL_KIND)
+    assert saved["id"].tolist() == [first] and saved["name"].tolist() == ["Lab model v2"]
+    assert store.load("alice", first) == {"model.json": b'{"v": 2}'}
+    with pytest.raises(StorageError):
+        store.replace("mallory", first, "Mine now", {"model.json": b"{}"})
+    assert store.load("alice", first) == {"model.json": b'{"v": 2}'}
