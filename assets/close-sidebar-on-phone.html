@@ -1,0 +1,16 @@
+<script>
+((visit) => {  // the visit number makes each page change a new script, so it runs again
+    // On a phone the sidebar opens over the page. After a workspace is picked there, close it so the
+    // page shows straight away. Wider screens keep the sidebar beside the page and are left alone.
+    if (window.innerWidth > 768) return;
+    let tries = 0;
+    const close = () => {
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        if (sidebar && sidebar.getAttribute("data-collapsed") === "true") return;  // already closed
+        const button = document.querySelector('[data-testid="stSidebarCollapseButton"] button');
+        if (button) { button.click(); return; }
+        if (++tries < 40) setTimeout(close, 50);  // the sidebar may still be drawing
+    };
+    close();
+})(VISIT);
+</script>

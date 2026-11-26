@@ -75,6 +75,9 @@ with st.sidebar:
     if st.session_state.get("caplife_shown_page") != workflow:
         st.session_state["caplife_shown_page"] = workflow
         st.session_state["caplife_page_visit"] = st.session_state.get("caplife_page_visit", 0) + 1
+        # On a phone, close the sidebar once a page is picked (the visit number makes it run once per change).
+        st.html((ASSETS / "close-sidebar-on-phone.html").read_text(encoding="utf-8")
+                .replace("VISIT", str(st.session_state["caplife_page_visit"])), unsafe_allow_javascript=True)
     st.divider()
     st.markdown(f"[Privacy]({PUBLIC_APP_URL}?page=privacy)")
 
