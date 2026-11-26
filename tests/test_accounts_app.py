@@ -202,7 +202,7 @@ def open_my_data(user=ALICE, monkeypatch=None) -> AppTest:
 
 def test_my_data_uploads_and_saves_a_monitor_dataset_without_visiting_the_page(database, monkeypatch):
     app = open_my_data(monkeypatch=monkeypatch)
-    assert any("Nothing saved yet" in i.value for i in app.info)
+    assert any("No datasets saved yet" in i.value for i in app.info)
     assert app.button(key="caplife_mydata_upload_save").disabled  # nothing uploaded yet
     measurements, _ = example_fleet()
     app.get("file_uploader")[0].upload("bench.csv", measurements.to_csv(index=False).encode(), "text/csv").run()
@@ -274,3 +274,39 @@ def test_my_data_sorts_newest_or_oldest_first(database, monkeypatch):
     app.get("button_group")[0].set_value("oldest").run()
     assert not app.exception, app.exception
     assert names() == ["First", "Second", "Third"]
+
+
+def train_example(app: AppTest) -> AppTest:
+    app.sidebar.radio(key=WORKSPACE_KEY).set_value("Train an RUL model on uploaded outcomes").run()
+    app.radio(key="caplife_rul_source").set_value("Use simulated example capacitors").run()
+    app.selectbox(key="caplife_rul_calibration").set_value("SYN_EXP_C").run()
+    app.selectbox(key="caplife_rul_test").set_value("SYN_EXP_B").run()
+    next(b for b in app.button if b.label == "Train and test the model").click().run()
+    assert not app.exception, app.exception
+    return app
+
+
+def test_signed_in_user_saves_a_trained_model_and_sees_it_in_my_data(database, monkeypatch):
+    from caplife.storage import MODEL_KIND
+    monkeypatch.setattr(accounts, "current_user", lambda: ALICE)
+    app = train_example(run_app())
+    assert app.text_input(key="caplife_rul_model_name").value == "Simulated example model"
+    app.text_input(key="caplife_rul_model_name").set_value("Lab model").run()
+    app.button(key="caplife_rul_model_save").click().run()
+    assert any("Saved “Lab model”" in s.value for s in app.success)
+    saved = database.list(ALICE["id"], MODEL_KIND)
+    assert saved["name"].tolist() == ["Lab model"]
+    app.sidebar.radio(key=WORKSPACE_KEY).set_value("My saved datasets").run()
+    assert not app.exception, app.exception
+    text = " ".join(m.value for m in app.markdown) + " ".join(c.value for c in app.caption)
+    assert "Lab model" in text and "Trained on Simulated example" in text and "Test: missed by" in text
+    model_id = int(saved["id"].iloc[0])
+    app.button(key=f"caplife_mydata_model_remove_{model_id}").click().run()
+    assert database.list(ALICE["id"], MODEL_KIND).empty
+
+
+def test_signed_out_visitors_are_asked_to_sign_in_to_save_a_model(database, monkeypatch):
+    monkeypatch.setattr(accounts, "current_user", lambda: None)
+    app = train_example(run_app())
+    assert not [b for b in app.button if b.key == "caplife_rul_model_save"]
+    assert any("Sign in (top right) to save this model" in c.value for c in app.caption)

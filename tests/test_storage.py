@@ -3,7 +3,9 @@ import os
 import pytest
 from sqlalchemy import delete
 
-from caplife.storage import MAX_DATASETS_PER_USER, DatasetStore, StorageError, datasets
+from caplife.storage import (
+    MAX_DATASETS_PER_USER, MAX_MODELS_PER_USER, MODEL_KIND, DatasetStore, StorageError, datasets,
+)
 
 CSV = b"Cap_ID,Hours,Capacitance_uF\nA,0,100\nA,10,99\n"
 # Set CAPLIFE_TEST_POSTGRES_URL (as the GitHub workflow does) to also run against PostgreSQL.
@@ -68,3 +70,17 @@ def test_excel_and_windows_encoded_files_are_kept_byte_for_byte(store):
     windows_csv = "Cap_ID,Hours,Température\nA,0,85\n".encode("cp1252")
     dataset = store.save("alice", "train_rul", "Mixed", {"measurements": workbook, "outcomes": windows_csv})
     assert store.load("alice", dataset) == {"measurements": workbook, "outcomes": windows_csv}
+
+
+def test_trained_models_have_their_own_allowance(store):
+    weights = bytes(range(256)) * 4  # binary, like saved network weights
+    for index in range(MAX_DATASETS_PER_USER):
+        store.save("alice", "six_parameter", f"n{index}", {"measurements": CSV})
+    # A full set of datasets does not stop a model being saved, and models stop at their own limit.
+    for index in range(MAX_MODELS_PER_USER):
+        store.save("alice", MODEL_KIND, f"m{index}", {"model.pt": weights})
+    with pytest.raises(StorageError, match=f"up to {MAX_MODELS_PER_USER} trained models"):
+        store.save("alice", MODEL_KIND, "one too many", {"model.pt": weights})
+    listed = store.list("alice", MODEL_KIND)
+    assert len(listed) == MAX_MODELS_PER_USER
+    assert store.load("alice", int(listed["id"].iloc[0])) == {"model.pt": weights}

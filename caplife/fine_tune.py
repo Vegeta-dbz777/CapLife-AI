@@ -16,9 +16,11 @@ then whichever comes first, and its 80% range is calibrated on the lab's calibra
 from __future__ import annotations
 
 import copy
+import json
 import math
 from dataclasses import dataclass, field
 from functools import lru_cache
+from io import BytesIO
 from pathlib import Path
 
 import numpy as np
@@ -33,7 +35,7 @@ from caplife.six_rul import (
     current_limit_used, full_limits, hide_indicators, limit_used, sequences,
 )
 from caplife.six_sim import LIMIT_RANGES
-from caplife.survival import fit_duration
+from caplife.survival import DurationModel, fit_duration
 
 LIMIT_MODE, SUDDEN_MODE, RUNNING_MODE = "limit", "sudden", "running"
 ALTERNATE_LIMITS = 4          # extra limit sets per capacitor, so the model keeps answering for any limits
@@ -403,3 +405,86 @@ def train(histories: dict, labels: dict, modes: dict, training: list, signals: t
     training_labels = pd.DataFrame([labels[device] for device in training])
     sudden = fit_sudden(histories, training_labels, {d: modes[d] for d in training}, wear_ends, signals, conditions)
     return TrainedModel(base, net, path_net, 0.0, sudden)
+
+
+# --- Saving and loading -------------------------------------------------------------------------
+
+# Bump when the model inputs or the package layout change; older packages then ask to be trained again.
+MODEL_FORMAT = 1
+
+
+class ModelFormatError(ValueError):
+    """A saved model this version of CapLife cannot use (made by an older or newer version)."""
+
+
+def _tensor_bytes(state: dict) -> bytes:
+    buffer = BytesIO()
+    torch.save(state, buffer)
+    return buffer.getvalue()
+
+
+def _tensors(content: bytes) -> dict:
+    # weights_only: a saved model can only hold numbers, never code.
+    return torch.load(BytesIO(content), map_location="cpu", weights_only=True)
+
+
+def _inputs_signature() -> dict:
+    from caplife.rul_workflow import FEATURE_LABELS
+    return {"step_features": list(six_rul.STEP_FEATURES), "window": six_rul.WINDOW,
+            "duration_features": sorted(FEATURE_LABELS)}
+
+
+def package(model: TrainedModel, info: dict) -> dict[str, bytes]:
+    """The trained model as files for the user's account: network weights and a JSON description."""
+    sudden = None
+    files = {"model.pt": _tensor_bytes(model.net.state_dict()),
+             "trajectory.pt": _tensor_bytes(model.path_net.state_dict())}
+    if model.sudden is not None:
+        duration = model.sudden.duration
+        files["sudden.pt"] = _tensor_bytes(duration.network.state_dict())
+        sudden = {"signals": list(model.sudden.signals), "conditions": list(model.sudden.conditions),
+                  "hidden": isinstance(duration.network, torch.nn.Sequential),
+                  "center": duration.center.tolist(), "spread": duration.spread.tolist(), "scale": duration.scale,
+                  "lows": model.sudden.lows.tolist(), "highs": model.sudden.highs.tolist()}
+    description = {
+        "format": MODEL_FORMAT, "inputs": _inputs_signature(), "hidden": model.metadata.get("hidden", six_rul.HIDDEN),
+        "adjustment": next(iter(model.adjustments.values())), "path_adjust": np.asarray(model.path_adjust).tolist(),
+        "sudden": sudden, "info": info,
+    }
+    files["model.json"] = json.dumps(description, allow_nan=False).encode("utf-8")
+    return files
+
+
+def describe(files: dict[str, bytes]) -> dict:
+    """The saved model's description (its ``info``) and whether this version of CapLife can use it."""
+    description = json.loads(files["model.json"])
+    usable = description.get("format") == MODEL_FORMAT and description.get("inputs") == _inputs_signature()
+    return {**description.get("info", {}), "usable": usable}
+
+
+def load(files: dict[str, bytes]) -> TrainedModel:
+    """A saved model, ready for the pages; ``ModelFormatError`` when this version cannot use it."""
+    description = json.loads(files["model.json"])
+    if description.get("format") != MODEL_FORMAT or description.get("inputs") != _inputs_signature():
+        raise ModelFormatError("This model was saved by a different version of CapLife. Train it again on "
+                               "Train The AI to use it.")
+    base = built_in()
+    net, path_net = six_rul.SixRULNet(description["hidden"]), six_rul.TrajectoryNet(description["hidden"])
+    net.load_state_dict(_tensors(files["model.pt"]))
+    path_net.load_state_dict(_tensors(files["trajectory.pt"]))
+    net.eval()
+    path_net.eval()
+    sudden = None
+    if description["sudden"] is not None:
+        part = description["sudden"]
+        width = len(part["center"])
+        network = (torch.nn.Sequential(torch.nn.Linear(width, 4), torch.nn.Tanh(), torch.nn.Linear(4, 1))
+                   if part["hidden"] else torch.nn.Linear(width, 1)).double()
+        network.load_state_dict(_tensors(files["sudden.pt"]))
+        network.eval()
+        duration = DurationModel(np.asarray(part["center"]), np.asarray(part["spread"]), network, part["scale"])
+        sudden = SuddenModel(duration, tuple(part["signals"]), tuple(part["conditions"]),
+                             np.asarray(part["lows"]), np.asarray(part["highs"]))
+    model = TrainedModel(base, net, path_net, description["adjustment"], sudden,
+                         np.asarray(description["path_adjust"]))
+    return model

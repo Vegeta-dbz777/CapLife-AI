@@ -19,9 +19,11 @@ from sqlalchemy import (
 )
 
 MAX_DATASETS_PER_USER = 25
+MAX_MODELS_PER_USER = 10
 MAX_FILE_BYTES = 8 * 1024 * 1024
 MAX_NAME_LENGTH = 80
 KINDS = {"six_parameter": "Monitor and Predict", "train_rul": "Train The AI"}  # the page each kind opens on
+MODEL_KIND = "trained_model"  # a model trained on Train The AI, kept beside the datasets
 
 _metadata = MetaData()
 datasets = Table(
@@ -61,18 +63,24 @@ class DatasetStore:
     def save(self, owner: str, kind: str, name: str, files: dict[str, bytes]) -> int:
         if not owner:
             raise StorageError("Sign in to save datasets.")
-        if kind not in KINDS:
+        if kind not in KINDS and kind != MODEL_KIND:
             raise StorageError(f"Unknown dataset kind: {kind}")
+        is_model = kind == MODEL_KIND
         name = " ".join(name.split())[:MAX_NAME_LENGTH]
         if not name:
-            raise StorageError("Give the dataset a name.")
+            raise StorageError("Give the model a name." if is_model else "Give the dataset a name.")
         if not files or any(len(content) > MAX_FILE_BYTES for content in files.values()):
             raise StorageError("Each saved file must be between 1 byte and 8 MB.")
         payload = gzip.compress(json.dumps({label: _encode(content) for label, content in files.items()}).encode())
         with self.engine.begin() as connection:
+            # Models and datasets have their own allowances, so saving one never crowds out the other.
+            same = (datasets.c.kind == MODEL_KIND) if is_model else (datasets.c.kind != MODEL_KIND)
             count = connection.execute(
-                select(func.count()).select_from(datasets).where(datasets.c.owner == owner)).scalar_one()
-            if count >= MAX_DATASETS_PER_USER:
+                select(func.count()).select_from(datasets).where(datasets.c.owner == owner, same)).scalar_one()
+            if is_model and count >= MAX_MODELS_PER_USER:
+                raise StorageError(f"You can keep up to {MAX_MODELS_PER_USER} trained models. Delete one in "
+                                   "My Data to save another.")
+            if not is_model and count >= MAX_DATASETS_PER_USER:
                 raise StorageError(f"You can keep up to {MAX_DATASETS_PER_USER} datasets. Delete one to save another.")
             result = connection.execute(insert(datasets).values(
                 owner=owner, kind=kind, name=name, created_at=datetime.now(timezone.utc),
