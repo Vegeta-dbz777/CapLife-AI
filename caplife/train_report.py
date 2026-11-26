@@ -45,6 +45,8 @@ class TrainView:
     rul_charts: list[tuple[str, object]]            # (summary, chart) for every forecast capacitor
     withheld: dict
     withheld_note: str
+    tested: pd.DataFrame | None = None              # what the user's data covered
+    tested_note: str = ""
     tables: dict = field(default_factory=dict)      # every table in full, for the Excel workbook
 
 
@@ -123,12 +125,13 @@ def pdf_bytes(view: TrainView) -> bytes:
                                    ("LEFTPADDING", (0, 0), (-1, -1), 10)]))
         return frame
 
-    def grid(frame: pd.DataFrame):
+    def grid(frame: pd.DataFrame, shares: list[float] | None = None):
         columns = list(frame.columns)
         rows = [[Paragraph(_markup(c), head_cell) for c in columns]]
         for record in frame.itertuples(index=False):
             rows.append([Paragraph(_markup(_cell(c, v)), cell) for c, v in zip(columns, record)])
-        table = Table(rows, colWidths=[width / len(columns)] * len(columns), repeatRows=1, hAlign="LEFT")
+        shares_ = shares or [1 / len(columns)] * len(columns)
+        table = Table(rows, colWidths=[width * share for share in shares_], repeatRows=1, hAlign="LEFT")
         table.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F0F2F6")),
                                    ("LINEBELOW", (0, 0), (-1, -1), 0.4, line), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                                    ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
@@ -151,6 +154,9 @@ def pdf_bytes(view: TrainView) -> bytes:
     if view.excluded:
         story += [Spacer(1, 4), para(f"**{len(view.excluded)} capacitor(s) with outcomes could not be used**",
                                      caption), *reasons(view.excluded)]
+    if view.tested is not None and len(view.tested):
+        story += [Spacer(1, 6), para("**What your data tested**", caption), Spacer(1, 3), grid(view.tested, [0.25, 0.75]),
+                  Spacer(1, 2), para(view.tested_note, caption)]
 
     story += [Paragraph("2 · Test on capacitors the model never saw", h2), grid(view.model_table), Spacer(1, 8),
               KeepTogether([para(view.test_legend, caption), Spacer(1, 3), chart_image(view.test_chart)]),

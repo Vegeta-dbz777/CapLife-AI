@@ -18,6 +18,8 @@ from __future__ import annotations
 import copy
 import math
 from dataclasses import dataclass, field
+from functools import lru_cache
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -27,10 +29,10 @@ from scipy.special import ndtr, ndtri
 from caplife import six_rul
 from caplife.rul_workflow import landmarks as duration_landmarks
 from caplife.six_rul import (
-    HORIZON_FRACTIONS, INTERVAL_MASS, MIN_READINGS, QUANTILES, RUL_OFFSET_H, SIGNALS, USED, SixRULModel,
+    HORIZON_FRACTIONS, INTERVAL_MASS, MIN_READINGS, QUANTILES, RUL_OFFSET_H, SIGNALS, SixRULModel,
     current_limit_used, full_limits, hide_indicators, limit_used, sequences,
 )
-from caplife.six_sim import EOL_LIMITS, LIMIT_RANGES
+from caplife.six_sim import LIMIT_RANGES
 from caplife.survival import fit_duration
 
 LIMIT_MODE, SUDDEN_MODE, RUNNING_MODE = "limit", "sudden", "running"
@@ -40,6 +42,20 @@ REPLAY_WEIGHT = 0.5
 EPOCHS = 30
 LEARNING_RATE = 5e-4
 Z90 = float(ndtri(0.9))
+BUILT_IN_DIR = Path(__file__).resolve().parents[1] / "artifacts" / "six_rul"
+REPLAY_SEED = 4242
+
+
+@lru_cache(maxsize=1)
+def built_in() -> SixRULModel:
+    return SixRULModel(BUILT_IN_DIR)
+
+
+@lru_cache(maxsize=1)
+def replay_data() -> dict:
+    """Simulated capacitors like the built-in training ones, made once per app start (a few seconds)."""
+    data = six_rul._fleet_data(REPLAY_CAPACITORS, REPLAY_SEED, "REP", True, 0.0)
+    return {"x": data["x"], "y": data["y"], "path": data["path"]}
 
 
 # --- What happened to each capacitor ------------------------------------------------------------
@@ -314,6 +330,11 @@ class TrainedModel(SixRULModel):
         self.train_max = base.train_max
         self.sudden = sudden
 
+    def set_adjustment(self, adjustment: float) -> None:
+        """The lab's calibrated widening of the 80% range, for every combination of parameters."""
+        self.adjustments = {key: adjustment for key in self.adjustments}
+        self.near_adjustments = dict(self.adjustments)
+
     def raw_quantiles(self, readings: pd.DataFrame, measured, limits) -> np.ndarray:
         """Wear-out percentiles of log(remaining + offset) at every reading from the third, before calibration."""
         return six_rul._predict(self.net, sequences(readings, measured, limits))
@@ -364,3 +385,21 @@ def calibrate(model: TrainedModel, histories: dict, rows: pd.DataFrame, measured
         return None
     value = float(np.sort(scores)[rank - 1])
     return max(value, 0.0) if np.isfinite(value) else None
+
+
+def train(histories: dict, labels: dict, modes: dict, training: list, signals: tuple[str, ...],
+          conditions: tuple[str, ...], limits: dict, seed: int = 7) -> TrainedModel:
+    """The trained model from the training capacitors, before the lab's calibration."""
+    base = built_in()
+    rng = np.random.default_rng(seed)
+    examples = Examples()
+    for device in training:
+        add_capacitor(examples, histories[device], labels[device], modes[device], signals, limits, rng)
+    if not examples.x:
+        raise ValueError("No training capacitor has readings before its end of life to learn from.")
+    net, path_net = fine_tune(base, examples.arrays(), replay_data(), seed)
+    wear_ends = {device: wear_out_target(histories[device], labels[device], modes[device], signals, limits)[0]
+                 for device in training}
+    training_labels = pd.DataFrame([labels[device] for device in training])
+    sudden = fit_sudden(histories, training_labels, {d: modes[d] for d in training}, wear_ends, signals, conditions)
+    return TrainedModel(base, net, path_net, 0.0, sudden)

@@ -137,6 +137,17 @@ def test_train_the_ai_example_passes_and_forecasts():
     assert any("Remaining-life prediction over time" in m.value for m in app.markdown)
     assert any("Parameters 6 of 6" in m.value for m in app.markdown)  # a tag under 1 · Data used
     assert not app.info  # the example's note is in the Data help, not a box
+    # The limits that defined failure start at the defaults; the comparison includes the built-in model.
+    assert app.number_input(key="caplife_rul_limit_Capacitance_uF").value == 20.0
+    assert app.number_input(key="caplife_rul_limit_ESR_ohm").value == 100.0  # shown as % rise
+    models = next(d.value for d in app.dataframe if "Model" in d.value)["Model"].tolist()
+    assert models == ["Your trained model", "Built-in model", "Average lifetime only"]
+    assert any(e.label == "What your data tested" for e in app.expander)
+    # A different limit is a different training run, counted as another setting tried.
+    app.number_input(key="caplife_rul_limit_Capacitance_uF").set_value(25.0).run()
+    next(b for b in app.button if b.label == "Train and test the model").click().run()
+    assert not app.exception
+    assert any("2 different settings" in w.value for w in app.warning)
 
 
 def test_my_data_asks_to_sign_in_when_signed_out():
