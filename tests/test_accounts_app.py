@@ -376,3 +376,64 @@ def test_an_app_update_gets_a_fresh_store(database, monkeypatch):
     assert accounts.store() is first
     monkeypatch.setattr(accounts, "code_version", lambda: "after-an-update")
     assert accounts.store() is not first
+
+
+def test_a_saved_model_is_trained_again_with_its_data_settings_and_new_outcomes(database, monkeypatch):
+    import io
+    import json
+
+    from caplife.retrain import training_data
+    from caplife.rul_page import RETRAIN, _example_csvs
+    from caplife.storage import MODEL_KIND
+    monkeypatch.setattr(accounts, "current_user", lambda: ALICE)
+    app = run_app()
+    app.sidebar.radio(key=WORKSPACE_KEY).set_value("Train an RUL model on uploaded outcomes").run()
+    app.radio(key="caplife_rul_source").set_value("Use simulated example capacitors").run()
+    app.number_input(key="caplife_rul_limit_Capacitance_uF").set_value(25.0).run()
+    app = train_example(app)
+    app.text_input(key="caplife_rul_model_name").set_value("Lab model").run()
+    app.button(key="caplife_rul_model_save").click().run()
+    saved = database.list(ALICE["id"], MODEL_KIND)
+    model_id = int(saved["id"].iloc[0])
+    files = database.load(ALICE["id"], model_id)
+    measurements, outcomes = _example_csvs()
+    assert training_data(files) == {"measurements": measurements, "outcomes": outcomes}
+    settings = json.loads(files["model.json"])["info"]["settings"]
+    assert settings["method"] == "experiment" and settings["calibration"] == "SYN_EXP_C"
+    assert settings["test"] == "SYN_EXP_B" and settings["limits"]["capacitance_loss_pct"] == 25.0
+
+    # Somewhere else in the meantime the settings change; Train again brings back the model's own.
+    app.radio(key="caplife_rul_split_v2").set_value("By capacitor").run()
+    app.number_input(key="caplife_rul_limit_Capacitance_uF").set_value(20.0).run()
+    app.sidebar.radio(key=WORKSPACE_KEY).set_value("My saved datasets").run()
+    app.button(key=f"caplife_mydata_model_retrain_{model_id}").click().run()
+    assert not app.exception, app.exception
+    assert app.sidebar.radio(key=WORKSPACE_KEY).value == "Train an RUL model on uploaded outcomes"
+    assert app.radio(key="caplife_rul_source").value == RETRAIN
+    assert app.selectbox(key="caplife_rul_retrain_model").value == model_id
+    assert app.radio(key="caplife_rul_split_v2").value == "One test experiment"
+    assert app.selectbox(key="caplife_rul_calibration").value == "SYN_EXP_C"
+    assert app.number_input(key="caplife_rul_limit_Capacitance_uF").value == 25.0
+
+    # New outcomes: one capacitor that was still running has since failed.
+    frame = pd.read_csv(io.BytesIO(outcomes), dtype=str, keep_default_na=False)
+    running = frame.index[frame["Failure_by_h"].eq("")][0]
+    frame.loc[running, "Failure_by_h"] = str(float(frame.loc[running, "Last_alive_h"]) + 500)
+    app.get("file_uploader")[1].upload("new_outcomes.csv", frame.to_csv(index=False).encode(), "text/csv").run()
+    assert not app.exception, app.exception
+    notes = " ".join(e.markdown[0].value for e in app.expander if e.label.startswith("File read with"))
+    assert f"Outcomes: 0 new outcomes, {len(frame)} outcomes updated." in notes
+    next(b for b in app.button if b.label == "Train and test the model").click().run()
+    assert not app.exception, app.exception
+    assert app.text_input(key="caplife_rul_model_name").value == "Lab model"
+    assert app.checkbox(key=f"caplife_rul_model_replace_{model_id}").value
+    app.button(key="caplife_rul_model_save").click().run()
+    assert any("in place of “Lab model”" in s.value for s in app.success)
+    saved = database.list(ALICE["id"], MODEL_KIND)
+    assert saved["id"].tolist() == [model_id]  # replaced, not added
+    kept = training_data(database.load(ALICE["id"], model_id))
+    assert kept["measurements"] == measurements
+    stored = pd.read_csv(io.BytesIO(kept["outcomes"]), dtype=str, keep_default_na=False)
+    failed = stored.set_index("Cap_ID").loc[frame.loc[running, "Cap_ID"], "Failure_by_h"]
+    assert float(failed) == float(frame.loc[running, "Failure_by_h"])
+    assert len(stored) == len(frame)

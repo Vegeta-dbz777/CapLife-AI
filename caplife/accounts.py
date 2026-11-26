@@ -149,8 +149,12 @@ def save_controls(kind: str, files: dict[str, bytes], default_name: str, key: st
                 st.success(f"Saved “{name.strip()}”. Open it any time from **My Data** or this page.")
 
 
-def save_model_controls(model, info: dict, default_name: str, key: str, worse_than_built_in: bool = False) -> None:
-    """Let a signed-in user keep a trained model that passed its test, to use it on Monitor and Predict."""
+def save_model_controls(model, info: dict, default_name: str, key: str, worse_than_built_in: bool = False,
+                        training: dict[str, bytes] | None = None, replaces: tuple[int, str] | None = None) -> None:
+    """Let a signed-in user keep a trained model that passed its test, to use it on Monitor and Predict.
+
+    ``training`` (the measurement and outcome files it was trained on) is kept with the model so it can be
+    trained again later; ``replaces`` is the saved model it was trained again from, offered for replacing."""
     if not saving_available():
         if auth_configured() and current_user() is None and storage_url():
             st.caption("Sign in (top right) to save this model to your account.")
@@ -163,15 +167,41 @@ def save_model_controls(model, info: dict, default_name: str, key: str, worse_th
             st.caption("On your test capacitors this model did worse than the built-in model (see the warning "
                        "above). You can still save it.")
         name = st.text_input("Model name", value=default_name[:80], max_chars=80, key=f"{key}_name")
+        replace = replaces is not None and st.checkbox(
+            f"Replace “{replaces[1]}”", value=True, key=f"{key}_replace_{replaces[0]}",
+            help="Keep only this model, in place of the one it was trained again from. Untick to keep both.")
         if st.button("Save model", type="primary", icon=":material/save:", key=f"{key}_save",
                      disabled=not name.strip()):
             from caplife.fine_tune import package
+            from caplife.retrain import TRAINING_FILES
+            files = package(model, info)
+            files.update({TRAINING_FILES[kind]: content for kind, content in (training or {}).items()})
             try:
-                store().save(current_user()["id"], MODEL_KIND, name, package(model, info))
+                if replace:
+                    store().replace(current_user()["id"], replaces[0], name, files)
+                else:
+                    store().save(current_user()["id"], MODEL_KIND, name, files)
             except StorageError as error:
                 st.error(str(error))
             else:
-                st.success(f"Saved “{' '.join(name.split())}”. It is listed in **My Data**.")
+                st.success(f"Saved “{' '.join(name.split())}”"
+                           + (f" in place of “{replaces[1]}”" if replace else "") + ". It is listed in **My Data**.")
+
+
+def models_to_train_again() -> list[tuple[int, str, dict[str, bytes]]] | None:
+    """The signed-in user's saved models with their files, newest first; None (with the reason shown) when the
+    user is signed out or saving is not set up."""
+    user = current_user()
+    if user is None:
+        st.info("Sign in (top right) to train one of your saved models again.")
+        return None
+    data_store = store()
+    if data_store is None:
+        st.info("Saving is not set up on this deployment yet.")
+        return None
+    saved = data_store.list(user["id"], MODEL_KIND)
+    return [(int(row.id), row.name, _load_cached(storage_url(), user["id"], int(row.id)))
+            for row in saved.itertuples(index=False)]
 
 
 @st.cache_data(show_spinner=False, ttl=600, max_entries=16)
@@ -313,8 +343,10 @@ def _dataset_row(user: dict, row, timezone) -> None:
 def _model_row(user: dict, row, timezone) -> None:
     """One saved model: its name, how it did on its test, what its data covered and a delete button."""
     from caplife.fine_tune import describe
+    from caplife.retrain import training_data
     model_id = int(row.id)
-    info = describe(_load_cached(storage_url(), user["id"], model_id))
+    files = _load_cached(storage_url(), user["id"], model_id)
+    info = describe(files)
     with st.container(border=True, horizontal=True, vertical_alignment="center", gap="small",
                       key=f"caplife_mydata_model_{model_id}"):
         with st.container(gap=None):
@@ -331,19 +363,38 @@ def _model_row(user: dict, row, timezone) -> None:
                 st.caption(test + (" · learned sudden failures" if info.get("sudden") else ""))
             if not info["usable"]:
                 st.caption(":orange[Saved by a different version of CapLife: train it again to use it.]")
-        with st.popover("", icon=":material/info:", help=f"What “{row.name}” was trained on", width="content",
-                        key=f"caplife_mydata_model_info_{model_id}"):
-            st.markdown(f"**{row.name}**")
-            if info.get("endpoint"):
-                st.markdown(f"- **Endpoint:** {info['endpoint']}")
-            if info.get("split"):
-                st.markdown(f"- **Split:** {info['split']}")
-            st.markdown("\n".join(f"- **{what}:** {value}" for what, value in info.get("tested", [])))
-        with st.popover("", icon=":material/delete:", help=f"Delete “{row.name}”", width="content",
-                        key=f"caplife_mydata_model_del_menu_{model_id}"):
-            st.write(f"Delete **{row.name}**? This cannot be undone.")
-            st.button("Delete", type="primary", icon=":material/delete:", key=f"caplife_mydata_model_remove_{model_id}",
-                      on_click=_delete_dataset, args=(user["id"], model_id))
+            if training_data(files) is None:
+                st.caption("Saved before models kept their training data, so it cannot be trained again from "
+                           "here: train it on Train The AI with its files.")
+        # The buttons stay together; on a phone the group moves under the text as one row.
+        with st.container(horizontal=True, gap="small", width="content", vertical_alignment="center"):
+            if training_data(files) is not None:
+                st.button("Train again", icon=":material/model_training:",
+                          help=f"Train “{row.name}” again: its data and settings open on Train The AI, where you "
+                               "can add newer readings and outcomes.",
+                          key=f"caplife_mydata_model_retrain_{model_id}", on_click=_train_again, args=(model_id,))
+            with st.popover("", icon=":material/info:", help=f"What “{row.name}” was trained on", width="content",
+                            key=f"caplife_mydata_model_info_{model_id}"):
+                st.markdown(f"**{row.name}**")
+                if info.get("endpoint"):
+                    st.markdown(f"- **Endpoint:** {info['endpoint']}")
+                if info.get("split"):
+                    st.markdown(f"- **Split:** {info['split']}")
+                st.markdown("\n".join(f"- **{what}:** {value}" for what, value in info.get("tested", [])))
+            with st.popover("", icon=":material/delete:", help=f"Delete “{row.name}”", width="content",
+                            key=f"caplife_mydata_model_del_menu_{model_id}"):
+                st.write(f"Delete **{row.name}**? This cannot be undone.")
+                st.button("Delete", type="primary", icon=":material/delete:",
+                          key=f"caplife_mydata_model_remove_{model_id}", on_click=_delete_dataset,
+                          args=(user["id"], model_id))
+
+
+def _train_again(model_id: int) -> None:
+    """Open Train The AI with this saved model's data and settings."""
+    from caplife.rul_page import RETRAIN, RETRAIN_KEY
+    st.session_state["caplife_rul_source"] = RETRAIN
+    st.session_state[RETRAIN_KEY] = model_id
+    st.session_state["caplife_workflow_v07"] = "Train an RUL model on uploaded outcomes"
 
 
 def render_my_data() -> None:

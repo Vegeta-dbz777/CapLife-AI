@@ -15,7 +15,7 @@ import json
 import pandas as pd
 from sqlalchemy import (
     Column, DateTime, Integer, LargeBinary, MetaData, String, Table, create_engine, delete, func, insert,
-    select,
+    select, update,
 )
 
 MAX_DATASETS_PER_USER = 25
@@ -86,6 +86,24 @@ class DatasetStore:
                 owner=owner, kind=kind, name=name, created_at=datetime.now(timezone.utc),
                 size_bytes=sum(len(content) for content in files.values()), payload=payload))
             return int(result.inserted_primary_key[0])
+
+    def replace(self, owner: str, dataset_id: int, name: str, files: dict[str, bytes]) -> int:
+        """Put new files and a new name in place of a saved item of the same owner, keeping its ID and kind
+        (used when a model is trained again). The save time becomes now."""
+        name = " ".join(name.split())[:MAX_NAME_LENGTH]
+        if not name:
+            raise StorageError("Give the model a name.")
+        if not files or any(len(content) > MAX_FILE_BYTES for content in files.values()):
+            raise StorageError("Each saved file must be between 1 byte and 8 MB.")
+        payload = gzip.compress(json.dumps({label: _encode(content) for label, content in files.items()}).encode())
+        with self.engine.begin() as connection:
+            result = connection.execute(update(datasets).where(
+                datasets.c.owner == owner, datasets.c.id == int(dataset_id)).values(
+                name=name, created_at=datetime.now(timezone.utc), payload=payload,
+                size_bytes=sum(len(content) for content in files.values())))
+        if result.rowcount != 1:
+            raise StorageError("That model no longer exists. Save this one as a new model.")
+        return int(dataset_id)
 
     def list(self, owner: str, kind: str | None = None) -> pd.DataFrame:
         query = (select(datasets.c.id, datasets.c.kind, datasets.c.name, datasets.c.created_at,

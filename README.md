@@ -156,6 +156,14 @@ Each user sees only their own datasets. Without these settings the app is a
 public demo and stores nothing. Setup takes about 20 minutes:
 [docs/accounts-and-storage.md](docs/accounts-and-storage.md).
 
+**Train again.** A saved model keeps the files it was trained on and its limits and split.
+Its *Train again* button in My Data opens Train The AI with that data and those settings
+filled in (data choice *Train a saved model again*). Add newer measurement and outcome
+files on top: new readings are added, and a capacitor in both outcome files takes its
+outcome from the new one, for example one that was still working and has since failed.
+The new model is tested afresh, and saving it can replace the old one. Models saved
+before this feature cannot be trained again from My Data. The logic is in `caplife/retrain.py`.
+
 ## Measurement files
 
 *Monitor and Predict* and *Train The AI* read CSV and
