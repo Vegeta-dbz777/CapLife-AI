@@ -47,6 +47,11 @@ def test_monitor_example_shows_fleet_and_capacitor_detail():
     measurements, _ = example_fleet()
     expected = SixRULModel(ARTIFACT_DIR).assess(measurements.query("Cap_ID == 'DEMO_04'")).iloc[-1]
     assert metric(app, "Overall health") == f"{expected['Overall_health_pct']:.0f}%"
+    card = next(e for e in app.expander if e.label.startswith("About the model"))
+    assert "real capacitors" in card.label
+    assert any("not reliable on these real capacitors" in m.value for m in card.markdown)
+    studies = next(d.value for d in card.dataframe if "Study" in d.value.columns)["Study"].tolist()
+    assert studies == ["NASA EOS-2", "PoFINN", "NASA ES14"]
 
 
 def test_monitor_pdf_report_is_the_page_as_shown():

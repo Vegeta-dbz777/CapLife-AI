@@ -12,7 +12,8 @@ A browser app for aluminum electrolytic capacitors with three workspaces:
 - **My Data:** the datasets you saved (sign-in required).
 
 > **Research release.** The Monitor and Predict networks learned from simulated capacitors; they demonstrate
-> the method, and their accuracy on real capacitors is untested. Not a maintenance or safety tool.
+> the method. On real capacitors from public aging studies (NASA EOS-2, PoFINN, NASA ES14) their forecasts
+> were not reliable; Train The AI adapts them to your own capacitors. Not a maintenance or safety tool.
 
 Open [CapLife AI](https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/) in a browser.
 
@@ -96,9 +97,15 @@ Aging damage is treated as lasting: health and end of life use the worst level a
 parameter has held (three consecutive readings), and the network sees earlier
 readings cleaned with their neighbours, so one faulty reading affects only its own
 prediction. Status: Good above 70% health, Watch from 40%, Critical below.
-These figures hold for the simulator only: the coefficients are illustrative,
-and accuracy on real capacitors is unknown until the model is tested on
-measured failures. Retrain with `python -m caplife.six_rul --output artifacts/six_rul`.
+These figures hold for the simulator only: the coefficients are illustrative.
+On real capacitors from three public aging studies the built-in model was not
+reliable: in the fast overstress tests (NASA EOS-2, PoFINN) real capacitors lost
+capacitance far faster than any simulated one and the model predicted several
+times too long; in the slow NASA ES14 test it predicted too short; the true
+remaining life was rarely inside the 80% range. Monitor and Predict shows the
+numbers under *About the model*. Retrain with
+`python -m caplife.six_rul --output artifacts/six_rul`, then rerun the real-capacitor
+check with `python -m caplife.real_capacitor_check`.
 
 **Reports.** Under Downloads, *Report (PDF)* is the page as you see it: the fleet overview, then the
 selected capacitor with its end-of-life limits and operating conditions as entered in the boxes (changed values

@@ -46,5 +46,5 @@ def render(hero_image: Path, open_workspace: Callable[[str], None], workspaces: 
             st.button(f"Open {title} →", key=f"caplife_home_open_{key}", type="primary", width="stretch",
                       on_click=open_workspace, args=(workspaces[key],))
     st.caption("New here? Open **Monitor and Predict** and choose the simulated example capacitors. The neural "
-               "networks learned from simulated capacitors; their accuracy on real capacitors has not been tested. "
-               "Not a maintenance or safety tool.")
+               "networks learned from simulated capacitors and were not reliable on real ones from public aging "
+               "studies; train them on your own capacitors on Train The AI. Not a maintenance or safety tool.")
