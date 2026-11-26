@@ -19,7 +19,8 @@ import pandas as pd
 from caplife.six_rul import INDICATOR_LABELS
 
 DISCLAIMER = ("Demonstration model: the neural networks learned from simulated capacitors, not laboratory measurements. "
-              "Their accuracy on real capacitors has not been tested. Not a maintenance or safety tool.")
+              "On real capacitors from public aging studies their forecasts were not reliable. Not a maintenance or "
+              "safety tool.")
 UNITS = {"Capacitance_uF": "µF", "ESR_ohm": "Ω", "Leakage_uA": "µA", "Case_Expansion_um": "µm",
          "H2_Generated_mL_STP": "mL", "Pressure_Abs_kPa": "kPa"}
 CONDITION_NAMES = {"Ambient_C": "Ambient temperature (°C)", "Core_C": "Core temperature (°C)",

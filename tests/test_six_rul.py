@@ -352,3 +352,24 @@ def test_each_capacitor_is_assessed_with_its_own_parameters():
         assert health.notna().sum() == len(signals)
     fleet = page._fleet_table(results, None)
     assert fleet.set_index("Capacitor").loc["DEMO_02", "Parameters"] == "2 of 6"
+
+
+def test_real_capacitor_check_belongs_to_this_model_and_reports_it_honestly():
+    from caplife.real_capacitor_check import stored
+
+    result = stored(ARTIFACTS)
+    assert result is not None, "Rerun python -m caplife.real_capacitor_check after retraining the built-in model."
+    studies = {study["study"]: study for study in result["studies"]}
+    assert set(studies) == {"NASA EOS-2", "PoFINN", "NASA ES14"}
+    for study in studies.values():
+        assert study["crossed"] >= 6 and study["predictions"] >= 30
+        assert 0 <= study["interval_coverage"] <= 1
+
+
+def test_real_capacitor_crossing_is_interpolated_between_readings():
+    from caplife.real_capacitor_check import crossing_h, trend_h
+
+    history = pd.DataFrame({"Hours": [0.0, 10.0, 20.0, 30.0], "Capacitance_uF": [1000.0, 960.0, 920.0, 880.0]})
+    assert crossing_h(history, 10) == pytest.approx(25.0)
+    assert crossing_h(history, 20) is None
+    assert trend_h(history, 20) == pytest.approx(20.0)

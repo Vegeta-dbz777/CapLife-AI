@@ -1,0 +1,69 @@
+{
+  "model_fingerprint": "141ad63af37928fa",
+  "studies": [
+    {
+      "study": "NASA EOS-2",
+      "limit_pct": 15,
+      "source": "https://data.nasa.gov/dataset/capacitor-electrical-stress-2",
+      "stress": "electrical overstress",
+      "measured": [
+        "Capacitance_uF"
+      ],
+      "age_range_h": 194.0,
+      "capacitors": 6,
+      "crossed": 6,
+      "predictions": 42,
+      "median_true_rul_h": 46.828049690683045,
+      "median_predicted_rul_h": 435.2267761230469,
+      "median_absolute_error_h": 414.9456282088503,
+      "median_relative_error": 6.424046628524987,
+      "trend_median_relative_error": 1.6425728883750104,
+      "interval_coverage": 0.0,
+      "share_failed_before_range": 1.0,
+      "share_failed_after_range": 0.0
+    },
+    {
+      "study": "PoFINN",
+      "limit_pct": 20,
+      "source": "https://github.com/Anurag-Dutta/PoFINN",
+      "stress": "electrical overstress",
+      "measured": [
+        "Capacitance_uF"
+      ],
+      "age_range_h": 560.0,
+      "capacitors": 8,
+      "crossed": 8,
+      "predictions": 89,
+      "median_true_rul_h": 117.60000000000014,
+      "median_predicted_rul_h": 255.37460327148438,
+      "median_absolute_error_h": 114.35659354073655,
+      "median_relative_error": 0.9016534389730334,
+      "trend_median_relative_error": 0.3858858858858885,
+      "interval_coverage": 0.33707865168539325,
+      "share_failed_before_range": 0.6629213483146067,
+      "share_failed_after_range": 0.0
+    },
+    {
+      "study": "NASA ES14",
+      "limit_pct": 5,
+      "source": "sample_data/nasa_es14_reference.csv",
+      "stress": "electrical stress, slow aging",
+      "measured": [
+        "Capacitance_uF",
+        "ESR_ohm"
+      ],
+      "age_range_h": 5082.5,
+      "capacitors": 8,
+      "crossed": 7,
+      "predictions": 277,
+      "median_true_rul_h": 898.6225186959912,
+      "median_predicted_rul_h": 217.71218872070312,
+      "median_absolute_error_h": 722.5966580761267,
+      "median_relative_error": 0.8382869799362437,
+      "trend_median_relative_error": 0.9669785579318917,
+      "interval_coverage": 0.06498194945848375,
+      "share_failed_before_range": 0.10830324909747292,
+      "share_failed_after_range": 0.8267148014440433
+    }
+  ]
+}

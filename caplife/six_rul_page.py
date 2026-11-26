@@ -1291,9 +1291,48 @@ def _model_card(measured: tuple[str, ...]) -> None:
     st.caption("Typical error is the median absolute difference between predicted and true remaining life. "
                f"The random-limits row is a further {fleets.get('test_custom', {}).get('capacitors', 0)} test "
                "capacitors, each with its own limits drawn from the allowed ranges. "
-               "These results hold for the simulator. Real capacitors may age differently, so accuracy on real "
-               "data is unknown until the model is tested on measured failures. Retrain with "
-               "`python -m caplife.six_rul`.")
+               "Retrain with `python -m caplife.six_rul`.")
+    _real_capacitor_section()
+
+
+def _real_capacitor_section() -> None:
+    """How the built-in model did on real capacitors from public aging studies."""
+    from caplife.real_capacitor_check import stored
+
+    result = stored()
+    st.markdown("**Test on real capacitors from public aging studies**")
+    if result is None:
+        st.markdown("Not yet tested with this version of the model. Run `python -m caplife.real_capacitor_check`.")
+        return
+    rows = [{"Study": study["study"], "Capacitors": study["crossed"],
+             "End of life": f"capacitance loss {study['limit_pct']:g}%",
+             "Typical true remaining life (h)": study["median_true_rul_h"],
+             "Typical predicted remaining life (h)": study["median_predicted_rul_h"],
+             "Typical relative error": study["median_relative_error"],
+             "Trend line typical relative error": study["trend_median_relative_error"],
+             "True RUL inside 80% range": study["interval_coverage"]} for study in result["studies"]]
+    table(pd.DataFrame(rows), hide_index=True, width="stretch", column_config={
+        "Capacitors": st.column_config.NumberColumn(help="Capacitors that reached the limit during the study."),
+        "End of life": st.column_config.TextColumn(
+            help="Chosen so most capacitors in the study reached it. Only capacitance (and ESR in NASA ES14) was "
+                 "measured; no operating conditions were given to the model."),
+        "Typical true remaining life (h)": st.column_config.NumberColumn(format="%.0f"),
+        "Typical predicted remaining life (h)": st.column_config.NumberColumn(format="%.0f"),
+        "Typical relative error": st.column_config.NumberColumn(
+            format="percent", help="Median of |predicted − true| ÷ true remaining life, over every reading taken "
+                                   "before the capacitor reached the limit."),
+        "Trend line typical relative error": st.column_config.NumberColumn(
+            format="percent", help="The same for a straight line through the last three readings, extended to the "
+                                   "limit."),
+        "True RUL inside 80% range": st.column_config.NumberColumn(format="percent"),
+    })
+    st.markdown(
+        "**The built-in model is not reliable on these real capacitors.** In the two fast overstress tests "
+        "(NASA EOS-2 and PoFINN), real capacitors lost capacitance within tens to a few hundred hours. That is "
+        "much faster than any simulated capacitor, so the model predicted several times too long. In the slow "
+        "NASA ES14 test, it predicted too short. In all three, the true remaining life was rarely inside the 80% "
+        "range. To get reliable forecasts for your capacitors, train the model on Train The AI with readings and "
+        "failures from the same capacitor type and conditions. Its test then shows how well it does on them.")
 
 
 def _trained_card(info: dict) -> None:
@@ -1476,7 +1515,8 @@ def render() -> None:
                    "hydrogen and internal pressure (any of them), optionally with operating conditions. CapLife "
                    "scores each parameter's health against its limit, and a neural network predicts remaining useful "
                    "life with an 80% range. Choose the built-in model, trained on simulated capacitors (its "
-                   "accuracy on real capacitors has not been tested), or one you trained on Train The AI.")
+                   "forecasts were not reliable on real capacitors from public aging studies), or one you trained on Train The "
+                   "AI.")
     loaded = _load()
     if loaded is None:
         return
@@ -1576,7 +1616,8 @@ def render() -> None:
         if pd.notna(last.get("Sudden_failure_chance", np.nan)):
             detail += (f" Chance its life ends in a sudden failure (open circuit, short, vent) rather than at a limit: "
                        f"{last['Sudden_failure_chance']:.0%}.")
-        coverage = ("about 80% of the time on simulated test capacitors" if not trained else
+        coverage = ("about 80% of the time on simulated test capacitors, but rarely on real ones from public aging "
+                    "studies (see About the model)" if not trained else
                     f"for {trained['scores']['trained']['inside']:.0%} of the failures on the test capacitors of "
                     f"“{trained['name']}”")
         helps = [detail, f"{last['RUL_low_h']:,.0f} – {last['RUL_high_h']:,.0f} h. The true remaining life fell "
@@ -1674,7 +1715,7 @@ def render() -> None:
         with st.expander(f"About “{trained['name']}” and how well it did on its test"):
             _trained_card(trained)
     else:
-        with st.expander("About the model and how well it did on simulated data"):
+        with st.expander("About the model and how well it did on simulated and real capacitors"):
             _model_card(measured)
 
     st.subheader("Downloads", help="The PDF and Excel reports cover the fleet, the selected capacitor (limits, "
