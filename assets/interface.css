@@ -544,3 +544,42 @@
      the heading onto a second line; the app does not use heading links. */
   [data-testid="stHeaderActionElements"] a { display: none; }
 }
+
+/* More columns to the right (assets/table-scroll-hint.html): a soft fade at the table's right edge and a round
+   arrow marker in it. */
+[data-testid="stDataFrame"][data-more-right="true"] { position: relative; }
+[data-testid="stDataFrame"][data-more-right="true"]::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 2.5rem;
+  background: linear-gradient(to right, transparent, light-dark(#F7FAF9, #0B1214) 75%);
+  border-radius: 0 0.65rem 0.65rem 0;
+  pointer-events: none;
+  z-index: 2;
+}
+[data-testid="stDataFrame"][data-more-right="true"]::before {
+  content: "›";
+  position: absolute;
+  top: 50%;
+  right: 0.4rem;
+  transform: translateY(-50%);
+  width: 1.6rem;
+  height: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 0.15rem;
+  box-sizing: border-box;
+  border-radius: 50%;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1;
+  color: light-dark(#FFFFFF, #0B1214);
+  background: light-dark(#08796B, #4FDDC5);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+  pointer-events: none;
+  z-index: 3;
+}

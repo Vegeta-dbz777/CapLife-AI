@@ -14,6 +14,7 @@ import os
 import pandas as pd
 import streamlit as st
 
+from caplife.wording import count
 from caplife.tables import table
 
 from caplife.versioning import code_version
@@ -437,6 +438,6 @@ def render_my_data() -> None:
         if st.button("Delete all my data", disabled=not confirm, key="caplife_mydata_delete_all"):
             removed = data_store.delete_all(user["id"])
             _load_cached.clear()
-            st.success(f"Deleted {removed} saved item(s).")
+            st.success(f"Deleted {count(removed, 'saved item')}.")
     st.caption("Datasets and models are stored in the database configured for this app, compressed and labelled "
                "with your account ID. Signing out does not delete them; use the buttons above.")

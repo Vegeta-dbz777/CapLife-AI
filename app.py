@@ -51,6 +51,7 @@ st.set_page_config(
 st.html(ASSETS / "interface.css")
 st.html(ASSETS / "hide-repo-buttons.html", unsafe_allow_javascript=True)
 st.html(ASSETS / "hide-profile-badge.html", unsafe_allow_javascript=True)
+st.html(ASSETS / "table-scroll-hint.html", unsafe_allow_javascript=True)
 
 if st.query_params.get("page") == "privacy":
     from caplife.privacy import render as render_privacy

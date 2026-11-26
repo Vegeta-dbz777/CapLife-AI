@@ -8,6 +8,7 @@ from collections import OrderedDict
 
 import altair as alt
 
+from caplife.wording import count
 from caplife.chart_hover import hoverable
 from caplife.six_rul_page import ZOOM_HELP, _rul_chart, _show_zoomable, _zoom_hours
 from caplife.train_report import TrainView, pdf_bytes, xlsx_bytes
@@ -357,7 +358,7 @@ def _limit_inputs(measured: tuple[str, ...]) -> dict:
                 "value": _shown_limit(signal, EOL_LIMITS[LIMIT_KEYS[signal]])}
             shown = columns[index % 3].number_input(
                 label, min_value=_shown_limit(signal, low), max_value=_shown_limit(signal, high), step=step,
-                key=key(signal), persist_state="session", disabled=signal not in measured,
+                format="%g", key=key(signal), persist_state="session", disabled=signal not in measured,
                 help=("Not measured in your data." if signal not in measured else
                       f"Allowed: {_shown_limit(signal, low):g} to {_shown_limit(signal, high):g}."), **kwargs)
             limits[LIMIT_KEYS[signal]] = _stored_limit(signal, shown)
@@ -443,7 +444,7 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
     tags.append(("gray", conditions_tag))
     excluded = result["audit"]["devices_excluded"]
     if excluded:
-        with st.expander(f"{len(excluded)} capacitor(s) with outcomes could not be used"):
+        with st.expander(f"{count(len(excluded), 'capacitor')} with outcomes could not be used"):
             st.markdown(_reason_list(excluded))
     tested = pd.DataFrame(result["tested"], columns=["What", "Your data"])
     with st.expander("What your data tested", icon=":material/fact_check:"):
@@ -516,7 +517,8 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
                             "without an outcome row.")
         st.info(forecast_message)
     elif not result["passed"]:
-        forecast_message = (f"{len(result['forecast_devices'])} capacitor(s) have no outcome row. Their forecasts "
+        forecast_message = (f"{count(len(result['forecast_devices']), 'capacitor')} "
+                            f"{'has' if len(result['forecast_devices']) == 1 else 'have'} no outcome row. Their forecasts "
                             "are not shown because the test did not pass.")
         st.write(forecast_message)
     else:
@@ -540,7 +542,7 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
                     history.loc[history["Capacitor"].eq(name)], None,
                     hours=_zoom_hours(f"caplife_rul_zoom_rul_{name}"))) for name in forecasts["Capacitor"]]
         if withheld:
-            with st.expander(f"Forecast withheld for {len(withheld)} capacitor(s)", icon=":material/block:"):
+            with st.expander(f"Forecast withheld for {count(len(withheld), 'capacitor')}", icon=":material/block:"):
                 st.markdown(_reason_list(withheld))
                 st.caption(f"A forecast is withheld when early readings go more than {TRAINING_RANGE_MARGIN:.0%} of "
                            "the training range beyond what the training capacitors showed.")

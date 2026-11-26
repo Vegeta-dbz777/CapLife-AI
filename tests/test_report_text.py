@@ -29,4 +29,4 @@ def test_train_workbook_shows_whole_hours_and_plain_text():
     assert overview["Checks"] == "at least 3 observed test failures."
     age = book["Test results"]["B2"]
     assert age.value == 1384.28 and age.number_format == "#,##0"  # full value, shown as whole hours
-    assert book["Model comparison"]["B2"].number_format == "0.0%"
+    assert book["Model comparison"]["B2"].number_format == "0%"
