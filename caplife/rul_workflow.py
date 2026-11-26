@@ -44,6 +44,7 @@ from caplife.six_rul import CONDITION_LABELS, CONDITIONS, condition_values
 OPTIONAL_OUTCOME_COLUMNS = ("Failure_mode",)
 SPLIT_BY_EXPERIMENT = "experiment"
 SPLIT_BY_DEVICE = "device"
+SPLIT_ROTATE = "rotation"  # every experiment but the calibration one is the test in turn
 ROLES = ("training", "calibration", "test")
 MODEL_LABELS = {
     "trained": "Your trained model",
@@ -494,14 +495,35 @@ def _tested(readings: pd.DataFrame, devices, signals: tuple[str, ...], modes: di
     return rows
 
 
+def _turn_row(experiment: str, test: pd.DataFrame, scores: dict, reasons: list[str]) -> dict:
+    trained = scores["trained"]
+    return {
+        "Test experiment": experiment,
+        "Test capacitors": int(test["device"].nunique()),
+        "Observed failures": int(trained["bounded_or_exact_events"]),
+        "Average miss (h)": trained["mean_distance_to_observed_window_h"],
+        "Failures inside 80% range": trained["definite_80pct_band_coverage_observed_events"],
+        "Typical 80% range width (h)": trained["median_band_width_h"],
+        "Built-in model miss (h)": scores["built_in"]["mean_distance_to_observed_window_h"],
+        "Average lifetime miss (h)": scores["intercept_only"]["mean_distance_to_observed_window_h"],
+        "On its own": "Passes" if not reasons else "Would not pass",
+    }
+
+
 def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method: str,
                      calibration_experiment: str | None = None, test_experiment: str | None = None,
-                     limits: dict | None = None) -> dict:
+                     limits: dict | None = None, progress=None) -> dict:
     """Train the six-parameter model further on the user's capacitors, test it on held-out ones, and
-    forecast only if it passes."""
+    forecast only if it passes.
+
+    With ``SPLIT_ROTATE`` every experiment except the calibration one is the test in turn (the model then
+    trains on the others); the checks apply to all those test capacitors together, and the forecasts come
+    from a final model trained on every experiment except the calibration one. ``progress(share, text)``
+    is told how far training has got."""
     from caplife import fine_tune
     from caplife.six_rul import full_limits
 
+    progress = progress or (lambda share, text: None)
     missing = [column for column in OUTCOME_COLUMNS if column not in outcomes.columns]
     if missing or outcomes.empty:
         raise RealDataValidationError("The outcome file needs one row per capacitor with columns "
@@ -525,36 +547,79 @@ def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method:
     if frame.empty:
         raise ValueError("No capacitor has the readings and follow-up needed to train a model.")
     devices = frame.loc[frame["evaluation"], ["device", "experiment"]]
-    roles = device_roles(devices, method, calibration_experiment, test_experiment)
-    frame = frame.assign(role=roles.reindex(frame["device"].to_numpy()).to_numpy())
-    parts = {role: frame.loc[frame["role"].eq(role)] for role in ROLES}
-    minimum = {"training": MIN_TRAINING_DEVICES, "calibration": MIN_CALIBRATION_DEVICES, "test": MIN_TEST_DEVICES}
-    for role, part in parts.items():
-        if part["device"].nunique() < minimum[role]:
-            raise ValueError(f"The {role} group has {part['device'].nunique()} eligible capacitor(s); "
-                             f"at least {minimum[role]} are needed.")
-    if not np.isfinite(parts["training"][BOUNDS[1]]).any():
-        raise ValueError("At least one training capacitor needs an observed failure.")
-    # Calibration and testing use one reading per capacitor.
-    calibration = parts["calibration"].loc[parts["calibration"]["evaluation"]]
-    test = parts["test"].loc[parts["test"]["evaluation"]]
-
     histories = _histories(readings)
     by_label = {label.Cap_ID: label for label in labels.itertuples(index=False)}
     used = sorted(set(frame["device"]))
     modes = {device: fine_tune.failure_mode(histories[device], by_label[device], signals, limits) for device in used}
-    trained_model = fine_tune.train(histories, by_label, modes, sorted(set(parts["training"]["device"])),
-                                    signals, conditions, limits)
-    # The range is calibrated on every reading of the calibration capacitors, early and late in life.
-    adjustment = fine_tune.calibrate(trained_model, histories, parts["calibration"], signals, limits)
-    calibrated = adjustment is not None
-    trained_model.set_adjustment(*(adjustment or (0.0, 0.0)))
-
     base = fine_tune.built_in()
-    average_band, average_calibrated = _average_lifetime(parts["training"], calibration, test)
-    trained_band = _bands(trained_model, histories, test, signals, limits)
-    scores = {"trained": _scores(test, trained_band), "built_in": _scores(test, _bands(base, histories, test, signals, limits)),
-              "intercept_only": _scores(test, average_band)}
+
+    def fit(roles: pd.Series, needs_test: bool = True, turn: str = "") -> dict:
+        """Train, calibrate and (when there is a test group) score one split."""
+        assigned = frame.assign(role=roles.reindex(frame["device"].to_numpy()).to_numpy())
+        parts = {role: assigned.loc[assigned["role"].eq(role)] for role in ROLES}
+        minimum = {"training": MIN_TRAINING_DEVICES, "calibration": MIN_CALIBRATION_DEVICES,
+                   "test": MIN_TEST_DEVICES if needs_test else 0}
+        for role, part in parts.items():
+            if part["device"].nunique() < minimum[role]:
+                raise ValueError(f"The {role} group{turn} has {part['device'].nunique()} eligible capacitor(s); "
+                                 f"at least {minimum[role]} are needed.")
+        if not np.isfinite(parts["training"][BOUNDS[1]]).any():
+            raise ValueError(f"At least one training capacitor{turn} needs an observed failure.")
+        # Calibration and testing use one reading per capacitor.
+        calibration = parts["calibration"].loc[parts["calibration"]["evaluation"]]
+        test = parts["test"].loc[parts["test"]["evaluation"]]
+        model = fine_tune.train(histories, by_label, modes, sorted(set(parts["training"]["device"])),
+                                signals, conditions, limits)
+        # The range is calibrated on every reading of the calibration capacitors, early and late in life.
+        adjustment = fine_tune.calibrate(model, histories, parts["calibration"], signals, limits)
+        model.set_adjustment(*(adjustment or (0.0, 0.0)))
+        result = {"assigned": assigned, "parts": parts, "calibration": calibration, "test": test, "model": model,
+                  "adjustment": adjustment, "calibrated": adjustment is not None}
+        if len(test):
+            average, average_calibrated = _average_lifetime(parts["training"], calibration, test)
+            result["bands"] = {"trained": _bands(model, histories, test, signals, limits),
+                               "built_in": _bands(base, histories, test, signals, limits), "intercept_only": average}
+            result["average_calibrated"] = average_calibrated
+            result["scores"] = {name: _scores(test, band) for name, band in result["bands"].items()}
+        return result
+
+    turns = None
+    if method == SPLIT_ROTATE:
+        experiments = sorted(set(map(str, devices["experiment"])))
+        if calibration_experiment not in experiments:
+            raise ValueError("Choose a calibration experiment that contains eligible capacitors.")
+        tests = [experiment for experiment in experiments if experiment != calibration_experiment]
+        if len(tests) < 2:
+            raise ValueError("Testing every experiment in turn needs at least three experiments.")
+        done, rows = [], []
+        for number, experiment in enumerate(tests):
+            progress(number / (len(tests) + 1), f"Testing on {experiment} ({number + 1} of {len(tests)})…")
+            split = fit(device_roles(devices, SPLIT_BY_EXPERIMENT, calibration_experiment, experiment),
+                        turn=f" when testing on {experiment}")
+            done.append(split)
+            rows.append(_turn_row(experiment, split["test"], split["scores"],
+                                  release_checks(split["scores"]["trained"], split["scores"]["intercept_only"],
+                                                 split["calibration"], split["calibrated"])))
+        progress(len(tests) / (len(tests) + 1), "Training the final model on every experiment but the calibration one…")
+        final = fit(pd.Series(np.where(devices["experiment"].astype(str).eq(calibration_experiment), "calibration",
+                                       "training"), index=devices["device"].to_numpy()), needs_test=False)
+        test = pd.concat([split["test"] for split in done])
+        bands = {name: np.concatenate([split["bands"][name] for split in done]) for name in MODEL_LABELS}
+        scores = {name: _scores(test, band) for name, band in bands.items()}
+        calibrated = final["calibrated"] and all(split["calibrated"] for split in done)
+        average_calibrated = all(split["average_calibrated"] for split in done)
+        turns = pd.DataFrame(rows)
+        test_experiments = tests
+    else:
+        progress(0.0, "Training and testing…")
+        final = fit(device_roles(devices, method, calibration_experiment, test_experiment))
+        test, bands, scores = final["test"], final["bands"], final["scores"]
+        calibrated, average_calibrated = final["calibrated"], final["average_calibrated"]
+        test_experiments = sorted(map(str, test["experiment"].unique()))
+    progress(1.0, "Done")
+
+    trained_model, parts, adjustment = final["model"], final["parts"], final["adjustment"]
+    calibration = final["calibration"]
     ranges = {"trained": "Calibrated on your capacitors" if calibrated else "Not calibrated",
               "built_in": "Built-in calibration",
               "intercept_only": "Calibrated on your capacitors" if average_calibrated else "Not calibrated"}
@@ -573,14 +638,20 @@ def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method:
         unlabelled = readings.loc[~readings["Cap_ID"].isin(labelled_ids)].reset_index(drop=True)
         forecasts, withheld, forecast_history = _forecasts(unlabelled, trained_model, parts["training"], signals,
                                                            conditions, limits)
-    parts = {role: part.loc[part["evaluation"]] for role, part in parts.items()}
     mode_counts = {mode: int(count) for mode, count in pd.Series(modes).value_counts().items()}
+    evaluation = {role: part.loc[part["evaluation"]] for role, part in parts.items()}
+    experiments_by_role = {
+        "training": sorted(map(str, evaluation["training"]["experiment"].unique())),
+        "calibration": sorted(map(str, evaluation["calibration"]["experiment"].unique())),
+        "test": test_experiments,
+    }
+    roles = {"training": len(evaluation["training"]), "calibration": len(evaluation["calibration"]), "test": len(test)}
 
     report = {
         **audit,
         "split_method": method,
-        "experiments_by_role": {role: sorted(map(str, part["experiment"].unique())) for role, part in parts.items()},
-        "devices_by_role": {role: int(len(part)) for role, part in parts.items()},
+        "experiments_by_role": experiments_by_role,
+        "devices_by_role": roles,
         "end_of_life_limits": limits,
         "failure_modes": mode_counts,
         "target_interval_mass": INTERVAL_MASS,
@@ -593,12 +664,13 @@ def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method:
         "warnings": warnings,
         "calibration_log_adjustment": None if adjustment is None else {"early": adjustment[0], "late": adjustment[1]},
         "models": scores,
+        "each_experiment_as_test": None if turns is None else turns.to_dict(orient="records"),
         "forecast_devices": forecast_devices,
         "forecasts": [] if forecasts is None else forecasts.to_dict(orient="records"),
         "forecasts_withheld": withheld,
         "parameters": list(signals),
         "operating_conditions": list(conditions),
-        "training_landmarks": int(len(frame.loc[frame["role"].eq("training")])),
+        "training_landmarks": int(len(parts["training"])),
     }
     return {
         "report": _json_safe(report),
@@ -606,10 +678,11 @@ def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method:
         "reasons": reasons,
         "warnings": warnings,
         "audit": audit,
-        "roles": {role: len(part) for role, part in parts.items()},
-        "experiments_by_role": report["experiments_by_role"],
+        "roles": roles,
+        "experiments_by_role": experiments_by_role,
         "model_table": _model_table(scores, ranges),
-        "test_table": _test_table(test, trained_band),
+        "test_table": _test_table(test, bands["trained"]),
+        "turns": turns,
         "forecast_devices": forecast_devices,
         "forecasts": forecasts,
         "forecasts_withheld": withheld,

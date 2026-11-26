@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
+from collections import OrderedDict
 
 import altair as alt
 
@@ -22,7 +24,7 @@ from caplife.rul_example import example_dataset
 from caplife.versioning import code_version
 from caplife.rul_workflow import (
     MAX_CENSOR_CONTRADICTIONS, MIN_CALIBRATION_DEVICES, MIN_TEST_COVERAGE, MIN_TEST_DEVICES,
-    MIN_TEST_FAILURES, MIN_TRAINING_DEVICES, SPLIT_BY_DEVICE, SPLIT_BY_EXPERIMENT,
+    MIN_TEST_FAILURES, MIN_TRAINING_DEVICES, SPLIT_BY_DEVICE, SPLIT_BY_EXPERIMENT, SPLIT_ROTATE,
     TRAINING_RANGE_MARGIN, measurement_template_csv, outcome_template_csv, read_outcomes,
     run_rul_workflow,
 )
@@ -45,19 +47,31 @@ def _example_csvs() -> tuple[bytes, bytes]:
     return _example_csvs_cached(code_version())
 
 
+# The last few training results, shared by every visitor (the same files and settings give the same result).
+# Kept here rather than in st.cache_data so the page can show training progress while a result is made.
+_RESULTS: OrderedDict = OrderedDict()
+_RESULTS_LOCK = threading.Lock()
+MAX_RESULTS = 8
+
+
 def _run(measurements: bytes, outcomes: bytes, method: str, calibration: str | None, test: str | None,
-         limits: dict | None = None, settings: tuple[str, str] = ("hours", "auto")) -> dict:
-    return _run_cached(measurements, outcomes, method, calibration, test, json.dumps(limits or {}, sort_keys=True),
-                       settings, code_version())
-
-
-# Keyed by code_version() so results from an older model version are never reused after an update.
-@st.cache_data(show_spinner=False, max_entries=8)
-def _run_cached(measurements: bytes, outcomes: bytes, method: str, calibration: str | None, test: str | None,
-                limits_json: str, settings: tuple[str, str], version: str) -> dict:
+         limits: dict | None = None, settings: tuple[str, str] = ("hours", "auto"), progress=None) -> dict:
+    # Keyed by code_version() so results from an older model version are never reused after an update.
+    key = hashlib.sha256(json.dumps([hashlib.sha256(measurements).hexdigest(), hashlib.sha256(outcomes).hexdigest(),
+                                     method, calibration, test, limits or {}, list(settings), code_version()],
+                                    sort_keys=True).encode()).hexdigest()
+    with _RESULTS_LOCK:
+        if key in _RESULTS:
+            _RESULTS.move_to_end(key)
+            return _RESULTS[key]
     time_unit, pressure = settings
-    return run_rul_workflow(read_experimental_csv(measurements, time_unit=time_unit, pressure=pressure),
-                            read_outcomes(outcomes, time_unit), method, calibration, test, json.loads(limits_json))
+    result = run_rul_workflow(read_experimental_csv(measurements, time_unit=time_unit, pressure=pressure),
+                              read_outcomes(outcomes, time_unit), method, calibration, test, limits, progress)
+    with _RESULTS_LOCK:
+        _RESULTS[key] = result
+        while len(_RESULTS) > MAX_RESULTS:
+            _RESULTS.popitem(last=False)
+    return result
 
 
 def _hours(value) -> str:
@@ -264,24 +278,38 @@ def _limit_inputs(measured: tuple[str, ...]) -> dict:
     return limits
 
 
+ROTATE, ONE_TEST, BY_CAPACITOR = "Every experiment in turn (recommended)", "One test experiment", "By capacitor"
+
+
 def _split_settings(experiments: list[str]) -> tuple[str, str | None, str | None]:
-    options = {"By experiment (recommended)": SPLIT_BY_EXPERIMENT, "By capacitor": SPLIT_BY_DEVICE}
+    options = {ROTATE: SPLIT_ROTATE, ONE_TEST: SPLIT_BY_EXPERIMENT, BY_CAPACITOR: SPLIT_BY_DEVICE}
     if len(experiments) >= 3:
         choice = st.radio("Choose the capacitors held out for testing", tuple(options), horizontal=True,
-                          key="caplife_rul_split", persist_state="session",
-                          help="By experiment: one experiment calibrates the 80% range, another tests the model, "
-                               "and the rest train it, so the test is a new experiment. By capacitor: about 20% of "
-                               f"eligible capacitors go to calibration (at least {MIN_CALIBRATION_DEVICES}), 20% to "
-                               f"testing (at least {MIN_TEST_DEVICES}) and the rest to training (at least "
-                               f"{MIN_TRAINING_DEVICES}), fixed by each capacitor ID, not by its outcome.")
+                          key="caplife_rul_split_v2", persist_state="session",
+                          help="Every experiment in turn: one experiment calibrates the 80% range, and each other "
+                               "experiment is the test once, with the model trained on the rest. The checks then "
+                               "cover every one of those capacitors, so one unlucky experiment cannot decide the "
+                               "verdict; forecasts come from a model trained on every experiment except the "
+                               "calibration one. Takes about a minute. One test experiment: one experiment "
+                               "calibrates, another tests and the rest train, quicker but decided by fewer "
+                               "capacitors. By capacitor: about 20% of eligible capacitors go to calibration (at "
+                               f"least {MIN_CALIBRATION_DEVICES}), 20% to testing (at least {MIN_TEST_DEVICES}) and the "
+                               f"rest to training (at least {MIN_TRAINING_DEVICES}), fixed by each capacitor ID, not "
+                               "by its outcome.")
     else:
-        choice = "By capacitor"
+        choice = BY_CAPACITOR
         st.caption("Splitting by experiment needs at least three experiments, so capacitors are split "
                    "individually. Test capacitors then share test conditions with training capacitors, "
                    "which makes the test easier than forecasting a new experiment.")
     method = options[choice]
     if method == SPLIT_BY_DEVICE:
         return method, None, None
+    if method == SPLIT_ROTATE:
+        left, _ = st.columns(2)
+        calibration = left.selectbox("Calibration experiment", experiments, index=0, key="caplife_rul_calibration",
+                                     persist_state="session",
+                                     help="Sets the width of the 80% range; every other experiment is tested in turn.")
+        return method, calibration, None
     left, right = st.columns(2)
     calibration = left.selectbox("Calibration experiment", experiments, index=0, key="caplife_rul_calibration", persist_state="session")
     test = right.selectbox("Test experiment", [e for e in experiments if e != calibration], index=0,
@@ -311,9 +339,12 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
     tags = []
     for name in ("training", "calibration", "test"):
         colour = {"training": "blue", "calibration": "violet", "test": "orange"}[name]
+        rotated = name == "test" and result.get("turns") is not None
         row.badge(f"{name.title()} {roles[name]}", color=colour,
                   help=f"{roles[name]} capacitors" + (f" from {', '.join(by_role[name])}" if by_role.get(name) else "")
-                       + ".")
+                       + (", each tested by a model that never saw its experiment" if rotated else "")
+                       + (". The final model trains on all of them" if name == "training" and result.get("turns")
+                          is not None else "") + ".")
         tags.append((colour, f"{name.title()} {roles[name]}"))
     row.badge(f"Parameters {len(used)} of 6", icon=":material/monitoring:", color="gray",
               help=f"The ones every capacitor with an outcome has: {', '.join(used)}.")
@@ -347,6 +378,15 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
             "Failures inside 80% range": st.column_config.NumberColumn(format="percent"),
         },
     )
+    turns = result.get("turns")
+    if turns is not None:
+        st.markdown("##### Each experiment as the test",
+                    help="Each row is one turn: the model trained on the other experiments, calibrated on the "
+                         "calibration experiment and tested on this one. The verdict below uses all turns together; "
+                         "\"On its own\" says whether that turn alone would pass the same checks.")
+        table(turns, hide_index=True, width="stretch", column_config={
+            "Test experiment": st.column_config.TextColumn(pinned=True),
+            "Failures inside 80% range": st.column_config.NumberColumn(format="percent")})
     test_rows = result["test_table"]
     test_key = "caplife_rul_zoom_test_" + hashlib.sha256(",".join(test_rows["Capacitor"]).encode()).hexdigest()[:12]
     test_charts = _show_zoomable([(test_key, lambda hours: (TEST_LEGEND, _test_chart(test_rows, hours, brush=True)))],
@@ -427,7 +467,10 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
         passed=result["passed"], verdict=verdict, reasons=[] if result["passed"] else list(result["reasons"]),
         checks=checks, warnings=warnings, forecast_message=forecast_message, forecasts=shown_forecasts,
         rul_charts=rul_charts, withheld=withheld, withheld_note=withheld_note,
-        tables={"Model comparison": result["model_table"], "Test results": result["test_table"],
+        turns=turns,
+        tables={"Model comparison": result["model_table"],
+                **({"Each experiment as the test": turns} if turns is not None else {}),
+                "Test results": result["test_table"],
                 "Forecasts": forecasts, "Forecast history": None if history is None else history.rename(columns={
                     "Hours": "Age (h)", "RUL_median_h": "Remaining life, median (h)",
                     "RUL_low_h": "Remaining life, 80% range from (h)",
@@ -478,7 +521,9 @@ def render() -> None:
             "once a parameter has used half its limit, the readings show how fast a capacitor is wearing and the "
             "range can be much tighter.\n"
             "3. **Test** capacitors check the predictions against what actually happened. The built-in AI and an "
-            "average-lifetime guess are scored alongside for comparison.\n"
+            "average-lifetime guess are scored alongside for comparison. With **every experiment in turn**, each "
+            "experiment except the calibration one is the test once, with the model trained on the others, so the "
+            "checks cover far more capacitors; the forecasts then come from a model trained on all of them.\n"
             "4. If your trained model passes, it forecasts each capacitor without an outcome from its latest "
             "reading, using the same model and range that were tested.\n\n"
             "Every reading from a capacitor's third onward is a training example. Calibration and testing use one "
@@ -515,23 +560,29 @@ def render() -> None:
     run_key = (data_key, json.dumps(limits, sort_keys=True), method, calibration, test)
     if st.button("Train and test the model", type="primary",
                  help="Decide the limits and the split before looking at results: trying settings until one passes "
-                      "weakens the test. Training takes up to about half a minute."):
+                      "weakens the test. Training takes up to about a minute."):
         tried = st.session_state.setdefault("caplife_rul_tried", {})
         tried.setdefault(data_key, set()).add(run_key[1:])
         st.session_state["caplife_rul_run"] = run_key
     if st.session_state.get("caplife_rul_run") != run_key:
         return
+    bar = st.empty()
     try:
-        with st.spinner("Training and testing… (about half a minute)"):
-            result = _run(measurements, outcomes, method, calibration, test, limits, settings)
+        result = _run(measurements, outcomes, method, calibration, test, limits, settings,
+                      progress=lambda share, text: bar.progress(min(max(share, 0.0), 1.0), text=text))
     except INPUT_ERRORS as error:
+        bar.empty()
         st.error(f"The model could not be trained: {error}")
         return
+    bar.empty()
     attempts = len(st.session_state.get("caplife_rul_tried", {}).get(data_key, ()))
-    split = (f"Split by experiment: {calibration} calibrates the 80% range, {test} tests the model, and the other "
-             "experiments train it." if method == SPLIT_BY_EXPERIMENT else
-             "Split by capacitor: about 20% of eligible capacitors calibrate the 80% range, 20% test the model and "
-             "the rest train it.")
+    split = {SPLIT_ROTATE: f"Every experiment in turn: {calibration} calibrates the 80% range, and each other "
+                           "experiment is the test once, with the model trained on the rest. Forecasts come from a "
+                           f"model trained on every experiment except {calibration}.",
+             SPLIT_BY_EXPERIMENT: f"One test experiment: {calibration} calibrates the 80% range, {test} tests the "
+                                  "model, and the other experiments train it.",
+             SPLIT_BY_DEVICE: "Split by capacitor: about 20% of eligible capacitors calibrate the 80% range, 20% test "
+                              "the model and the rest train it."}[method]
     default_name = _model_name(source)
     _show_results(result, attempts, {"source": source, "metrics": metrics, "split": split,
                                      "default_name": default_name})

@@ -129,6 +129,7 @@ def test_monitor_takes_user_limits_and_forecasts_parameter_trends():
 def test_train_the_ai_example_passes_and_forecasts():
     app = open_workspace("Train The AI")
     app.radio(key="caplife_rul_source").set_value("Use simulated example capacitors").run()
+    app.radio(key="caplife_rul_split_v2").set_value("One test experiment").run()
     app.selectbox(key="caplife_rul_calibration").set_value("SYN_EXP_C").run()
     app.selectbox(key="caplife_rul_test").set_value("SYN_EXP_B").run()
     next(b for b in app.button if b.label == "Train and test the model").click().run()
@@ -273,6 +274,7 @@ def test_train_the_ai_report_pdf_and_excel_match_the_page():
     from caplife.train_report import pdf_bytes, xlsx_bytes
     app = open_workspace("Train The AI")
     app.radio(key="caplife_rul_source").set_value("Use simulated example capacitors").run()
+    app.radio(key="caplife_rul_split_v2").set_value("One test experiment").run()
     app.selectbox(key="caplife_rul_calibration").set_value("SYN_EXP_C").run()
     app.selectbox(key="caplife_rul_test").set_value("SYN_EXP_B").run()
     next(b for b in app.button if b.label == "Train and test the model").click().run()
@@ -295,3 +297,20 @@ def test_suggested_model_names_drop_the_measurements_part_of_the_file_name():
     assert _model_name("Lab readings v2.xlsx and outcomes.xlsx") == "Lab readings v2 model"
     assert _model_name("Simulated example") == "Simulated example model"  # a saved dataset's or the example's name
     assert _model_name("measurements.csv and outcomes.csv") == "My model"
+
+
+
+def test_train_the_ai_tests_every_experiment_in_turn_by_default():
+    app = open_workspace("Train The AI")
+    app.radio(key="caplife_rul_source").set_value("Use simulated example capacitors").run()
+    assert app.radio(key="caplife_rul_split_v2").value == "Every experiment in turn (recommended)"
+    assert not [s for s in app.selectbox if s.key == "caplife_rul_test"]  # no single test experiment to pick
+    app.selectbox(key="caplife_rul_calibration").set_value("SYN_EXP_A").run()
+    next(b for b in app.button if b.label == "Train and test the model").click().run()
+    assert not app.exception, app.exception
+    turns = next(d.value for d in app.dataframe if "Test experiment" in d.value)
+    assert turns["Test experiment"].tolist() == ["SYN_EXP_B", "SYN_EXP_C", "SYN_EXP_D"]
+    view = app.session_state["caplife_rul_report_view"]
+    # Every capacitor outside the calibration experiment is tested once, by a model that never saw its experiment.
+    assert view.test_table["Experiment"].nunique() == 3 and len(view.test_table) == turns["Test capacitors"].sum()
+    assert view.turns is not None and view.split.startswith("Every experiment in turn")
