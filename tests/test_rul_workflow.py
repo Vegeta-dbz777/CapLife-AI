@@ -27,6 +27,12 @@ def passing(example):
 def test_passing_model_forecasts_only_capacitors_without_outcomes(example, passing):
     measurements, outcomes = example
     assert passing["passed"] and passing["reasons"] == []
+    models = passing["model_table"].set_index("Model")
+    assert list(models.index) == ["Your trained model", "Built-in model", "Average lifetime only"]
+    # Training on the example's capacitors beats both the built-in model and the average lifetime.
+    assert models.loc["Your trained model", "Average miss (h)"] < models.loc["Built-in model", "Average miss (h)"]
+    assert models.loc["Your trained model", "Average miss (h)"] < models.loc["Average lifetime only", "Average miss (h)"]
+    assert passing["failure_modes"] == {"limit": 24, "running": 7} and passing["model"].sudden is None
     assert passing["roles"] == {"training": 16, "calibration": 7, "test": 8}
     # SYN_EXP_C_2 has no documented follow-up after its (outcome-blind) evaluation reading.
     assert list(passing["audit"]["devices_excluded"]) == ["SYN_EXP_C_2"]
@@ -45,8 +51,7 @@ def test_test_outcomes_cannot_change_the_model_or_forecasts(example, passing):
     edited.loc[test_rows, ["Last_alive_h", "Failure_by_h"]] = [5000.0, "5050"]
     changed = run_rul_workflow(measurements, edited, SPLIT_BY_EXPERIMENT, "SYN_EXP_C", "SYN_EXP_B")
     pd.testing.assert_frame_equal(passing["test_table"][PREDICTED], changed["test_table"][PREDICTED])
-    for model, scores in passing["report"]["models"].items():
-        assert scores["calibration_log_radius"] == changed["report"]["models"][model]["calibration_log_radius"]
+    assert passing["report"]["calibration_log_adjustment"] == changed["report"]["calibration_log_adjustment"]
     # Every test failure now falls far outside the ranges, so the forecasts are withheld.
     assert not changed["passed"] and changed["forecasts"] is None
     assert any("80% range contained" in reason for reason in changed["reasons"])
@@ -93,11 +98,11 @@ def test_uncalibrated_split_withholds_forecasts_and_explains_why(example):
     result = run_rul_workflow(*example, SPLIT_BY_EXPERIMENT, "SYN_EXP_D", "SYN_EXP_A")
     assert not result["passed"] and result["forecasts"] is None
     assert "still working at their last check" in result["reasons"][0]
-    assert set(result["model_table"]["Range"]) == {"Model's own (uncalibrated)"}
+    assert set(result["model_table"]["Range"]) == {"Not calibrated", "Built-in calibration"}
 
 
 def test_outcome_template_round_trips_blank_failure_ages():
-    assert read_outcomes(outcome_template_csv().encode()).columns.tolist() == list(OUTCOME_COLUMNS)
+    assert read_outcomes(outcome_template_csv().encode()).columns.tolist() == [*OUTCOME_COLUMNS, "Failure_mode"]
     frame = read_outcomes(b"Cap_ID,Experiment_ID,Endpoint,Last_alive_h,Failure_by_h\nNA,e1,open,90,\n")
     assert frame.loc[0, "Cap_ID"] == "NA" and frame.loc[0, "Failure_by_h"] == ""
 
@@ -128,3 +133,29 @@ def test_recorded_operating_conditions_join_the_features(example):
     again = run_rul_workflow(missing, outcomes, SPLIT_BY_EXPERIMENT, "SYN_EXP_C", "SYN_EXP_B")
     if again["passed"]:
         assert "ambient temperature" in again["forecasts_withheld"][first]
+
+
+def test_stated_sudden_failures_add_a_sudden_failure_part(example):
+    measurements, outcomes = example
+    stated = outcomes.assign(Failure_mode="")
+    # Five training capacitors that failed are recorded as sudden failures (an open circuit, say).
+    failed = stated["Failure_by_h"].ne("") & stated["Experiment_ID"].isin(["SYN_EXP_A", "SYN_EXP_D"])
+    stated.loc[stated.index[failed][:5], "Failure_mode"] = "Sudden"
+    result = run_rul_workflow(measurements, stated, SPLIT_BY_EXPERIMENT, "SYN_EXP_C", "SYN_EXP_B")
+    assert result["failure_modes"]["sudden"] == 5
+    assert result["model"].sudden is not None
+    history = measurements.loc[measurements["Cap_ID"].eq("SYN_RUNNING_2")].reset_index(drop=True)
+    last = result["model"].assess(history, result["parameters"]).iloc[-1]
+    assert 0 < last["Sudden_failure_chance"] < 1
+    with pytest.raises(ValueError, match="Failure_mode must be limit, sudden or blank"):
+        run_rul_workflow(measurements, stated.assign(Failure_mode="melted"), SPLIT_BY_DEVICE)
+
+
+def test_the_trained_model_answers_for_other_limits(passing, example):
+    measurements, _ = example
+    history = measurements.loc[measurements["Cap_ID"].eq("SYN_RUNNING_2")].reset_index(drop=True)
+    remaining = [passing["model"].assess(history, passing["parameters"], {"capacitance_loss_pct": loss})
+                 .iloc[-1]["RUL_median_h"] for loss in (15.0, 20.0, 30.0)]
+    assert remaining[0] < remaining[1] < remaining[2]  # a looser limit leaves more life
+    path = passing["model"].forecast(history, remaining[1], passing["parameters"])
+    assert set(path["signal"]) == set(passing["parameters"])

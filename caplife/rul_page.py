@@ -29,6 +29,8 @@ from caplife.rul_workflow import (
 
 UPLOAD, EXAMPLE, SAVED = "Upload my data", "Use simulated example capacitors", "My saved datasets"
 REPORT_VIEW = "caplife_rul_report_view"  # the results as last shown, for the reports (and tests)
+SUDDEN = "Chance of sudden failure (%)"
+LIMITS_KEY = "caplife_rul_limit_"
 INPUT_ERRORS = (RealDataValidationError, ValueError, pd.errors.ParserError,
                 pd.errors.EmptyDataError, UnicodeError)
 
@@ -44,17 +46,18 @@ def _example_csvs() -> tuple[bytes, bytes]:
 
 
 def _run(measurements: bytes, outcomes: bytes, method: str, calibration: str | None, test: str | None,
-         settings: tuple[str, str] = ("hours", "auto")) -> dict:
-    return _run_cached(measurements, outcomes, method, calibration, test, settings, code_version())
+         limits: dict | None = None, settings: tuple[str, str] = ("hours", "auto")) -> dict:
+    return _run_cached(measurements, outcomes, method, calibration, test, json.dumps(limits or {}, sort_keys=True),
+                       settings, code_version())
 
 
 # Keyed by code_version() so results from an older model version are never reused after an update.
 @st.cache_data(show_spinner=False, max_entries=8)
 def _run_cached(measurements: bytes, outcomes: bytes, method: str, calibration: str | None, test: str | None,
-                settings: tuple[str, str], version: str) -> dict:
+                limits_json: str, settings: tuple[str, str], version: str) -> dict:
     time_unit, pressure = settings
     return run_rul_workflow(read_experimental_csv(measurements, time_unit=time_unit, pressure=pressure),
-                            read_outcomes(outcomes, time_unit), method, calibration, test)
+                            read_outcomes(outcomes, time_unit), method, calibration, test, json.loads(limits_json))
 
 
 def _hours(value) -> str:
@@ -74,7 +77,7 @@ def _forecast_display(forecasts: pd.DataFrame) -> pd.DataFrame:
         "Failure age (h)": forecasts["Predicted failure age (h)"].map(_hours),
         "Failure 80% range (h)": [f"{low:,.0f} – {high:,.0f}" for low, high in zip(
             forecasts["80% range from (h)"], forecasts["80% range to (h)"])],
-        "Status": forecasts["Status"],
+        **({"Sudden failure (%)": forecasts[SUDDEN].map(lambda value: f"{value:.0f}")} if SUDDEN in forecasts else {}),
     })
 
 
@@ -87,6 +90,10 @@ FORECAST_COLUMNS = {
     "Failure age (h)": st.column_config.Column(help="Predicted age at the failure endpoint: latest reading plus "
                                                     "remaining life."),
     "Failure 80% range (h)": st.column_config.Column(help="The age at failure falls in this range 4 times in 5."),
+    "Sudden failure (%)": st.column_config.Column(help="The chance that a sudden failure (open circuit, short, vent), "
+                                                       "rather than a parameter reaching its limit, ends this "
+                                                       "capacitor's life. Your data included sudden failures, so the "
+                                                       "trained model learned how likely they are."),
 }
 
 
@@ -95,7 +102,8 @@ def _forecast_summary(forecasts: pd.DataFrame, device: str) -> str:
     return (f"**{device}** · remaining life {_hours(row['Remaining from latest, median (h)'])} h "
             f"(80% range {_hours(row['Remaining from latest, 80% range from (h)'])} – "
             f"{_hours(row['Remaining from latest, 80% range to (h)'])} h) · predicted failure at "
-            f"{_hours(row['Predicted failure age (h)'])} h")
+            f"{_hours(row['Predicted failure age (h)'])} h"
+            + (f" · chance of sudden failure {row[SUDDEN]:.0f}%" if SUDDEN in row else ""))
 
 
 def _reason_list(reasons: dict) -> str:
@@ -150,6 +158,8 @@ def _test_chart(rows: pd.DataFrame, hours: tuple[float, float] | None = None, br
     return _clipped(alt.layer(*layers, *hovers).properties(height=max(160, 44 * len(data))), bool(hours))
 
 
+TESTED_NOTE = ("Answers about conditions, limits or parameters outside these come from what the AI knew "
+               "before training on your data.")
 TEST_LEGEND = ("**Purple**: predicted failure age and its 80% range · **Teal**: when it actually failed (▶ still "
                "working when testing stopped) · **Grey tick**: when the forecast was made")
 
@@ -190,6 +200,42 @@ def _inputs() -> tuple[bytes, bytes, str] | None:
     save_controls("train_rul", {"measurements": measurements.getvalue(), "outcomes": outcomes.getvalue()},
                   measurements.name.rsplit(".", 1)[0], "caplife_rul")
     return measurements.getvalue(), outcomes.getvalue(), f"{measurements.name} and {outcomes.name}"
+
+
+def _limit_inputs(measured: tuple[str, ...]) -> dict:
+    """The end-of-life limits that defined failure in the user's test: six boxes like Monitor and Predict's."""
+    from caplife.six_rul import LIMIT_KEYS
+    from caplife.six_rul_page import LIMIT_INPUTS, _shown_limit, _stored_limit
+    from caplife.six_sim import EOL_LIMITS, LIMIT_RANGES, SIGNALS
+    key = lambda signal: LIMITS_KEY + signal
+
+    def reset():
+        for signal in SIGNALS:
+            st.session_state[key(signal)] = _shown_limit(signal, EOL_LIMITS[LIMIT_KEYS[signal]])
+
+    with st.container(border=True):
+        st.markdown("**End-of-life limits used in your test**",
+                    help="The limits that defined failure for your capacitors: a capacitor reached end of life when "
+                         "a parameter reached its limit. A failure that came while every parameter was still inside "
+                         "its limits counts as a sudden failure (open circuit, short, vent). The trained model "
+                         "predicts the time to these limits, and to any others you set later. Capacitance, ESR and "
+                         "leakage are measured from each capacitor's first reading.")
+        limits = {}
+        for index, signal in enumerate(SIGNALS):
+            if index % 3 == 0:  # one row of three at a time, so a phone stacks them in reading order
+                columns = st.columns(3)
+            label, step = LIMIT_INPUTS[signal]
+            low, high = LIMIT_RANGES[LIMIT_KEYS[signal]]
+            kwargs = {} if key(signal) in st.session_state else {
+                "value": _shown_limit(signal, EOL_LIMITS[LIMIT_KEYS[signal]])}
+            shown = columns[index % 3].number_input(
+                label, min_value=_shown_limit(signal, low), max_value=_shown_limit(signal, high), step=step,
+                key=key(signal), persist_state="session", disabled=signal not in measured,
+                help=("Not measured in your data." if signal not in measured else
+                      f"Allowed: {_shown_limit(signal, low):g} to {_shown_limit(signal, high):g}."), **kwargs)
+            limits[LIMIT_KEYS[signal]] = _stored_limit(signal, shown)
+        st.button("Reset to defaults", on_click=reset, key="caplife_rul_limits_reset")
+    return limits
 
 
 def _split_settings(experiments: list[str]) -> tuple[str, str | None, str | None]:
@@ -255,14 +301,19 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
     if excluded:
         with st.expander(f"{len(excluded)} capacitor(s) with outcomes could not be used"):
             st.markdown(_reason_list(excluded))
+    tested = pd.DataFrame(result["tested"], columns=["What", "Your data"])
+    with st.expander("What your data tested", icon=":material/fact_check:"):
+        st.markdown("\n".join(f"- **{what}:** {value}" for what, value in result["tested"]))
+        st.caption(TESTED_NOTE)
 
     st.subheader("2 · Test on capacitors the model never saw",
                  help="Average miss is how far the predicted failure age fell outside each test capacitor's observed "
-                      "failure window (zero when inside it). The two simpler models show whether the neural network "
-                      "adds anything. In the chart, purple is the neural network's predicted failure age and its 80% "
-                      "range; teal is when each test capacitor actually failed (between last seen working and found "
-                      "failed), or a triangle where it was still working when testing stopped; the grey tick is when "
-                      "the forecast was made." + ZOOM_HELP)
+                      "failure window (zero when inside it). The built-in model, as it is before training on your "
+                      "data, and the average-lifetime guess show whether your trained model adds anything. In the "
+                      "chart, purple is your trained model's predicted failure age and its 80% range; teal is when "
+                      "each test capacitor actually failed (between last seen working and found failed), or a "
+                      "triangle where it was still working when testing stopped; the grey tick is when the forecast "
+                      "was made." + ZOOM_HELP)
     table(
         result["model_table"], hide_index=True, width="stretch",
         column_config={
@@ -284,19 +335,18 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
               "their last check. Passing shows the model worked on these test capacitors under these test "
               "conditions, not under different ones.")
     st.subheader("3 · Verdict", help=checks)
-    verdict = ("**Passed.** The neural network met every check on the test capacitors, so its forecasts are shown "
-               "below." if result["passed"] else "**Forecasts withheld.** The neural network did not pass:")
-    warnings = []
+    verdict = ("**Passed.** Your trained model met every check on the test capacitors, so its forecasts are shown "
+               "below." if result["passed"] else "**Forecasts withheld.** Your trained model did not pass:")
     if result["passed"]:
-        st.success("**Passed.** The neural network met every check on the test capacitors, "
-                   "so its forecasts are shown below.")
+        st.success(verdict)
     else:
-        st.warning("**Forecasts withheld.** The neural network did not pass:\n\n"
-                   + "\n".join(f"- {reason}" for reason in result["reasons"]))
+        st.warning(verdict + "\n\n" + "\n".join(f"- {reason}" for reason in result["reasons"]))
+    warnings = list(result.get("warnings", []))
     if attempts > 1:
-        warnings.append(f"You have trained {attempts} different splits of this data. Choosing the split after seeing "
-                        "results weakens the test; report every split you tried.")
-        st.warning(warnings[-1])
+        warnings.append(f"You have trained {attempts} different settings (limits or split) on this data. Choosing "
+                        "settings after seeing results weakens the test; report every one you tried.")
+    for warning in warnings:
+        st.warning(warning)
 
     st.subheader("4 · Remaining-life forecasts",
                  help="Each forecast uses all of a capacitor's readings up to its latest one; remaining life counts "
@@ -342,7 +392,8 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
                      "training range beyond what the training capacitors showed.")
     view = TrainView(
         source=context["source"], data_metrics=context["metrics"], split=context["split"],
-        tags=tags, data_note=data_note, excluded=excluded, model_table=result["model_table"],
+        tags=tags, data_note=data_note, excluded=excluded, tested=tested, tested_note=TESTED_NOTE,
+        model_table=result["model_table"],
         test_legend=TEST_LEGEND, test_chart=test_charts[0][1], test_table=result["test_table"].round(1),
         passed=result["passed"], verdict=verdict, reasons=[] if result["passed"] else list(result["reasons"]),
         checks=checks, warnings=warnings, forecast_message=forecast_message, forecasts=shown_forecasts,
@@ -352,6 +403,7 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
                     "Hours": "Age (h)", "RUL_median_h": "Remaining life, median (h)",
                     "RUL_low_h": "Remaining life, 80% range from (h)",
                     "RUL_high_h": "Remaining life, 80% range to (h)"}),
+                "What your data tested": tested,
                 "Not used": pd.DataFrame({"Capacitor": list(excluded), "Reason": list(excluded.values())}),
                 "Forecast withheld": pd.DataFrame({"Capacitor": list(withheld), "Reason": list(withheld.values())})})
     st.session_state[REPORT_VIEW] = view
@@ -378,26 +430,29 @@ def _show_results(result: dict, attempts: int, context: dict) -> None:
 def render() -> None:
     st.header("Train The AI",
               help="Upload measurement histories (any of the six indicators) and the recorded outcome of each tested "
-                   "capacitor. CapLife trains a neural network on some of your capacitors, tests it on capacitors it "
-                   "never saw, and forecasts remaining life for your other capacitors only if that test passes. "
+                   "capacitor. CapLife trains the built-in AI further on some of your capacitors, tests it on "
+                   "capacitors it never saw, and forecasts remaining life for your other capacitors only if that "
+                   "test passes. "
                    "Forecasts describe the uploaded capacitors and endpoint only; accuracy under other operating "
                    "conditions, product series or endpoints is untested. A research prototype, not a maintenance or "
                    "safety tool.")
     with st.expander("How it works"):
         st.markdown(
-            "1. **Training** capacitors teach the neural network how early changes in the six indicators relate "
-            "to when a capacitor reaches your failure endpoint. Capacitors still working at the end of testing "
-            "count too: they show the failure came later.\n"
+            "CapLife starts from the built-in AI, the same one Monitor and Predict uses, and trains it further on "
+            "your capacitors, so it keeps everything it can do: any of the six parameters, any end-of-life "
+            "limits, operating conditions and each parameter's path to end of life.\n\n"
+            "1. **Training** capacitors teach it how your capacitors age: how fast each parameter moves towards "
+            "the limits you set, and, if some failed suddenly while every parameter was still inside its limits, "
+            "how likely such a sudden failure is. Capacitors still working at the end of testing count too: "
+            "they show the failure came later.\n"
             "2. **Calibration** capacitors set the width of the 80% range.\n"
-            "3. **Test** capacitors check the predictions against what actually happened. A simple log-linear "
-            "model and an average-lifetime guess are scored alongside for comparison.\n"
-            "4. If the neural network passes, it forecasts each capacitor without an outcome from its latest "
-            "reading, using the same trained model and range that were tested.\n\n"
-            "The model learns from every reading from a capacitor's third onward: the change in each parameter "
-            "since the first reading, its recent rate and the time since the first reading, against the time "
-            "that was left until the endpoint. Each capacitor counts equally, however many readings it has. "
-            "Calibration and testing use one reading per capacitor, chosen from its ID and readings, never from "
-            "its outcome, so the checks stay independent."
+            "3. **Test** capacitors check the predictions against what actually happened. The built-in AI and an "
+            "average-lifetime guess are scored alongside for comparison.\n"
+            "4. If your trained model passes, it forecasts each capacitor without an outcome from its latest "
+            "reading, using the same model and range that were tested.\n\n"
+            "Every reading from a capacitor's third onward is a training example. Calibration and testing use one "
+            "reading per capacitor, chosen from its ID and readings, never from its outcome, so the checks stay "
+            "independent."
         )
 
     payload = _inputs()
@@ -420,20 +475,24 @@ def render() -> None:
     for card, (name, value) in zip(st.columns(3), metrics):
         card.metric(name, value)
 
+    from caplife.six_sim import SIGNALS
+    present = tuple(signal for signal in SIGNALS
+                    if signal in measurement_frame and measurement_frame[signal].notna().any())
+    limits = _limit_inputs(present)
     method, calibration, test = _split_settings(experiments)
     data_key = hashlib.sha256(measurements + b"\0" + outcomes).hexdigest()
-    run_key = (data_key, method, calibration, test)
+    run_key = (data_key, json.dumps(limits, sort_keys=True), method, calibration, test)
     if st.button("Train and test the model", type="primary",
-                 help="Decide the split before looking at results: trying splits until one passes weakens the test. "
-                      "Small datasets train in a few seconds."):
+                 help="Decide the limits and the split before looking at results: trying settings until one passes "
+                      "weakens the test. Training takes up to about half a minute."):
         tried = st.session_state.setdefault("caplife_rul_tried", {})
         tried.setdefault(data_key, set()).add(run_key[1:])
         st.session_state["caplife_rul_run"] = run_key
     if st.session_state.get("caplife_rul_run") != run_key:
         return
     try:
-        with st.spinner("Training and testing…"):
-            result = _run(measurements, outcomes, method, calibration, test, settings)
+        with st.spinner("Training and testing… (about half a minute)"):
+            result = _run(measurements, outcomes, method, calibration, test, limits, settings)
     except INPUT_ERRORS as error:
         st.error(f"The model could not be trained: {error}")
         return
