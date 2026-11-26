@@ -96,7 +96,7 @@ def _load_trained(url: str, owner: str, model_id: int, version: str) -> SixRULMo
     """A model the user saved on Train The AI, read from their own account (the key names the owner)."""
     from caplife.accounts import _open_store
     from caplife.fine_tune import load
-    return load(_open_store(url).load(owner, model_id))
+    return load(_open_store(url, version).load(owner, model_id))
 
 
 def _model_for(key: str) -> SixRULModel:
