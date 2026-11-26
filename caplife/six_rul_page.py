@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from caplife.wording import count
 from caplife.tables import table
 from caplife.chart_hover import (NO_TOOLTIP, hoverable as _hoverable, hoverable_rule as _hoverable_rule,
                                  points_over_lines, restart_names)
@@ -305,10 +306,10 @@ def _parse(payload: bytes, label: str, save: bool,
         notes.append("Left out readings missing one of their capacitor's parameters (no values were filled in): "
                      + shown([f"{device} ({count})" for device, count in dropped_readings.items()]) + ".")
     if empty:
-        notes.append(f"Left out {len(empty)} capacitor(s) with no parameter in at least half of their readings: "
+        notes.append(f"Left out {count(len(empty), 'capacitor')} with no parameter in at least half of their readings: "
                      f"{shown(empty)}.")
     if unusable:
-        notes.append(f"Left out {len(unusable)} capacitor(s) whose first reading has zero capacitance, ESR or "
+        notes.append(f"Left out {count(len(unusable), 'capacitor')} whose first reading has zero capacitance, ESR or "
                      f"leakage current, which cannot serve as a baseline: {shown(unusable)}.")
     show_notes(notes)
     if not kept:
@@ -399,7 +400,7 @@ def _limit_inputs(device: str, measured: tuple[str, ...]) -> dict:
         kwargs = {} if widget(signal) in st.session_state else {"value": _shown_limit(signal, current[LIMIT_KEYS[signal]])}
         columns[index % 3].number_input(
             label, min_value=_shown_limit(signal, low), max_value=_shown_limit(signal, high), step=step,
-            key=widget(signal), persist_state="session", on_change=changed, args=(signal,), disabled=signal not in measured,
+            format="%g", key=widget(signal), persist_state="session", on_change=changed, args=(signal,), disabled=signal not in measured,
             help=("Not measured for this capacitor." if signal not in measured else
                   f"Allowed: {_shown_limit(signal, low):g} to {_shown_limit(signal, high):g}, the range the model "
                   "was trained on."), **kwargs)
@@ -1434,7 +1435,7 @@ def _condition_inputs(device: str, recorded: pd.Series, effective: pd.Series
         kwargs = {} if widget(column) in st.session_state else {"value": float(value) if np.isfinite(value) else None}
         seen = recorded.get(column, np.nan)
         columns[index % 3].number_input(
-            f"{label} ({unit})", min_value=0.0, step=step, key=widget(column), persist_state="session", on_change=changed, args=(column,),
+            f"{label} ({unit})", min_value=0.0, step=step, format="%g", key=widget(column), persist_state="session", on_change=changed, args=(column,),
             placeholder="Not recorded",
             help=(f"Latest recorded: {seen:,.4g} {unit}." if np.isfinite(seen) else "Not recorded in the data."),
             **kwargs)

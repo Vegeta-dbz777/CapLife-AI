@@ -15,6 +15,7 @@ from io import BytesIO
 import numpy as np
 import pandas as pd
 
+from caplife.wording import count
 from caplife.monitor_report import BADGE_COLOURS, MESSAGE_COLOURS, _markup, _register_fonts, chart_png
 
 NOTE = ("Forecasts describe the uploaded capacitors and endpoint only; accuracy under other operating conditions, "
@@ -56,7 +57,7 @@ def _cell(column: str, value) -> str:
         return "—"
     if isinstance(value, (int, float, np.integer, np.floating)):
         if "inside 80% range" in column:
-            return f"{float(value):.1%}"
+            return f"{float(value):.0%}"
         return f"{float(value):,.0f}"
     return str(value)
 
@@ -156,7 +157,7 @@ def pdf_bytes(view: TrainView) -> bytes:
 
     story += [Paragraph("1 · Data used", h2), tags(view.tags), Spacer(1, 4), para(view.data_note, caption)]
     if view.excluded:
-        story += [Spacer(1, 4), para(f"**{len(view.excluded)} capacitor(s) with outcomes could not be used**",
+        story += [Spacer(1, 4), para(f"**{count(len(view.excluded), 'capacitor')} with outcomes could not be used**",
                                      caption), *reasons(view.excluded)]
     if view.tested is not None and len(view.tested):
         story += [Spacer(1, 6), para("**What your data tested**", caption), Spacer(1, 3), grid(view.tested, [0.25, 0.75]),
@@ -187,7 +188,7 @@ def pdf_bytes(view: TrainView) -> bytes:
         for summary, chart in view.rul_charts:
             story.append(KeepTogether([para(summary, caption), Spacer(1, 3), chart_image(chart), Spacer(1, 8)]))
     if view.withheld:
-        story += [para(f"**Forecast withheld for {len(view.withheld)} capacitor(s)**", caption),
+        story += [para(f"**Forecast withheld for {count(len(view.withheld), 'capacitor')}**", caption),
                   *reasons(view.withheld), para(view.withheld_note, caption)]
 
     def footer(canvas, document):
@@ -216,7 +217,7 @@ def xlsx_bytes(view: TrainView) -> bytes:
     label = book.add_format({"bold": True, "font_color": navy})
     wrap = book.add_format({"text_wrap": True, "valign": "top"})
     hours = book.add_format({"num_format": "#,##0"})  # shown as whole hours; the cell keeps the full value
-    percent = book.add_format({"num_format": "0.0%"})
+    percent = book.add_format({"num_format": "0%"})
 
     overview = book.add_worksheet("Overview")
     overview.set_column("A:A", 30)

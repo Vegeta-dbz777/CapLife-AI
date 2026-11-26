@@ -30,6 +30,7 @@ import math
 import numpy as np
 import pandas as pd
 
+from caplife.wording import count
 from caplife.real_data import MEASUREMENTS, RealDataValidationError, validate_real_measurements
 from caplife.remaining_time_validation import BOUNDS
 from caplife.six_indicator_validation import (
@@ -353,7 +354,7 @@ def release_checks(trained: dict, average: dict, calibration: pd.DataFrame, cali
     reasons = []
     failures = trained["bounded_or_exact_events"]
     if failures < MIN_TEST_FAILURES:
-        reasons.append(f"Only {failures} test capacitor(s) have an observed failure; "
+        reasons.append(f"Only {count(failures, 'test capacitor')} {'has' if failures == 1 else 'have'} an observed failure; "
                        f"at least {MIN_TEST_FAILURES} are needed to score the predictions.")
     else:
         coverage = trained["definite_80pct_band_coverage_observed_events"]
@@ -561,7 +562,7 @@ def run_rul_workflow(measurements: pd.DataFrame, outcomes: pd.DataFrame, method:
                    "test": MIN_TEST_DEVICES if needs_test else 0}
         for role, part in parts.items():
             if part["device"].nunique() < minimum[role]:
-                raise ValueError(f"The {role} group{turn} has {part['device'].nunique()} eligible capacitor(s); "
+                raise ValueError(f"The {role} group{turn} has {count(part['device'].nunique(), 'eligible capacitor')}; "
                                  f"at least {minimum[role]} are needed.")
         if not np.isfinite(parts["training"][BOUNDS[1]]).any():
             raise ValueError(f"At least one training capacitor{turn} needs an observed failure.")

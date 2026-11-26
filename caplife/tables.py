@@ -120,9 +120,28 @@ def whole_hours(data, column_config: dict | None) -> tuple:
     return data, config
 
 
+def whole_percents(data, column_config: dict | None) -> tuple:
+    """Shares shown as percent ("percent" format: 0.875 shows as 87.5%) as whole percents (88%), as the cards
+    show them."""
+    if not isinstance(data, pd.DataFrame) or not column_config:
+        return data, column_config
+    shares = [name for name, own in column_config.items()
+              if isinstance(own, dict) and (own.get("type_config") or {}).get("format") == "percent"
+              and name in data.columns and pd.api.types.is_numeric_dtype(data[name])]
+    if not shares:
+        return data, column_config
+    data, config = data.copy(), dict(column_config)
+    for name in shares:
+        data[name] = data[name] * 100
+        config[name] = {**config[name], "type_config": {**config[name]["type_config"], "format": "%.0f%%"}}
+    return data, config
+
+
 def table(data=None, *args, column_config: dict | None = None, hide_index: bool | None = None, **kwargs):
-    """``st.dataframe`` with every column centred, hours shown whole and sentence-length text wrapped."""
+    """``st.dataframe`` with every column centred, hours and percents shown whole and sentence-length text
+    wrapped."""
     data, column_config = whole_hours(data, column_config)
+    data, column_config = whole_percents(data, column_config)
     config = centered_config(data, column_config, show_index=not hide_index)
     if kwargs.get("row_height") is None:
         kwargs["row_height"] = wrapped_row_height(long_text_lengths(data))

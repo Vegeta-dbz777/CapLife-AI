@@ -18,6 +18,7 @@ from io import BytesIO, StringIO
 import numpy as np
 import pandas as pd
 
+from caplife.wording import count
 from caplife.real_data import OPTIONAL_COLUMNS, RealDataValidationError
 
 ATMOSPHERE_KPA = 101.325
@@ -238,7 +239,7 @@ def read_measurement_file(payload: bytes, filename: str | None = None, time_unit
                 notes.append("Converted gauge pressure to absolute pressure by adding 101.3 kPa.")
             else:
                 shown = ", ".join(gauge[:5]) + (" …" if len(gauge) > 5 else "")
-                notes.append(f"Pressure for {len(gauge)} capacitor(s) starts far below atmospheric (101.3 kPa), so it "
+                notes.append(f"Pressure for {count(len(gauge), 'capacitor')} starts far below atmospheric (101.3 kPa), so it "
                              f"looks like gauge pressure; added 101.3 kPa to make it absolute ({shown}).")
     if frame.empty:
         raise RealDataValidationError("No usable rows: every row lacks a capacitor ID or a valid time.")

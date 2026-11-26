@@ -1,0 +1,25 @@
+<script>
+(() => {
+    // A wide table on a narrow screen shows only its first columns, with nothing to say the rest are there.
+    // While columns are hidden to the right, mark the table so interface.css shows a soft fade and an arrow at
+    // its right edge; once the table is scrolled to its last column the mark goes.
+    if (window.__caplifeTableHint) return;
+    window.__caplifeTableHint = true;
+    const update = (box) => {
+        const scroller = box.querySelector(".dvn-scroller");
+        if (!scroller) return;
+        if (!scroller.__caplifeHint) {
+            scroller.__caplifeHint = true;
+            scroller.addEventListener("scroll", () => update(box), { passive: true });
+        }
+        const more = scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 4;
+        if (box.dataset.moreRight !== String(more)) box.dataset.moreRight = String(more);
+    };
+    const all = () => document.querySelectorAll('[data-testid="stDataFrame"]').forEach(update);
+    let queued = false;
+    const soon = () => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; all(); }); } };
+    new MutationObserver(soon).observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("resize", soon);
+    all();
+})();
+</script>
