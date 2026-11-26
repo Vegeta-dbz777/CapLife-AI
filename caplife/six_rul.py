@@ -83,13 +83,13 @@ INDICATOR_LABELS = {
     "Case_Expansion_um": "Case expansion", "H2_Generated_mL_STP": "H₂ generated",
     "Pressure_Abs_kPa": "Internal pressure",
 }
-HIDDEN = 128  # 64 before: the larger network, on twice the capacitors, cut the typical error by about a fifth
+HIDDEN = 128  # 64 before: the larger network, on more capacitors, cut the typical error by about a quarter
 # Capacitors, seed, whether their limits vary, and the share with extra inspections right before end
 # of life. User limits often put a capacitor close to one, so the calibration and random-limit test
 # capacitors include such readings. "test" keeps the default limits and inspection plan so its
 # accuracy is comparable with earlier models.
-SPLITS = {"train": (4800, 101, True, 0.0), "validation": (400, 202, True, 0.0),
-          "calibration": (500, 303, True, 0.5), "test": (400, 404, False, 0.0), "test_custom": (400, 505, True, 0.5)}
+SPLITS = {"train": (9600, 101, True, 0.0), "validation": (400, 202, True, 0.0),
+          "calibration": (1000, 303, True, 0.5), "test": (400, 404, False, 0.0), "test_custom": (400, 505, True, 0.5)}
 # Within 5% of a limit, remaining life is short and harder to predict, so the 80% range is
 # calibrated separately there (Mondrian conformal prediction).
 NEAR_LIMIT = 0.95
@@ -465,6 +465,20 @@ def _conformal(scores: np.ndarray) -> float:
     return float(np.sort(scores)[rank - 1])
 
 
+def _conformal_by_capacitor(scores: np.ndarray, devices: np.ndarray) -> float:
+    """The conformal quantile over every reading, each capacitor counting equally.
+
+    One randomly drawn reading per capacitor gives an unbiased quantile too, but which reading is drawn moves
+    the 80% range by over a tenth; weighting every reading by 1 / (its capacitor's readings) removes that
+    luck. The level is the usual finite-sample one for the number of capacitors."""
+    _, index, counts = np.unique(devices, return_inverse=True, return_counts=True)
+    weights = 1 / counts[index]
+    level = min(1.0, INTERVAL_MASS * (1 + 1 / len(counts)))
+    order = np.argsort(scores)
+    cumulative = np.cumsum(weights[order]) / weights.sum()
+    return float(scores[order][min(np.searchsorted(cumulative, level - 1e-12), len(scores) - 1)])
+
+
 def _path_metrics(path: np.ndarray, truth: np.ndarray, measured: np.ndarray) -> dict:
     """Accuracy and 80% coverage of forecast paths, in fractions of each limit, per indicator."""
     out = {}
@@ -532,10 +546,9 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
                                  val["x"], val["path"], rng, epochs)
 
     # Conformalized quantile regression for every combination of measured indicators, separately for
-    # readings within 5% of a limit and the rest. Away from the limits, one randomly chosen reading per
-    # calibration capacitor keeps the scores independent; near a limit every such reading is used.
+    # readings within 5% of a limit and the rest, over every calibration reading with each capacitor
+    # counting equally (see _conformal_by_capacitor).
     cal = data["calibration"]
-    pick = np.array([rng.choice(np.flatnonzero(cal["devices"] == device)) for device in np.unique(cal["devices"])])
     # Each capacitor is scored twice, with all operating conditions recorded and with none, so the
     # ranges hold whether or not a user records them.
     adjustments, near_adjustments, by_subset, custom_by_subset, bare_by_subset = {}, {}, {}, {}, {}
@@ -547,10 +560,10 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
         y_cal = np.concatenate([cal["y"], cal["y"]])
         scores = np.maximum(q_cal[:, 0] - y_cal, y_cal - q_cal[:, 2])
         near = x_cal[:, -1, USED].max(axis=1) >= NEAR_LIMIT
-        both = np.concatenate([pick, pick + n_cal])
-        far_rows = both[~near[both]]
-        adjustment = _conformal(scores[far_rows])
-        near_adjustment = _conformal(scores[near]) if near.sum() >= 30 else adjustment
+        # Scored with and without conditions: the two copies of a capacitor count as one each.
+        devices = np.concatenate([cal["devices"], np.char.add(cal["devices"].astype(str), "|bare")])
+        adjustment = _conformal_by_capacitor(scores[~near], devices[~near])
+        near_adjustment = _conformal_by_capacitor(scores[near], devices[near]) if near.sum() >= 30 else adjustment
         key = subset_key(subset)
         adjustments[key], near_adjustments[key] = round(adjustment, 6), round(near_adjustment, 6)
         for name, store, conditions in (("test", by_subset, True), ("test_custom", custom_by_subset, True),
