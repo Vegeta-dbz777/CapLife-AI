@@ -83,16 +83,18 @@ INDICATOR_LABELS = {
     "Case_Expansion_um": "Case expansion", "H2_Generated_mL_STP": "H₂ generated",
     "Pressure_Abs_kPa": "Internal pressure",
 }
-HIDDEN = 128  # 64 before: the larger network, on twice the capacitors, cut the typical error by about a fifth
+HIDDEN = 128  # 64 before: the larger network, on more capacitors, cut the typical error by about a quarter
 # Capacitors, seed, whether their limits vary, and the share with extra inspections right before end
 # of life. User limits often put a capacitor close to one, so the calibration and random-limit test
 # capacitors include such readings. "test" keeps the default limits and inspection plan so its
 # accuracy is comparable with earlier models.
-SPLITS = {"train": (4800, 101, True, 0.0), "validation": (400, 202, True, 0.0),
-          "calibration": (500, 303, True, 0.5), "test": (400, 404, False, 0.0), "test_custom": (400, 505, True, 0.5)}
+SPLITS = {"train": (9600, 101, True, 0.0), "validation": (400, 202, True, 0.0),
+          "calibration": (1000, 303, True, 0.5), "test": (400, 404, False, 0.0), "test_custom": (400, 505, True, 0.5)}
 # Within 5% of a limit, remaining life is short and harder to predict, so the 80% range is
 # calibrated separately there (Mondrian conformal prediction).
 NEAR_LIMIT = 0.95
+# Between 80% and 95% of a limit, remaining life is short too: that stage gets its own calibration as well.
+MID_LIMIT = 0.8
 
 
 def subset_key(signals) -> str:
@@ -465,6 +467,20 @@ def _conformal(scores: np.ndarray) -> float:
     return float(np.sort(scores)[rank - 1])
 
 
+def _conformal_by_capacitor(scores: np.ndarray, devices: np.ndarray) -> float:
+    """The conformal quantile over every reading, each capacitor counting equally.
+
+    One randomly drawn reading per capacitor gives an unbiased quantile too, but which reading is drawn moves
+    the 80% range by over a tenth; weighting every reading by 1 / (its capacitor's readings) removes that
+    luck. The level is the usual finite-sample one for the number of capacitors."""
+    _, index, counts = np.unique(devices, return_inverse=True, return_counts=True)
+    weights = 1 / counts[index]
+    level = min(1.0, INTERVAL_MASS * (1 + 1 / len(counts)))
+    order = np.argsort(scores)
+    cumulative = np.cumsum(weights[order]) / weights.sum()
+    return float(scores[order][min(np.searchsorted(cumulative, level - 1e-12), len(scores) - 1)])
+
+
 def _path_metrics(path: np.ndarray, truth: np.ndarray, measured: np.ndarray) -> dict:
     """Accuracy and 80% coverage of forecast paths, in fractions of each limit, per indicator."""
     out = {}
@@ -516,6 +532,12 @@ def trajectory_metrics(path_net: nn.Module, data: dict, path_adjust: np.ndarray)
     return metrics
 
 
+def _stage_pad(x: np.ndarray, far, mid, near) -> np.ndarray:
+    """Each prediction's 80%-range widening by how close its nearest parameter is to a limit."""
+    nearest = x[:, -1, USED].max(axis=1)
+    return np.where(nearest >= NEAR_LIMIT, near, np.where(nearest >= MID_LIMIT, mid, far))
+
+
 def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -> dict:
     torch.manual_seed(seed)
     torch.set_num_threads(min(4, torch.get_num_threads()))
@@ -530,29 +552,75 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
     path_net = TrajectoryNet(hidden)
     path_best, path_epoch = _fit(path_net, _path_pinball, train_data["x"], train_data["path"],
                                  val["x"], val["path"], rng, epochs)
+    x_train = train_data["x"]
+    train_used = x_train[:, :, USED][x_train[:, :, -1] == 0]
+    training = {
+        "hidden": hidden,
+        "model": f"SixRULNet GRU, hidden {hidden}, quantile outputs (10th, 50th, 90th percentile of log RUL), "
+                 "trained with randomly hidden indicators and operating conditions and random end-of-life limits",
+        "trajectory_model": f"TrajectoryNet GRU, hidden {hidden}: 10th, 50th and 90th percentiles of each "
+                            f"indicator's fraction of its limit at {HORIZON_POINTS} points to end of life",
+        "training_seed": seed, "best_epoch": best_epoch, "validation_pinball": round(best, 5),
+        "trajectory_best_epoch": path_epoch, "trajectory_validation_pinball": round(path_best, 5),
+        "limit_used_training_range": {
+            "min": [round(float(v), 4) for v in train_used.min(axis=0)],
+            "max": [round(float(v), 4) for v in train_used.max(axis=0)],
+        },
+    }
+    metadata = calibrate_and_test(net, path_net, data, rng, training)
+    output.mkdir(parents=True, exist_ok=True)
+    torch.save(net.state_dict(), output / "model.pt")
+    torch.save(path_net.state_dict(), output / "trajectory.pt")
+    (output / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+    return metadata
 
-    # Conformalized quantile regression for every combination of measured indicators, separately for
-    # readings within 5% of a limit and the rest. Away from the limits, one randomly chosen reading per
-    # calibration capacitor keeps the scores independent; near a limit every such reading is used.
+
+def recalibrate(output: Path, seed: int = 7) -> dict:
+    """Calibrate and test the saved networks again (new calibration rules), without retraining them."""
+    old = json.loads((output / "metadata.json").read_text(encoding="utf-8"))
+    net, path_net = SixRULNet(old["hidden"]), TrajectoryNet(old["hidden"])
+    net.load_state_dict(torch.load(output / "model.pt", map_location="cpu", weights_only=True))
+    path_net.load_state_dict(torch.load(output / "trajectory.pt", map_location="cpu", weights_only=True))
+    net.eval()
+    path_net.eval()
+    data = {name: _fleet_data(n, fleet_seed, name[:3].upper() + ("C" if name == "test_custom" else ""), vary, near)
+            for name, (n, fleet_seed, vary, near) in SPLITS.items() if name not in ("train", "validation")}
+    keys = ("hidden", "model", "trajectory_model", "training_seed", "best_epoch", "validation_pinball",
+            "trajectory_best_epoch", "trajectory_validation_pinball", "limit_used_training_range")
+    metadata = calibrate_and_test(net, path_net, data, np.random.default_rng(seed), {key: old[key] for key in keys},
+                                  {name: old["fleets"][name] for name in ("train", "validation")})
+    (output / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+    return metadata
+
+
+def calibrate_and_test(net: nn.Module, path_net: nn.Module, data: dict, rng: np.random.Generator, training: dict,
+                       fleets: dict | None = None) -> dict:
+    """The 80% ranges' calibration and every test result, as the model's metadata."""
+    # Conformalized quantile regression for every combination of measured indicators, separately by how close
+    # the nearest parameter is to its limit (below 80%, 80-95%, within 5%), over every calibration reading with
+    # each capacitor counting equally (see _conformal_by_capacitor).
     cal = data["calibration"]
-    pick = np.array([rng.choice(np.flatnonzero(cal["devices"] == device)) for device in np.unique(cal["devices"])])
     # Each capacitor is scored twice, with all operating conditions recorded and with none, so the
     # ranges hold whether or not a user records them.
-    adjustments, near_adjustments, by_subset, custom_by_subset, bare_by_subset = {}, {}, {}, {}, {}
+    adjustments, mid_adjustments, near_adjustments = {}, {}, {}
+    by_subset, custom_by_subset, bare_by_subset = {}, {}, {}
     n_cal = len(cal["x"])
+    devices = np.concatenate([cal["devices"], np.char.add(cal["devices"].astype(str), "|bare")])
     for subset in SUBSETS:
         keep = np.tile(_subset_mask(subset), (n_cal, 1))
         x_cal = np.concatenate([hide_indicators(cal["x"], keep), hide_indicators(cal["x"], keep, no_conditions(n_cal))])
         q_cal = _predict(net, x_cal)
         y_cal = np.concatenate([cal["y"], cal["y"]])
         scores = np.maximum(q_cal[:, 0] - y_cal, y_cal - q_cal[:, 2])
-        near = x_cal[:, -1, USED].max(axis=1) >= NEAR_LIMIT
-        both = np.concatenate([pick, pick + n_cal])
-        far_rows = both[~near[both]]
-        adjustment = _conformal(scores[far_rows])
-        near_adjustment = _conformal(scores[near]) if near.sum() >= 30 else adjustment
+        nearest = x_cal[:, -1, USED].max(axis=1)
+        near, mid = nearest >= NEAR_LIMIT, (nearest >= MID_LIMIT) & (nearest < NEAR_LIMIT)
+        far = ~near & ~mid
+        adjustment = _conformal_by_capacitor(scores[far], devices[far])
+        mid_adjustment = _conformal_by_capacitor(scores[mid], devices[mid]) if mid.sum() >= 30 else adjustment
+        near_adjustment = _conformal_by_capacitor(scores[near], devices[near]) if near.sum() >= 30 else mid_adjustment
         key = subset_key(subset)
-        adjustments[key], near_adjustments[key] = round(adjustment, 6), round(near_adjustment, 6)
+        adjustments[key], mid_adjustments[key], near_adjustments[key] = (
+            round(adjustment, 6), round(mid_adjustment, 6), round(near_adjustment, 6))
         for name, store, conditions in (("test", by_subset, True), ("test_custom", custom_by_subset, True),
                                         ("test", bare_by_subset, False)):
             test = data[name]
@@ -560,7 +628,7 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
             x_test = hide_indicators(test["x"], np.tile(_subset_mask(subset), (n_test, 1)),
                                      None if conditions else no_conditions(n_test))
             q = _predict(net, x_test)
-            pad = np.where(x_test[:, -1, USED].max(axis=1) >= NEAR_LIMIT, near_adjustment, adjustment)
+            pad = _stage_pad(x_test, adjustment, mid_adjustment, near_adjustment)
             store[key] = _metrics(np.exp(test["y"]) - RUL_OFFSET_H, _to_hours(q[:, 0] - pad),
                                   _to_hours(q[:, 1]), _to_hours(q[:, 2] + pad))
 
@@ -572,9 +640,9 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
     q = _predict(net, custom["x"])
     full = subset_key(SIGNALS)
     nearest = custom["x"][:, -1, USED].max(axis=1)
-    adjustment = np.where(nearest >= NEAR_LIMIT, near_adjustments[full], adjustments[full])
+    adjustment = _stage_pad(custom["x"], adjustments[full], mid_adjustments[full], near_adjustments[full])
     by_closeness = {}
-    for low_edge, high_edge in ((0.0, 0.8), (0.8, 0.95), (0.95, 1.0)):
+    for low_edge, high_edge in ((0.0, MID_LIMIT), (MID_LIMIT, NEAR_LIMIT), (NEAR_LIMIT, 1.0)):
         rows = (nearest >= low_edge) & (nearest < high_edge)
         by_closeness[f"{low_edge:.2f}-{high_edge:.2f}"] = _metrics(
             np.exp(custom["y"][rows]) - RUL_OFFSET_H, _to_hours(q[rows, 0] - adjustment[rows]),
@@ -590,33 +658,27 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
             "predictions_with_estimate": int(available.sum()),
             "median_absolute_error_h": round(float(np.median(np.abs(trend[available] - rul[available]))), 1),
         }
-    x_train = train_data["x"]
-    train_used = x_train[:, :, USED][x_train[:, :, -1] == 0]
-    metadata = {
-        "hidden": hidden,
-        "model": f"SixRULNet GRU, hidden {hidden}, quantile outputs (10th, 50th, 90th percentile of log RUL), "
-                 "trained with randomly hidden indicators and operating conditions and random end-of-life limits",
+    fleet_info = {name: {"capacitors": n, "seed": fleet_seed, "limits": "random" if vary else "default",
+                         "near_end_share": near, "predictions": int(len(data[name]["y"]))}
+                  for name, (n, fleet_seed, vary, near) in SPLITS.items() if name in data}
+    return {
+        **{key: training[key] for key in ("hidden", "model")},
         "conditions": list(CONDITIONS), "condition_training_ranges": CONDITION_TRAINING_RANGES,
-        "trajectory_model": f"TrajectoryNet GRU, hidden {hidden}: 10th, 50th and 90th percentiles of each "
-                            f"indicator's fraction of its limit at {HORIZON_POINTS} points to end of life",
+        "trajectory_model": training["trajectory_model"],
         "training_data": "Simulated capacitors from caplife.six_sim; not real measurements",
         "signals": list(SIGNALS), "step_features": list(STEP_FEATURES), "window": WINDOW,
         "min_readings": MIN_READINGS, "rul_offset_h": RUL_OFFSET_H, "horizon_points": HORIZON_POINTS,
         "eol_limits": EOL_LIMITS, "limit_ranges": LIMIT_RANGES, "interval_mass": INTERVAL_MASS,
         "conformal_adjustment_log": adjustments[full],
         "conformal_adjustment_log_by_subset": adjustments,
+        "mid_limit_fraction": MID_LIMIT,
+        "conformal_adjustment_log_mid_by_subset": mid_adjustments,
         "near_limit_fraction": NEAR_LIMIT,
         "conformal_adjustment_log_near_limit_by_subset": near_adjustments,
         "trajectory_conformal_adjustment": np.round(path_adjust, 6).tolist(),
-        "fleets": {name: {"capacitors": n, "seed": fleet_seed, "limits": "random" if vary else "default",
-                          "near_end_share": near, "predictions": int(len(data[name]["y"]))}
-                   for name, (n, fleet_seed, vary, near) in SPLITS.items()},
-        "training_seed": seed, "best_epoch": best_epoch, "validation_pinball": round(best, 5),
-        "trajectory_best_epoch": path_epoch, "trajectory_validation_pinball": round(path_best, 5),
-        "limit_used_training_range": {
-            "min": [round(float(v), 4) for v in train_used.min(axis=0)],
-            "max": [round(float(v), 4) for v in train_used.max(axis=0)],
-        },
+        "fleets": {**(fleets or {}), **fleet_info},
+        **{key: training[key] for key in ("training_seed", "best_epoch", "validation_pinball", "trajectory_best_epoch",
+                                          "trajectory_validation_pinball", "limit_used_training_range")},
         "test_metrics": {"neural_calibrated": by_subset[full], "trend_baseline": baselines[full],
                          "neural_calibrated_custom_limits": custom_by_subset[full],
                          "neural_calibrated_without_conditions": bare_by_subset[full]},
@@ -629,11 +691,6 @@ def train(output: Path, seed: int = 7, epochs: int = 80, hidden: int = HIDDEN) -
         "end_of_life_causes_in_test_fleet": test["meta"]["eol_cause"].str.split(", ").str[0]
         .value_counts().to_dict(),
     }
-    output.mkdir(parents=True, exist_ok=True)
-    torch.save(net.state_dict(), output / "model.pt")
-    torch.save(path_net.state_dict(), output / "trajectory.pt")
-    (output / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
-    return metadata
 
 
 class SixRULModel:
@@ -653,6 +710,9 @@ class SixRULModel:
         self.adjustments = self.metadata["conformal_adjustment_log_by_subset"]
         self.near_adjustments = self.metadata.get("conformal_adjustment_log_near_limit_by_subset", self.adjustments)
         self.near_limit = self.metadata.get("near_limit_fraction", NEAR_LIMIT)
+        # Models calibrated before the 80-95% stage had its own widening use the far one there.
+        self.mid_adjustments = self.metadata.get("conformal_adjustment_log_mid_by_subset", self.adjustments)
+        self.mid_limit = self.metadata.get("mid_limit_fraction", self.near_limit)
         self.train_max = np.asarray(self.metadata["limit_used_training_range"]["max"])
 
     def metrics_for(self, measured, with_conditions: bool = True) -> dict:
@@ -693,8 +753,9 @@ class SixRULModel:
             floor = {key: min(value, EOL_LIMITS[key]) for key, value in full_limits(limits).items()}
             if floor != full_limits(limits):
                 q = np.maximum(q, _predict(self.net, sequences(readings, measured, floor)))
-            near = seen.to_numpy()[MIN_READINGS - 1:].max(axis=1) >= self.near_limit
-            pad = np.where(near, self.near_adjustments[key], self.adjustments[key])
+            nearest = seen.to_numpy()[MIN_READINGS - 1:].max(axis=1)
+            pad = np.where(nearest >= self.near_limit, self.near_adjustments[key],
+                           np.where(nearest >= self.mid_limit, self.mid_adjustments[key], self.adjustments[key]))
             low, mid, high = _to_hours(q[:, 0] - pad), _to_hours(q[:, 1]), _to_hours(q[:, 2] + pad)
         for index in range(len(readings)):
             fractions = used.iloc[index]
@@ -774,8 +835,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--output", type=Path, default=Path("artifacts/six_rul"))
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--recalibrate", action="store_true",
+                        help="calibrate and test the saved networks again, without retraining them")
     args = parser.parse_args()
-    metadata = train(args.output, args.seed)
+    metadata = recalibrate(args.output, args.seed) if args.recalibrate else train(args.output, args.seed)
     print(json.dumps(metadata["test_metrics"], indent=2))
 
 
