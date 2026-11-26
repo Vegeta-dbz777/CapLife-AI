@@ -61,6 +61,8 @@ class PageView:
     metrics_note: str | None
     health_cards: list[dict]
     sections: list[ChartSection]
+    model: str = "Built-in model"                         # which model gave remaining life and trends
+    disclaimer: str = DISCLAIMER
 
 
 @dataclass
@@ -356,7 +358,7 @@ def pdf_bytes(report: MonitorReport) -> bytes:
 
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     story = [Paragraph("Monitor and Predict", title), Spacer(1, 4),
-             Paragraph(_markup(f"CapLife AI · {view.source} · generated {stamp}"), caption), Spacer(1, 4)]
+             Paragraph(_markup(f"CapLife AI · {view.source} · model: {view.model} · generated {stamp}"), caption), Spacer(1, 4)]
 
     # Fleet overview
     story += [Paragraph("Fleet overview", h2), metric_row([(n, v, None) for n, v in view.fleet_metrics]),
@@ -429,7 +431,7 @@ def pdf_bytes(report: MonitorReport) -> bytes:
         canvas.saveState()
         canvas.setFont("DejaVu", 6.8)
         canvas.setFillColor(muted)
-        canvas.drawString(margin, 14, DISCLAIMER)
+        canvas.drawString(margin, 14, view.disclaimer)
         canvas.drawRightString(page_w - margin, 14, f"{view.device} · page {document.page}")
         canvas.restoreState()
 
@@ -458,12 +460,14 @@ def xlsx_bytes(report: MonitorReport) -> bytes:
     overview.set_column("B:B", 60)
     overview.merge_range("A1:B1", "CapLife AI · Monitor and Predict", title)
     overview.set_row(0, 28)
-    info = [("Data", report.source), ("Generated", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
+    view = report.view
+    info = [("Data", report.source), ("Model", view.model if view else "Built-in model"),
+            ("Generated", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
             ("Capacitors", len(report.fleet)), ("Selected capacitor", report.device), *_detail(report)]
     for row, (key, value) in enumerate(info, start=2):
         overview.write(row, 0, key, label)
         overview.write(row, 1, value)
-    overview.merge_range(len(info) + 3, 0, len(info) + 5, 1, DISCLAIMER, note)
+    overview.merge_range(len(info) + 3, 0, len(info) + 5, 1, view.disclaimer if view else DISCLAIMER, note)
 
     def sheet(name: str, frame: pd.DataFrame) -> None:
         tab = book.add_worksheet(name[:31])
