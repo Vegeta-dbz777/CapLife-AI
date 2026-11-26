@@ -327,6 +327,7 @@ class TrainedModel(SixRULModel):
     def __init__(self, base: SixRULModel, net, path_net, adjustment: float, sudden: SuddenModel | None,
                  path_adjust: np.ndarray | None = None, late_adjustment: float | None = None):
         self.metadata = copy.deepcopy(base.metadata)
+        self.metadata["hidden"] = net.rnn.hidden_size  # a model saved with an earlier built-in model may be smaller
         self.net, self.path_net = net, path_net
         self.path_adjust = base.path_adjust if path_adjust is None else path_adjust
         self.adjustments = dict(base.adjustments)

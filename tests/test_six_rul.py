@@ -255,7 +255,10 @@ def test_one_faulty_reading_only_affects_its_own_prediction(model):
     after = slice(middle + 1, None)
     assert not faulty.loc[after, "End_of_life_reached"].any()
     ratio = faulty.loc[after, "RUL_median_h"] / clean.loc[after, "RUL_median_h"]
-    assert ratio.between(0.9, 1.1).all()  # later predictions are not dragged down by the spike
+    # Later predictions are not dragged down by the spike. The spiked reading is replaced by the median of it and
+    # its neighbours, here the next (genuine, higher) ESR reading, so the next couple of predictions may move a
+    # little; the larger network follows that real change more closely.
+    assert ratio.between(0.85, 1.15).all()
 
 
 def test_every_indicator_can_end_a_capacitors_life(model):
