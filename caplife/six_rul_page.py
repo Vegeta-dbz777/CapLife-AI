@@ -18,7 +18,7 @@ from caplife.monitor_report import DISCLAIMER, ChartSection, MonitorReport, Page
 
 from caplife.accounts import save_controls, saved_picker
 from caplife.file_reader import read_measurement_file
-from caplife.upload_ui import kept_file_uploader, show_notes
+from caplife.upload_ui import kept_file_uploader, matched_file, show_notes
 from caplife.real_data import RealDataValidationError, validate_real_measurements
 from caplife.six_rul import (
     INDICATOR_LABELS, LIMIT_KEYS, MIN_READINGS, RUL_OFFSET_H, SixRULModel, current_limit_used,
@@ -261,7 +261,10 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
     if upload.size > 8 * 1024 * 1024:
         st.error(f"{upload.name} exceeds the 8 MB limit.")
         return None
-    return _parse(upload.getvalue(), upload.name, save=True)
+    payload = matched_file(upload.name, upload.getvalue(), "measurements", "caplife_six_upload")
+    if payload is None:
+        return None
+    return _parse(payload, upload.name, save=True)
 
 
 def _parse(payload: bytes, label: str, save: bool,

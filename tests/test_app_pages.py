@@ -347,3 +347,50 @@ def test_monitor_and_predict_shows_the_maintenance_plan_and_its_report_copy():
     app.number_input(key="caplife_six_plan_horizon").set_value(100.0).run()
     view = app.session_state["caplife_six_report_view"]
     assert view.plan.empty and any("No capacitor is likely" in s.value for s in app.success)
+
+
+def test_files_with_other_column_names_are_matched_before_reading():
+    import hashlib
+
+    from caplife.six_rul import example_fleet
+    measurements, _ = example_fleet()
+    lab = measurements[["Cap_ID", "Hours", "Capacitance_uF", "ESR_ohm"]].rename(columns={
+        "Cap_ID": "Label", "Hours": "Test time (days)", "Capacitance_uF": "Cap (nF)", "ESR_ohm": "ESR (mOhm)"})
+    lab["Test time (days)"] /= 24
+    lab["Cap (nF)"] *= 1000
+    lab["ESR (mOhm)"] *= 1000
+    payload = lab.to_csv(index=False).encode()
+    app = open_workspace("Monitor and Predict")
+    app.get("file_uploader")[0].upload("lab.csv", payload, "text/csv").run()
+    assert not app.exception, app.exception
+    # "Label" is not recognised, so the page asks which column is the capacitor ID and reads nothing yet.
+    assert any("Capacitor ID" in w.value for w in app.warning)
+    assert not app.metric
+    state = app.session_state["caplife_six_upload_columns"]
+    digest = hashlib.sha256(payload).hexdigest()[:16]
+    assert state["choices"][digest] == ["Not used", "Time (days)", "Capacitance (nF)", "ESR (mΩ)"]
+    state["choices"][digest][0] = "Capacitor ID"
+    app.session_state["caplife_six_upload_columns"] = state
+    app.run()
+    assert not app.exception, app.exception
+    assert metric(app, "Capacitors") == "12"
+    assert any(e.label == "Columns of lab.csv: 4 of 4 used" for e in app.expander)
+
+
+def test_train_the_ai_matches_outcome_columns_by_meaning():
+    import io
+
+    import pandas as pd
+
+    from caplife.rul_page import _example_csvs
+    measurements, outcomes = _example_csvs()
+    frame = pd.read_csv(io.BytesIO(outcomes), dtype=str, keep_default_na=False).rename(columns={
+        "Cap_ID": "Capacitor", "Experiment_ID": "Batch", "Last_alive_h": "Last alive (hours)",
+        "Failure_by_h": "Failed at (h)"})
+    app = open_workspace("Train The AI")
+    app.get("file_uploader")[0].upload("bench.csv", measurements, "text/csv").run()
+    app.get("file_uploader")[1].upload("results.csv", frame.to_csv(index=False).encode(), "text/csv").run()
+    assert not app.exception, app.exception
+    assert not app.warning
+    assert metric(app, "With an outcome") == str(len(frame))
+    assert int(metric(app, "Experiments")) >= 3

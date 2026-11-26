@@ -99,7 +99,9 @@ def _delimiter(text: str) -> str:
 def read_table(payload: bytes, filename: str | None = None) -> tuple[pd.DataFrame, list[str]]:
     """Any supported file as a table of text cells, plus notes on how it was read."""
     notes: list[str] = []
-    if payload[:4] == b"PK\x03\x04" or (filename or "").lower().endswith((".xlsx", ".xlsm")):
+    # Excel files are ZIP archives; the name is not trusted, since a file whose columns were matched on the
+    # page is passed on as CSV under its original name.
+    if payload[:4] == b"PK\x03\x04":
         try:
             frame = pd.read_excel(BytesIO(payload), sheet_name=0, dtype=str, keep_default_na=False)
         except Exception as error:  # openpyxl raises many types for damaged files

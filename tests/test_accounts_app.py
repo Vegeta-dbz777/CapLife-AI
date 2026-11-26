@@ -260,6 +260,11 @@ def test_my_data_saves_an_excel_workbook(database, monkeypatch):
 def test_my_data_refuses_a_file_its_page_cannot_read(database, monkeypatch):
     app = open_my_data(monkeypatch=monkeypatch)
     app.get("file_uploader")[0].upload("notes.csv", b"hello,world\n1,2\n", "text/csv").run()
+    assert not app.exception, app.exception
+    # Nothing in it is a capacitor ID or a time, so it cannot be saved until its columns are matched.
+    assert any("Capacitor ID" in w.value for w in app.warning)
+    assert app.button(key="caplife_mydata_upload_save").disabled
+    app.get("file_uploader")[0].upload("bad.csv", b"Cap_ID,Hours,Capacitance_uF\nA,0,x\n", "text/csv").run()
     app.button(key="caplife_mydata_upload_save").click().run()
     assert not app.exception, app.exception
     assert any("could not be used" in e.value for e in app.error)

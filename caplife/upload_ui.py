@@ -82,3 +82,72 @@ def status_row(passed: str, warnings: list[str], file_notes: list[str] | None = 
             parts.append("**How the file was read**\n" + "\n".join(f"- {note}" for note in file_notes))
         with st.expander("Notes", icon=":material/info:"):
             st.markdown("\n\n".join(parts))
+
+
+@st.cache_data(max_entries=16, show_spinner=False)
+def _column_preview(payload: bytes, filename: str, kind: str):
+    from caplife.column_match import preview
+    return preview(payload, filename, kind)
+
+
+@st.cache_data(max_entries=16, show_spinner=False)
+def _apply_columns(payload: bytes, filename: str, choices: tuple[str, ...], kind: str) -> bytes:
+    from caplife.column_match import apply
+    return apply(payload, filename, list(choices), kind)
+
+
+def _choose(store: str, digest: str, editor: str) -> None:
+    """Keep the edited "Use as" choices, and rebuild the table from them on the next run."""
+    choices = st.session_state[store]["choices"][digest]
+    for row, change in st.session_state.get(editor, {}).get("edited_rows", {}).items():
+        if "Use as" in change and change["Use as"]:
+            choices[int(row)] = change["Use as"]
+    st.session_state[store]["round"] += 1
+    st.session_state[store]["edited"].add(digest)  # keep the table open while the user works through it
+
+
+def matched_file(name: str, payload: bytes, kind: str, key: str) -> bytes | None:
+    """Let the user say what each column of an uploaded file is, and return the file as CapLife reads it.
+
+    The choices start from a guess based on the column names and are kept for the session, per file. Returns
+    None, with the reason shown, until the file has every column CapLife needs."""
+    import hashlib
+
+    from caplife.column_match import NOT_USED, TARGETS, problems
+    from caplife.real_data import RealDataValidationError
+
+    try:
+        frame = _column_preview(payload, name, kind)
+    except (RealDataValidationError, ValueError, UnicodeError) as error:
+        st.error(f"{name} could not be read: {error}")
+        return None
+    store = f"{key}_columns"
+    state = st.session_state.setdefault(store, {"choices": {}, "round": 0, "edited": set()})
+    digest = hashlib.sha256(payload).hexdigest()[:16]
+    choices = state["choices"].setdefault(digest, list(frame["Use as"]))
+    frame = frame.assign(**{"Use as": choices})
+    found = problems(choices, kind)
+    used = sum(choice != NOT_USED for choice in choices)
+    title = (f"Columns of {name}: {used} of {len(choices)} used" if not found
+             else f"Columns of {name}: choose what they are")
+    with st.expander(title, icon=":material/view_column:", expanded=bool(found) or digest in state["edited"]):
+        editor = f"{key}_columns_{digest}_{state['round']}"
+        st.data_editor(
+            frame, key=editor, hide_index=True, width="stretch", disabled=["Column in your file", "Example values"],
+            on_change=_choose, args=(store, digest, editor),
+            column_config={
+                "Column in your file": st.column_config.TextColumn(pinned=True),
+                "Example values": st.column_config.TextColumn(help="The first values in the column."),
+                "Use as": st.column_config.SelectboxColumn(
+                    options=[NOT_USED, *(target.label for target in TARGETS[kind])], required=True,
+                    help="What this column holds. Pick the unit your values are in: they are converted to "
+                         "CapLife's units. Columns marked Not used are left out."),
+            })
+    if found:
+        st.warning(" ".join(found), icon=":material/view_column:")
+        return None
+    try:
+        return _apply_columns(payload, name, tuple(choices), kind)
+    except (RealDataValidationError, ValueError) as error:
+        st.error(f"{name} could not be read: {error}")
+        return None
