@@ -92,11 +92,29 @@ def frequency_multiplier(hz):
     return 1 + 0.4 * np.clip(np.log10(np.asarray(hz, dtype=float) / 120) / 2, 0, 1)
 
 
-def operating_stress(ambient_c, voltage_ratio, ripple_ratio, hz):
+# The physics constants above, as one capacitor family; ``random_family`` draws other families.
+STANDARD_FAMILY = {"life_scale": 1.0, "doubling_c": 10.0, "voltage_exponent": 3.0, "ripple_heating_k": 12.0,
+                   "c_shape": (1.0, 1.5)}
+
+
+def random_family(rng: np.random.Generator) -> dict:
+    """Physics constants of a capacitor family unlike the standard one: real series differ in base life,
+    in how strongly temperature, voltage and ripple speed aging, and in how capacitance loss accelerates.
+    A model trained on many families has to read each capacitor's own trend instead of trusting one set of
+    constants."""
+    shape_low = rng.uniform(0.8, 1.6)
+    return {"life_scale": float(np.exp(rng.normal(0.0, 1.0))), "doubling_c": rng.uniform(7.0, 14.0),
+            "voltage_exponent": rng.uniform(1.5, 5.0), "ripple_heating_k": rng.uniform(6.0, 18.0),
+            "c_shape": (shape_low, shape_low + rng.uniform(0.1, 0.6))}
+
+
+def operating_stress(ambient_c, voltage_ratio, ripple_ratio, hz, family: dict | None = None):
     """Core temperature and aging acceleration (1 at rated conditions without ripple heating)."""
-    core = np.asarray(ambient_c, dtype=float) + 12 * (np.asarray(ripple_ratio, dtype=float)
-                                                     / frequency_multiplier(hz)) ** 2
-    return core, 2 ** ((core - RATED_TEMP_C) / 10) * np.asarray(voltage_ratio, dtype=float) ** 3
+    family = family or STANDARD_FAMILY
+    core = np.asarray(ambient_c, dtype=float) + family["ripple_heating_k"] * (np.asarray(ripple_ratio, dtype=float)
+                                                                            / frequency_multiplier(hz)) ** 2
+    return core, (2 ** ((core - RATED_TEMP_C) / family["doubling_c"])
+                  * np.asarray(voltage_ratio, dtype=float) ** family["voltage_exponent"])
 
 
 def _operating(rng: np.random.Generator) -> tuple[float, float, float]:
@@ -104,12 +122,13 @@ def _operating(rng: np.random.Generator) -> tuple[float, float, float]:
     return rng.uniform(60, 105), rng.uniform(0.5, 1.0), rng.uniform(0.2, 1.3)
 
 
-def _device(rng: np.random.Generator) -> dict:
+def _device(rng: np.random.Generator, family: dict | None = None) -> dict:
+    family = family or STANDARD_FAMILY
     ambient, voltage, ripple = _operating(rng)
     hz = 120.0 if rng.random() < 0.45 else float(np.exp(rng.uniform(np.log(1e3), np.log(1e5))))
-    core, acceleration = (float(v) for v in operating_stress(ambient, voltage, ripple, hz))
+    core, acceleration = (float(v) for v in operating_stress(ambient, voltage, ripple, hz, family))
     # Hours for the electrolyte-loss coordinate to reach 1 at rated conditions.
-    tau_rated = 4000 * rng.lognormal(0, 0.25)
+    tau_rated = 4000 * family["life_scale"] * rng.lognormal(0, 0.25)
     device = {
         "ambient_C": ambient, "ripple_ratio": ripple, "voltage_ratio": voltage, "core_C": core,
         "ripple_Hz": hz, "rated_V": float(rng.choice(RATED_VOLTAGES)),
@@ -118,7 +137,7 @@ def _device(rng: np.random.Generator) -> dict:
     }
     if rng.random() < CHANGE_SHARE:
         ambient2, voltage2, ripple2 = _operating(rng)
-        core2, acceleration2 = (float(v) for v in operating_stress(ambient2, voltage2, ripple2, hz))
+        core2, acceleration2 = (float(v) for v in operating_stress(ambient2, voltage2, ripple2, hz, family))
         # On the 0.1 h grid inspections are recorded on, so the inspection at the change records the new ones.
         change_h = math.ceil(rng.uniform(0.15, 0.7) * device["tau_h"] * 10) / 10
         device.update(change_h=change_h, ambient2_C=ambient2,
@@ -131,7 +150,7 @@ def _device(rng: np.random.Generator) -> dict:
         "capacitance_uF": 1000 * rng.normal(1, 0.05),
         "esr_ohm": 0.08 * rng.normal(1, 0.08),
         "leakage_uA": 8 * rng.lognormal(0, 0.2),
-        "c_shape": rng.uniform(1.0, 1.5),
+        "c_shape": rng.uniform(*family["c_shape"]),
         "c_rate": rng.lognormal(0, 0.25),
         "esr_gain": rng.lognormal(-0.3, 0.3),
         "leak_gain": rng.lognormal(0, 0.35),
@@ -196,7 +215,8 @@ def end_of_life_causes(baseline: dict, reading: dict, limits: dict | None = None
 
 
 def simulate_device(rng: np.random.Generator, cap_id: str, fine_step_h: float = 5.0,
-                    limits: dict | None = None, keep_truth: bool = False, near_end_share: float = 0.0):
+                    limits: dict | None = None, keep_truth: bool = False, near_end_share: float = 0.0,
+                    family: dict | None = None):
     """Noisy inspections until end of life, and the true (noise-free) end-of-life age and cause.
 
     ``limits`` (default: ``EOL_LIMITS``) decides end of life. With ``keep_truth`` the noise-free
@@ -206,10 +226,11 @@ def simulate_device(rng: np.random.Generator, cap_id: str, fine_step_h: float = 
     """
     limits = EOL_LIMITS if limits is None else limits
     while True:
-        device = _device(rng)
-        # Long enough for the loosest limits; coarser steps for very slow capacitors keep it small.
+        device = _device(rng, family)
+        # Long enough for the loosest limits; coarser steps for very slow capacitors keep it small, finer ones
+        # for very fast ones (a short-lived family) keep end of life precise.
         horizon = 12 * max(device["tau_h"], device["tau2_h"])
-        step = max(fine_step_h, horizon / 40000)
+        step = max(min(fine_step_h, horizon / 2000), horizon / 40000)
         fine = np.arange(0, horizon + step, step)
         truth = _state(device, fine)
         base = {name: values[0] for name, values in truth.items()}
@@ -274,19 +295,24 @@ def simulate_device(rng: np.random.Generator, cap_id: str, fine_step_h: float = 
 
 
 def simulate_fleet(n_devices: int, seed: int, prefix: str = "SIM", vary_limits: bool = False,
-                   on_truth=None, near_end_share: float = 0.0) -> tuple[pd.DataFrame, pd.DataFrame]:
+                   on_truth=None, near_end_share: float = 0.0,
+                   family_share: float = 0.0) -> tuple[pd.DataFrame, pd.DataFrame]:
     """A fleet of simulated capacitors with the default limits, or random ones with ``vary_limits``.
+
+    A ``family_share`` of the capacitors come from randomly drawn families (``random_family``).
 
     ``on_truth(frame, meta, hours, truth)`` is called for each capacitor with its noise-free
     trajectory, which is not kept (it can be large).
     """
     rng = np.random.default_rng(seed)
     limit_rng = np.random.default_rng(seed + 10_000)
+    family_rng = np.random.default_rng(seed + 20_000)  # its own stream: fleets without families stay unchanged
     frames, metas = [], []
     for index in range(1, n_devices + 1):
         limits = random_limits(limit_rng) if vary_limits else None
+        family = random_family(family_rng) if family_share and family_rng.random() < family_share else None
         frame, meta, (hours, truth) = simulate_device(rng, f"{prefix}_{index:04d}", limits=limits, keep_truth=True,
-                                                      near_end_share=near_end_share)
+                                                      near_end_share=near_end_share, family=family)
         if on_truth is not None:
             on_truth(frame, meta, hours, truth)
         frames.append(frame)
