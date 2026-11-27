@@ -13,6 +13,23 @@ MY_DATA = "My saved datasets"
 # Shown label -> internal workspace value, as defined in app.py; the only three workspaces.
 WORKSPACES = {"Monitor and Predict": MONITOR, "Train The AI": TRAIN, "My Data": MY_DATA}
 
+def example_csvs() -> tuple[bytes, bytes]:
+    """The simulated Train The AI example (37 capacitors in four experiments) as measurement and outcome files."""
+    from caplife.rul_example import example_dataset
+    measurements, outcomes = example_dataset()
+    return measurements.to_csv(index=False).encode(), outcomes.to_csv(index=False).encode()
+
+
+def upload_rul_example(app):
+    """Train The AI with the simulated example uploaded as its two files."""
+    measurements, outcomes = example_csvs()
+    uploaders = app.get("file_uploader")
+    uploaders[0].upload("example_measurements.csv", measurements, "text/csv")
+    uploaders[1].upload("example_outcomes.csv", outcomes, "text/csv")
+    app.run()
+    return app
+
+
 def upload_example(app):
     """Monitor and Predict with the twelve simulated example capacitors, uploaded as a file."""
     from caplife.six_rul import example_fleet
@@ -141,7 +158,7 @@ def test_monitor_takes_user_limits_and_forecasts_parameter_trends():
 
 def test_train_the_ai_example_passes_and_forecasts():
     app = open_workspace("Train The AI")
-    app.radio(key="caplife_rul_source").set_value("Use simulated example capacitors").run()
+    upload_rul_example(app)
     app.radio(key="caplife_rul_split_v2").set_value("One test experiment").run()
     app.selectbox(key="caplife_rul_calibration").set_value("SYN_EXP_C").run()
     app.selectbox(key="caplife_rul_test").set_value("SYN_EXP_B").run()
@@ -286,14 +303,14 @@ def test_train_the_ai_report_pdf_and_excel_match_the_page():
     from pypdf import PdfReader
     from caplife.train_report import pdf_bytes, xlsx_bytes
     app = open_workspace("Train The AI")
-    app.radio(key="caplife_rul_source").set_value("Use simulated example capacitors").run()
+    upload_rul_example(app)
     app.radio(key="caplife_rul_split_v2").set_value("One test experiment").run()
     app.selectbox(key="caplife_rul_calibration").set_value("SYN_EXP_C").run()
     app.selectbox(key="caplife_rul_test").set_value("SYN_EXP_B").run()
     next(b for b in app.button if b.label == "Train and test the model").click().run()
     assert not app.exception
     view = app.session_state["caplife_rul_report_view"]
-    assert view.source == "Simulated example" and view.passed and view.rul_charts
+    assert view.source == "example_measurements.csv and example_outcomes.csv" and view.passed and view.rul_charts
     pdf = pdf_bytes(view)
     assert pdf.startswith(b"%PDF")
     text = " ".join(page.extract_text() for page in PdfReader(io.BytesIO(pdf)).pages)
@@ -315,7 +332,7 @@ def test_suggested_model_names_drop_the_measurements_part_of_the_file_name():
 
 def test_train_the_ai_tests_every_experiment_in_turn_by_default():
     app = open_workspace("Train The AI")
-    app.radio(key="caplife_rul_source").set_value("Use simulated example capacitors").run()
+    upload_rul_example(app)
     assert app.radio(key="caplife_rul_split_v2").value == "Every experiment in turn (recommended)"
     assert not [s for s in app.selectbox if s.key == "caplife_rul_test"]  # no single test experiment to pick
     app.selectbox(key="caplife_rul_calibration").set_value("SYN_EXP_A").run()
@@ -390,8 +407,7 @@ def test_train_the_ai_matches_outcome_columns_by_meaning():
 
     import pandas as pd
 
-    from caplife.rul_page import _example_csvs
-    measurements, outcomes = _example_csvs()
+    measurements, outcomes = example_csvs()
     frame = pd.read_csv(io.BytesIO(outcomes), dtype=str, keep_default_na=False).rename(columns={
         "Cap_ID": "Capacitor", "Experiment_ID": "Batch", "Last_alive_h": "Last alive (hours)",
         "Failure_by_h": "Failed at (h)"})
@@ -414,3 +430,15 @@ def test_monitor_offers_only_your_own_data():
     returning.run()
     assert not returning.exception, returning.exception
     assert returning.radio(key="caplife_six_source").value == "Upload my data"
+
+
+def test_train_the_ai_offers_only_your_own_data():
+    app = open_workspace("Train The AI")
+    assert app.radio(key="caplife_rul_source").options == ["Upload my data", "My saved datasets",
+                                                           "Train a saved model again"]
+    returning = AppTest.from_file(APP, default_timeout=120)
+    returning.session_state[MAIN_KEY] = TRAIN
+    returning.session_state["caplife_rul_source"] = "Use simulated example capacitors"
+    returning.run()
+    assert not returning.exception, returning.exception
+    assert returning.radio(key="caplife_rul_source").value == "Upload my data"
