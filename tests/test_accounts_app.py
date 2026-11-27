@@ -14,6 +14,14 @@ APP = str(Path(__file__).resolve().parents[1] / "app.py")
 WORKSPACE_KEY = "caplife_workflow_v07"
 ALICE = {"id": "https://accounts.example|alice", "email": "alice@example.org", "name": "Alice"}
 
+def upload_example(app):
+    """Monitor and Predict with the twelve simulated example capacitors, uploaded as a file."""
+    from caplife.six_rul import example_fleet
+    measurements, _ = example_fleet()
+    app.get("file_uploader")[0].upload("example.csv", measurements.to_csv(index=False).encode(), "text/csv").run()
+    return app
+
+
 
 @pytest.fixture()
 def database(tmp_path, monkeypatch):
@@ -333,7 +341,7 @@ def lab_model_files():
 
 def open_monitor(app: AppTest) -> AppTest:
     app.sidebar.radio(key=WORKSPACE_KEY).set_value("Six-parameter RUL prediction (demonstration model)").run()
-    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
+    upload_example(app)
     assert not app.exception, app.exception
     return app
 

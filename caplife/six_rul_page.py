@@ -23,7 +23,7 @@ from caplife.upload_ui import kept_file_uploader, matched_file, show_notes
 from caplife.real_data import RealDataValidationError, validate_real_measurements
 from caplife.six_rul import (
     INDICATOR_LABELS, LIMIT_KEYS, MIN_READINGS, RUL_OFFSET_H, SixRULModel, current_limit_used,
-    example_fleet, full_limits, limit_used, subset_key, value_at_fraction,
+    full_limits, limit_used, subset_key, value_at_fraction,
 )
 from caplife import operating_conditions as conditions
 from caplife.six_sim import ATMOSPHERE_KPA, CONDITION_COLUMNS, EOL_LIMITS, LIMIT_RANGES, SIGNALS
@@ -35,7 +35,7 @@ BUILT_IN_KEY = "built-in"
 BUILT_IN, MINE = "Built-in model", "My trained model"
 TRAINED_DISCLAIMER = ("Model trained on Train The AI: tested only on its own test capacitors; beyond those it relies on "
                       "simulated training. Not a maintenance or safety tool.")
-UPLOAD, EXAMPLE, SAVED = "Upload my data", "Use simulated example capacitors", "My saved datasets"
+UPLOAD, SAVED = "Upload my data", "My saved datasets"
 UNITS = {"Capacitance_uF": "µF", "ESR_ohm": "Ω", "Leakage_uA": "µA", "Case_Expansion_um": "µm",
          "H2_Generated_mL_STP": "mL", "Pressure_Abs_kPa": "kPa"}
 DIGITS = {"Capacitance_uF": 1, "ESR_ohm": 4, "Leakage_uA": 2, "Case_Expansion_um": 1,
@@ -116,15 +116,6 @@ def _model_key() -> str:
 def _model() -> SixRULModel:
     """The model every prediction on the page comes from: built-in, or the trained one the user chose."""
     return _model_for(_model_key())
-
-
-@st.cache_data(show_spinner=False)
-def _load_example(version: str) -> tuple[pd.DataFrame, dict]:
-    return example_fleet()
-
-
-def _example() -> tuple[pd.DataFrame, dict]:
-    return _load_example(code_version())
 
 
 # Health is the share of a parameter's allowance to its limit that is still unused. "Good" needs
@@ -237,17 +228,12 @@ def _compact(value: float) -> str:
     return f"{value:,.0f}" if value < 1000 else f"{value / 1000:.1f}k" if value < 10_000 else f"{value / 1000:.0f}k"
 
 
-def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
-    source = st.radio("Data", (UPLOAD, EXAMPLE, SAVED), horizontal=True, key="caplife_six_source", persist_state="session",
-                      help="The simulated example has twelve capacitors, two for each of the six ways a capacitor "
-                           "can reach end of life, observed part of the way there. Because they are simulated, their "
-                           "true end of life with the default limits is known and shown for comparison.")
+def _load() -> tuple[pd.DataFrame, str] | None:
+    if st.session_state.get("caplife_six_source") not in (UPLOAD, SAVED):  # e.g. the example choice, now removed
+        st.session_state.pop("caplife_six_source", None)
+    source = st.radio("Data", (UPLOAD, SAVED), horizontal=True, key="caplife_six_source", persist_state="session",
+                      help="Upload a measurement file, or open one you saved to your account.")
     template = pd.DataFrame(columns=["Cap_ID", "Hours", *SIGNALS, *CONDITION_COLUMNS]).to_csv(index=False)
-    if source == EXAMPLE:
-        measurements, truth = _example()
-        st.download_button("Download example CSV", measurements.to_csv(index=False),
-                           "caplife_six_parameter_example.csv", mime="text/csv")
-        return measurements, truth, "Simulated example"
     if source == SAVED:
         picked = saved_picker("six_parameter", "caplife_six")
         if picked is None:
@@ -269,7 +255,7 @@ def _load() -> tuple[pd.DataFrame, dict | None, str] | None:
 
 
 def _parse(payload: bytes, label: str, save: bool,
-           settings: tuple[str, str] = ("hours", "auto")) -> tuple[pd.DataFrame, dict | None, str] | None:
+           settings: tuple[str, str] = ("hours", "auto")) -> tuple[pd.DataFrame, str] | None:
     try:
         raw, notes = read_measurement_file(payload, label, *settings)
         readings = validate_real_measurements(raw)
@@ -317,7 +303,7 @@ def _parse(payload: bytes, label: str, save: bool,
         return None
     combined = pd.concat(kept, ignore_index=True)
     recorded = conditions.recorded_columns(combined)  # operating conditions go to the model as well
-    return combined.loc[:, ["Cap_ID", "Hours", *present, *recorded]], None, label
+    return combined.loc[:, ["Cap_ID", "Hours", *present, *recorded]], label
 
 
 @st.cache_data(show_spinner="Assessing capacitors…", max_entries=8)
@@ -414,7 +400,7 @@ def _limit_boxes(limits: dict, measured: tuple[str, ...]) -> list[tuple[str, str
             for signal in SIGNALS]
 
 
-def _fleet_table(results: dict, truth: dict | None, limits: dict | None = None) -> pd.DataFrame:
+def _fleet_table(results: dict) -> pd.DataFrame:
     rows = []
     for device, (_, assessment) in results.items():
         last = assessment.iloc[-1]
@@ -435,10 +421,6 @@ def _fleet_table(results: dict, truth: dict | None, limits: dict | None = None) 
             chance = last.get("Sudden_failure_chance", np.nan)
             row["Sudden failure (%)"] = 100 * chance if has_rul and pd.notna(chance) else np.nan
         row.update(conditions.summary_columns(results[device][0]))
-        if truth:
-            # The simulated truth uses the default limits; it does not apply once a user changes them.
-            default = limits is None or limits.get(str(device)) == full_limits()
-            row["Simulated true end of life (h)"] = truth[device]["eol_h"] if default else np.nan
         rows.append(row)
     frame = pd.DataFrame(rows)
     # Condition columns only when some capacitor has them.
@@ -1525,13 +1507,13 @@ def render() -> None:
     loaded = _load()
     if loaded is None:
         return
-    measurements, truth, label = loaded
+    measurements, label = loaded
     trained = _model_choice()
     devices = sorted(measurements["Cap_ID"].astype(str).unique())
     all_limits = _device_limits(devices)
     planned = _device_conditions(devices)
     results = _assess(measurements, all_limits, planned)
-    fleet = _fleet_table(results, truth, all_limits)
+    fleet = _fleet_table(results)
 
     custom = [device for device in devices if all_limits[device] != full_limits()]
     st.subheader("Fleet overview",
@@ -1556,8 +1538,6 @@ def render() -> None:
               "Sudden failure (%)": st.column_config.NumberColumn(
                   format="%.0f", help="The chance that a sudden failure (open circuit, short, vent), rather than "
                                       "a parameter reaching its limit, ends the capacitor's life.")}
-    if truth:
-        config["Simulated true end of life (h)"] = st.column_config.NumberColumn(format="%.0f")
     table(fleet, hide_index=True, width="stretch", column_config=config)
     changed_notes = ([f"Custom limits: {', '.join(custom)}"] if custom else []) + \
         ([f"Changed operating conditions: {', '.join(planned)}"] if planned else [])
@@ -1588,7 +1568,6 @@ def render() -> None:
         messages.append((level, text))
 
     last = assessment.iloc[-1]
-    default_limits = limits == full_limits()
     original = original.reset_index(drop=True)
     recorded_assessment = _model().assess(original, measured, limits) if planned.get(str(device)) else None
     recorded_last = recorded_assessment.iloc[-1] if recorded_assessment is not None else None
@@ -1610,9 +1589,6 @@ def render() -> None:
                            f"would give {_hours(recorded_last['RUL_median_h'] * factor)}"
                            + ("." if trained else "; on simulated capacitors the network catches about two thirds "
                                                   "of such a change."))
-        if truth and default_limits and not planned.get(str(device)):
-            detail += (f" Simulated true remaining life: {truth[device]['eol_h'] - last['Hours']:,.0f} h "
-                       f"({truth[device]['eol_cause']}).")
         metrics = [("Remaining useful life", _hours(last["RUL_median_h"]), delta),
                    ("80% range", f"{_compact(last['RUL_low_h'])}–{_compact(last['RUL_high_h'])} h", None),
                    ("Predicted end-of-life age", _hours(last["Hours"] + last["RUL_median_h"]), None),
@@ -1686,7 +1662,7 @@ def render() -> None:
                                      _forecast_charts(readings, forecast, last, limits, zoom, reference,
                                                       zoom_key=f"caplife_six_zoom_{device}_forecast")))
     if assessment["RUL_median_h"].notna().any() if "RUL_median_h" in assessment else False:
-        true_eol = truth[device]["eol_h"] if truth and default_limits and not planned.get(str(device)) else None
+        true_eol = None  # only a simulated capacitor has a known true end of life
         changed = recorded_assessment is not None
         st.markdown("##### Remaining-life prediction over time",
                     help="Left of the Latest reading line: the remaining life predicted at each reading, from the "
@@ -1696,7 +1672,7 @@ def render() -> None:
                          + (" Purple: with the recorded conditions. Gold: with your changed conditions; left of the "
                             "line, each point is the prediction at that reading had the capacitor run at your "
                             "conditions from then on." if changed else "")
-                         + (" Orange dashed: the simulated true remaining life." if true_eol else "") + ZOOM_HELP)
+                         + ZOOM_HELP)
         notes = []
         if changed:
             notes.append("Purple: with the recorded conditions. Gold: with your changed conditions.")

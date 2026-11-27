@@ -21,7 +21,7 @@ Open [CapLife AI](https://vegeta-dbz777-caplife-ai-app-qa5uh1.streamlit.app/) in
 
 Choose **Monitor and Predict** in the sidebar and upload a CSV with `Cap_ID`, `Hours`
 and any of `Capacitance_uF`, `ESR_ohm`, `Leakage_uA`, `Case_Expansion_um`,
-`H2_Generated_mL_STP` and `Pressure_Abs_kPa`, or load the simulated example.
+`H2_Generated_mL_STP` and `Pressure_Abs_kPa`, or open a dataset saved to your account.
 Operating conditions are
 optional and recommended: `Ambient_C`, `Core_C`, `Voltage_V` (applied),
 `Rated_V`, `Ripple_A`, `Rated_Ripple_A` and `Ripple_Hz` (the operating
@@ -214,7 +214,8 @@ in `caplife/column_match.py`.
    ```
 
 6. Your browser should open the application, usually at `http://localhost:8501`.
-   Open **Monitor and Predict** and choose the simulated example capacitors.
+   Open **Train The AI** and choose the simulated example capacitors, or upload your own
+   measurements on **Monitor and Predict**.
 
 The trained models are bundled in `artifacts/six_rul/`; you do not need to train
 anything to open the app.
