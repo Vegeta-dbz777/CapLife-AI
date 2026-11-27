@@ -21,7 +21,6 @@ from caplife.accounts import models_to_train_again, save_controls, save_model_co
 from caplife.measurement_review import read_experimental_csv
 from caplife.upload_ui import kept_file_uploader, matched_file, show_notes
 from caplife.real_data import RealDataValidationError
-from caplife.rul_example import example_dataset
 from caplife.versioning import code_version
 from caplife.rul_workflow import (
     MAX_CENSOR_CONTRADICTIONS, MIN_CALIBRATION_DEVICES, MIN_TEST_COVERAGE, MIN_TEST_DEVICES,
@@ -30,7 +29,7 @@ from caplife.rul_workflow import (
     run_rul_workflow,
 )
 
-UPLOAD, EXAMPLE, SAVED = "Upload my data", "Use simulated example capacitors", "My saved datasets"
+UPLOAD, SAVED = "Upload my data", "My saved datasets"
 RETRAIN = "Train a saved model again"
 RETRAIN_KEY = "caplife_rul_retrain_model"  # the saved model being trained again (its ID)
 REPORT_VIEW = "caplife_rul_report_view"  # the results as last shown, for the reports (and tests)
@@ -38,16 +37,6 @@ SUDDEN = "Chance of sudden failure (%)"
 LIMITS_KEY = "caplife_rul_limit_"
 INPUT_ERRORS = (RealDataValidationError, ValueError, pd.errors.ParserError,
                 pd.errors.EmptyDataError, UnicodeError)
-
-
-@st.cache_data(show_spinner=False)
-def _example_csvs_cached(version: str) -> tuple[bytes, bytes]:
-    measurements, outcomes = example_dataset()
-    return measurements.to_csv(index=False).encode(), outcomes.to_csv(index=False).encode()
-
-
-def _example_csvs() -> tuple[bytes, bytes]:
-    return _example_csvs_cached(code_version())
 
 
 # The last few training results, shared by every visitor (the same files and settings give the same result).
@@ -279,12 +268,13 @@ def _retrain_inputs() -> dict | None:
 
 
 def _inputs() -> dict | None:
-    source = st.radio("Data", (UPLOAD, EXAMPLE, SAVED, RETRAIN), horizontal=True, key="caplife_rul_source",
+    if st.session_state.get("caplife_rul_source") not in (UPLOAD, SAVED, RETRAIN):  # e.g. the removed example
+        st.session_state.pop("caplife_rul_source", None)
+    source = st.radio("Data", (UPLOAD, SAVED, RETRAIN), horizontal=True, key="caplife_rul_source",
                       persist_state="session",
-                      help="The simulated example has 37 capacitors in four experiments, five of them still running. It "
-                           "shows how the page works; its results say nothing about real capacitors. Train a saved "
-                           "model again: the data a model you saved was trained on, with newer readings and "
-                           "outcomes added.")
+                      help="Upload your measurement and outcome files, open ones you saved to your account, or train "
+                           "a saved model again: the data it was trained on, with newer readings and outcomes "
+                           "added.")
     if source == RETRAIN:
         return _retrain_inputs()
     found = _plain_inputs(source)
@@ -296,14 +286,6 @@ def _plain_inputs(source: str) -> tuple[bytes, bytes, str] | None:
     if source == SAVED:
         picked = saved_picker("train_rul", "caplife_rul")
         return None if picked is None else (picked[0]["measurements"], picked[0]["outcomes"], picked[1])
-    if source == EXAMPLE:
-        measurements, outcomes = _example_csvs()
-        row = st.container(horizontal=True)
-        row.download_button("Download example measurements", measurements, "caplife_rul_example_measurements.csv",
-                            mime="text/csv")
-        row.download_button("Download example outcomes", outcomes, "caplife_rul_example_outcomes.csv",
-                            mime="text/csv")
-        return measurements, outcomes, "Simulated example"
 
     left, right = st.columns(2)
     with left:

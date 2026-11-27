@@ -14,6 +14,23 @@ APP = str(Path(__file__).resolve().parents[1] / "app.py")
 WORKSPACE_KEY = "caplife_workflow_v07"
 ALICE = {"id": "https://accounts.example|alice", "email": "alice@example.org", "name": "Alice"}
 
+def example_csvs() -> tuple[bytes, bytes]:
+    """The simulated Train The AI example (37 capacitors in four experiments) as measurement and outcome files."""
+    from caplife.rul_example import example_dataset
+    measurements, outcomes = example_dataset()
+    return measurements.to_csv(index=False).encode(), outcomes.to_csv(index=False).encode()
+
+
+def upload_rul_example(app):
+    """Train The AI with the simulated example uploaded as its two files."""
+    measurements, outcomes = example_csvs()
+    uploaders = app.get("file_uploader")
+    uploaders[0].upload("example_measurements.csv", measurements, "text/csv")
+    uploaders[1].upload("example_outcomes.csv", outcomes, "text/csv")
+    app.run()
+    return app
+
+
 def upload_example(app):
     """Monitor and Predict with the twelve simulated example capacitors, uploaded as a file."""
     from caplife.six_rul import example_fleet
@@ -292,7 +309,7 @@ def test_my_data_sorts_newest_or_oldest_first(database, monkeypatch):
 
 def train_example(app: AppTest) -> AppTest:
     app.sidebar.radio(key=WORKSPACE_KEY).set_value("Train an RUL model on uploaded outcomes").run()
-    app.radio(key="caplife_rul_source").set_value("Use simulated example capacitors").run()
+    upload_rul_example(app)
     app.radio(key="caplife_rul_split_v2").set_value("One test experiment").run()
     app.selectbox(key="caplife_rul_calibration").set_value("SYN_EXP_C").run()
     app.selectbox(key="caplife_rul_test").set_value("SYN_EXP_B").run()
@@ -305,7 +322,7 @@ def test_signed_in_user_saves_a_trained_model_and_sees_it_in_my_data(database, m
     from caplife.storage import MODEL_KIND
     monkeypatch.setattr(accounts, "current_user", lambda: ALICE)
     app = train_example(run_app())
-    assert app.text_input(key="caplife_rul_model_name").value == "Simulated example model"
+    assert app.text_input(key="caplife_rul_model_name").value == "example model"  # from the file's name
     app.text_input(key="caplife_rul_model_name").set_value("Lab model").run()
     app.button(key="caplife_rul_model_save").click().run()
     assert any("Saved “Lab model”" in s.value for s in app.success)
@@ -314,7 +331,7 @@ def test_signed_in_user_saves_a_trained_model_and_sees_it_in_my_data(database, m
     app.sidebar.radio(key=WORKSPACE_KEY).set_value("My saved datasets").run()
     assert not app.exception, app.exception
     text = " ".join(m.value for m in app.markdown) + " ".join(c.value for c in app.caption)
-    assert "Lab model" in text and "Trained on Simulated example" in text and "Test: missed by" in text
+    assert "Lab model" in text and "Trained on example_measurements.csv" in text and "Test: missed by" in text
     model_id = int(saved["id"].iloc[0])
     app.button(key=f"caplife_mydata_model_remove_{model_id}").click().run()
     assert database.list(ALICE["id"], MODEL_KIND).empty
@@ -391,12 +408,12 @@ def test_a_saved_model_is_trained_again_with_its_data_settings_and_new_outcomes(
     import json
 
     from caplife.retrain import training_data
-    from caplife.rul_page import RETRAIN, _example_csvs
+    from caplife.rul_page import RETRAIN
     from caplife.storage import MODEL_KIND
     monkeypatch.setattr(accounts, "current_user", lambda: ALICE)
     app = run_app()
     app.sidebar.radio(key=WORKSPACE_KEY).set_value("Train an RUL model on uploaded outcomes").run()
-    app.radio(key="caplife_rul_source").set_value("Use simulated example capacitors").run()
+    upload_rul_example(app)
     app.number_input(key="caplife_rul_limit_Capacitance_uF").set_value(25.0).run()
     app = train_example(app)
     app.text_input(key="caplife_rul_model_name").set_value("Lab model").run()
@@ -404,7 +421,7 @@ def test_a_saved_model_is_trained_again_with_its_data_settings_and_new_outcomes(
     saved = database.list(ALICE["id"], MODEL_KIND)
     model_id = int(saved["id"].iloc[0])
     files = database.load(ALICE["id"], model_id)
-    measurements, outcomes = _example_csvs()
+    measurements, outcomes = example_csvs()
     assert training_data(files) == {"measurements": measurements, "outcomes": outcomes}
     settings = json.loads(files["model.json"])["info"]["settings"]
     assert settings["method"] == "experiment" and settings["calibration"] == "SYN_EXP_C"

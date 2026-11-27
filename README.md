@@ -145,8 +145,8 @@ only when the neural network passes every check on the test group:
 
 Forecasts use the tested model and range unchanged, and are withheld for
 capacitors whose early readings lie more than 10% of the training range beyond
-the training capacitors. A synthetic example shows the workflow; its results
-say nothing about real capacitors. The logic lives in `caplife/rul_workflow.py`.
+the training capacitors. The tests use a synthetic example (`caplife/rul_example.py`);
+its results say nothing about real capacitors. The logic lives in `caplife/rul_workflow.py`.
 
 ## My Data: accounts and saved datasets (optional)
 
@@ -214,8 +214,8 @@ in `caplife/column_match.py`.
    ```
 
 6. Your browser should open the application, usually at `http://localhost:8501`.
-   Open **Train The AI** and choose the simulated example capacitors, or upload your own
-   measurements on **Monitor and Predict**.
+   Open **Monitor and Predict** and upload your measurements (*Download CSV template*
+   shows the columns), or **Train The AI** with your measurement and outcome files.
 
 The trained models are bundled in `artifacts/six_rul/`; you do not need to train
 anything to open the app.
