@@ -312,84 +312,84 @@
   },
   "trajectory_conformal_adjustment": [
     [
-      -6e-05,
-      -0.000278,
-      0.000136,
-      0.000154,
-      7.5e-05,
-      -1.5e-05
+      -7.6e-05,
+      -0.00019,
+      0.000103,
+      0.000104,
+      6.4e-05,
+      -6.6e-05
     ],
     [
-      -9.1e-05,
-      -0.00017,
-      0.000195,
-      0.000294,
-      0.000231,
-      2.5e-05
+      6.9e-05,
+      5.3e-05,
+      0.000201,
+      0.000107,
+      0.000134,
+      -5.5e-05
     ],
     [
-      8.5e-05,
-      -0.000122,
-      0.000147,
-      0.000405,
-      0.000328,
-      0.000217
+      9.3e-05,
+      0.00017,
+      4.5e-05,
+      0.000208,
+      0.000242,
+      8.2e-05
     ],
     [
-      0.000202,
-      -0.000155,
-      0.000296,
-      0.000428,
-      0.00041,
-      0.000283
+      0.000262,
+      0.000215,
+      5.4e-05,
+      0.000272,
+      0.000319,
+      8.8e-05
     ],
     [
-      0.000479,
-      -0.000306,
-      0.000334,
-      0.0004,
-      0.000458,
-      0.000254
+      0.000271,
+      5e-06,
+      -4.8e-05,
+      0.000361,
+      0.00044,
+      8.4e-05
     ],
     [
-      0.000625,
-      -0.000301,
-      0.000375,
-      0.000569,
-      0.000457,
-      0.000274
+      0.000445,
+      -4e-06,
+      0.000199,
+      0.000523,
+      0.000478,
+      0.00018
     ],
     [
-      0.0007,
-      7.3e-05,
-      0.000422,
-      0.00071,
-      0.000438,
-      0.00032
+      0.000651,
+      0.00037,
+      -5.9e-05,
+      0.000596,
+      0.000555,
+      0.000208
     ],
     [
-      0.000697,
-      0.000285,
-      0.000357,
-      0.000854,
-      0.000519,
-      0.000355
+      0.001041,
+      0.000322,
+      -0.000208,
+      0.000662,
+      0.000635,
+      0.000243
     ],
     [
-      0.000874,
-      0.000517,
-      0.000982,
-      0.000943,
-      0.000882,
-      0.000343
+      0.001061,
+      0.000499,
+      -0.000206,
+      0.000732,
+      0.001025,
+      0.000379
     ],
     [
-      0.001048,
-      0.001077,
-      0.001606,
-      0.001091,
-      0.000915,
-      0.000566
+      0.001388,
+      0.001273,
+      0.00046,
+      0.000754,
+      0.001129,
+      0.00045
     ]
   ],
   "fleets": {
@@ -415,18 +415,18 @@
       "predictions": 24983
     },
     "test": {
-      "capacitors": 400,
+      "capacitors": 2000,
       "seed": 404,
       "limits": "default",
       "near_end_share": 0.0,
-      "predictions": 10076
+      "predictions": 49765
     },
     "test_custom": {
-      "capacitors": 400,
+      "capacitors": 2000,
       "seed": 505,
       "limits": "random",
       "near_end_share": 0.5,
-      "predictions": 10033
+      "predictions": 50255
     }
   },
   "training_seed": 7,
@@ -454,1800 +454,1800 @@
   },
   "test_metrics": {
     "neural_calibrated": {
-      "predictions": 10076,
-      "median_absolute_error_h": 823.7,
-      "mean_absolute_error_h": 3196.1,
-      "median_relative_error": 0.0946,
-      "interval_coverage": 0.7996,
-      "median_interval_width_h": 4250.3
+      "predictions": 49765,
+      "median_absolute_error_h": 832.8,
+      "mean_absolute_error_h": 3079.8,
+      "median_relative_error": 0.0925,
+      "interval_coverage": 0.7965,
+      "median_interval_width_h": 4234.7
     },
     "trend_baseline": {
-      "predictions_with_estimate": 10076,
-      "median_absolute_error_h": 3348.1
+      "predictions_with_estimate": 49765,
+      "median_absolute_error_h": 3440.0
     },
     "neural_calibrated_custom_limits": {
-      "predictions": 10033,
-      "median_absolute_error_h": 523.7,
-      "mean_absolute_error_h": 1894.9,
+      "predictions": 50255,
+      "median_absolute_error_h": 549.8,
+      "mean_absolute_error_h": 2016.8,
       "median_relative_error": 0.1028,
-      "interval_coverage": 0.8076,
-      "median_interval_width_h": 2537.6
+      "interval_coverage": 0.8004,
+      "median_interval_width_h": 2673.6
     },
     "neural_calibrated_without_conditions": {
-      "predictions": 10076,
-      "median_absolute_error_h": 911.2,
-      "mean_absolute_error_h": 3452.8,
-      "median_relative_error": 0.1037,
-      "interval_coverage": 0.8004,
-      "median_interval_width_h": 4691.6
+      "predictions": 49765,
+      "median_absolute_error_h": 925.0,
+      "mean_absolute_error_h": 3406.7,
+      "median_relative_error": 0.1006,
+      "interval_coverage": 0.7985,
+      "median_interval_width_h": 4726.0
     }
   },
   "test_metrics_by_subset": {
     "Capacitance_uF+ESR_ohm+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 823.7,
-      "mean_absolute_error_h": 3196.1,
-      "median_relative_error": 0.0946,
-      "interval_coverage": 0.7996,
-      "median_interval_width_h": 4250.3
+      "predictions": 49765,
+      "median_absolute_error_h": 832.8,
+      "mean_absolute_error_h": 3079.8,
+      "median_relative_error": 0.0925,
+      "interval_coverage": 0.7965,
+      "median_interval_width_h": 4234.7
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 957.8,
-      "mean_absolute_error_h": 3434.6,
-      "median_relative_error": 0.1071,
-      "interval_coverage": 0.8003,
-      "median_interval_width_h": 5319.2
+      "predictions": 49765,
+      "median_absolute_error_h": 988.5,
+      "mean_absolute_error_h": 3334.5,
+      "median_relative_error": 0.1052,
+      "interval_coverage": 0.8023,
+      "median_interval_width_h": 5435.0
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1004.9,
-      "mean_absolute_error_h": 3559.9,
-      "median_relative_error": 0.111,
-      "interval_coverage": 0.7836,
-      "median_interval_width_h": 5188.7
+      "predictions": 49765,
+      "median_absolute_error_h": 1043.4,
+      "mean_absolute_error_h": 3562.2,
+      "median_relative_error": 0.1089,
+      "interval_coverage": 0.7865,
+      "median_interval_width_h": 5408.5
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1074.2,
-      "mean_absolute_error_h": 3528.3,
-      "median_relative_error": 0.1142,
-      "interval_coverage": 0.7961,
-      "median_interval_width_h": 5531.4
+      "predictions": 49765,
+      "median_absolute_error_h": 1067.4,
+      "mean_absolute_error_h": 3372.8,
+      "median_relative_error": 0.1101,
+      "interval_coverage": 0.8022,
+      "median_interval_width_h": 5612.0
     },
     "Capacitance_uF+ESR_ohm+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1001.1,
-      "mean_absolute_error_h": 3424.4,
-      "median_relative_error": 0.1092,
-      "interval_coverage": 0.8075,
-      "median_interval_width_h": 5194.0
+      "predictions": 49765,
+      "median_absolute_error_h": 991.9,
+      "mean_absolute_error_h": 3273.4,
+      "median_relative_error": 0.1051,
+      "interval_coverage": 0.8133,
+      "median_interval_width_h": 5210.9
     },
     "Capacitance_uF+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1230.1,
-      "mean_absolute_error_h": 3776.8,
-      "median_relative_error": 0.1268,
-      "interval_coverage": 0.79,
-      "median_interval_width_h": 6222.6
+      "predictions": 49765,
+      "median_absolute_error_h": 1182.5,
+      "mean_absolute_error_h": 3525.8,
+      "median_relative_error": 0.1198,
+      "interval_coverage": 0.803,
+      "median_interval_width_h": 6232.9
     },
     "ESR_ohm+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1229.6,
-      "mean_absolute_error_h": 3899.7,
-      "median_relative_error": 0.1285,
-      "interval_coverage": 0.8216,
-      "median_interval_width_h": 7174.5
+      "predictions": 49765,
+      "median_absolute_error_h": 1264.6,
+      "mean_absolute_error_h": 3778.7,
+      "median_relative_error": 0.1276,
+      "interval_coverage": 0.8211,
+      "median_interval_width_h": 7130.8
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1175.6,
-      "mean_absolute_error_h": 3850.4,
-      "median_relative_error": 0.1262,
-      "interval_coverage": 0.7795,
-      "median_interval_width_h": 6220.8
+      "predictions": 49765,
+      "median_absolute_error_h": 1226.4,
+      "mean_absolute_error_h": 3876.9,
+      "median_relative_error": 0.1243,
+      "interval_coverage": 0.7873,
+      "median_interval_width_h": 6473.2
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1370.5,
-      "mean_absolute_error_h": 4205.8,
-      "median_relative_error": 0.1382,
-      "interval_coverage": 0.7978,
-      "median_interval_width_h": 7253.4
+      "predictions": 49765,
+      "median_absolute_error_h": 1359.8,
+      "mean_absolute_error_h": 4136.5,
+      "median_relative_error": 0.134,
+      "interval_coverage": 0.8087,
+      "median_interval_width_h": 7493.6
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1242.2,
-      "mean_absolute_error_h": 3913.7,
-      "median_relative_error": 0.1324,
-      "interval_coverage": 0.7878,
-      "median_interval_width_h": 6456.8
+      "predictions": 49765,
+      "median_absolute_error_h": 1266.0,
+      "mean_absolute_error_h": 3801.6,
+      "median_relative_error": 0.1278,
+      "interval_coverage": 0.7949,
+      "median_interval_width_h": 6616.3
     },
     "Capacitance_uF+ESR_ohm+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1155.4,
-      "mean_absolute_error_h": 3626.8,
-      "median_relative_error": 0.1208,
-      "interval_coverage": 0.8014,
-      "median_interval_width_h": 6024.3
+      "predictions": 49765,
+      "median_absolute_error_h": 1150.9,
+      "mean_absolute_error_h": 3490.2,
+      "median_relative_error": 0.116,
+      "interval_coverage": 0.8099,
+      "median_interval_width_h": 6108.5
     },
     "Capacitance_uF+ESR_ohm+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1177.4,
-      "mean_absolute_error_h": 3688.3,
-      "median_relative_error": 0.1224,
-      "interval_coverage": 0.7807,
-      "median_interval_width_h": 5836.2
+      "predictions": 49765,
+      "median_absolute_error_h": 1160.7,
+      "mean_absolute_error_h": 3692.3,
+      "median_relative_error": 0.1181,
+      "interval_coverage": 0.7899,
+      "median_interval_width_h": 6048.1
     },
     "Capacitance_uF+ESR_ohm+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1215.3,
-      "mean_absolute_error_h": 3652.4,
-      "median_relative_error": 0.1249,
-      "interval_coverage": 0.794,
-      "median_interval_width_h": 6087.6
+      "predictions": 49765,
+      "median_absolute_error_h": 1187.1,
+      "mean_absolute_error_h": 3488.3,
+      "median_relative_error": 0.1189,
+      "interval_coverage": 0.8058,
+      "median_interval_width_h": 6147.6
     },
     "Capacitance_uF+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1407.2,
-      "mean_absolute_error_h": 3983.0,
-      "median_relative_error": 0.1438,
-      "interval_coverage": 0.7936,
-      "median_interval_width_h": 7122.3
+      "predictions": 49765,
+      "median_absolute_error_h": 1362.0,
+      "mean_absolute_error_h": 3730.6,
+      "median_relative_error": 0.1341,
+      "interval_coverage": 0.8075,
+      "median_interval_width_h": 7260.3
     },
     "Capacitance_uF+Leakage_uA+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1478.8,
-      "mean_absolute_error_h": 4135.7,
-      "median_relative_error": 0.1464,
-      "interval_coverage": 0.7789,
-      "median_interval_width_h": 6951.5
+      "predictions": 49765,
+      "median_absolute_error_h": 1441.6,
+      "mean_absolute_error_h": 3986.7,
+      "median_relative_error": 0.1393,
+      "interval_coverage": 0.7905,
+      "median_interval_width_h": 7226.8
     },
     "Capacitance_uF+Leakage_uA+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1521.8,
-      "mean_absolute_error_h": 4064.0,
-      "median_relative_error": 0.1486,
-      "interval_coverage": 0.7883,
-      "median_interval_width_h": 7191.1
+      "predictions": 49765,
+      "median_absolute_error_h": 1447.5,
+      "mean_absolute_error_h": 3791.7,
+      "median_relative_error": 0.1389,
+      "interval_coverage": 0.804,
+      "median_interval_width_h": 7330.3
     },
     "Capacitance_uF+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1434.8,
-      "mean_absolute_error_h": 4047.7,
-      "median_relative_error": 0.1421,
-      "interval_coverage": 0.7972,
-      "median_interval_width_h": 6947.9
+      "predictions": 49765,
+      "median_absolute_error_h": 1378.4,
+      "mean_absolute_error_h": 3774.1,
+      "median_relative_error": 0.1346,
+      "interval_coverage": 0.8112,
+      "median_interval_width_h": 6968.6
     },
     "ESR_ohm+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1466.0,
-      "mean_absolute_error_h": 4095.5,
-      "median_relative_error": 0.1418,
-      "interval_coverage": 0.8213,
-      "median_interval_width_h": 8056.6
+      "predictions": 49765,
+      "median_absolute_error_h": 1478.0,
+      "mean_absolute_error_h": 3966.8,
+      "median_relative_error": 0.139,
+      "interval_coverage": 0.8286,
+      "median_interval_width_h": 8195.6
     },
     "ESR_ohm+Leakage_uA+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1463.6,
-      "mean_absolute_error_h": 4152.8,
-      "median_relative_error": 0.1436,
-      "interval_coverage": 0.8095,
-      "median_interval_width_h": 7826.6
+      "predictions": 49765,
+      "median_absolute_error_h": 1526.4,
+      "mean_absolute_error_h": 4189.2,
+      "median_relative_error": 0.1434,
+      "interval_coverage": 0.8158,
+      "median_interval_width_h": 8180.0
     },
     "ESR_ohm+Leakage_uA+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1524.1,
-      "mean_absolute_error_h": 4141.6,
-      "median_relative_error": 0.1485,
-      "interval_coverage": 0.8178,
-      "median_interval_width_h": 8053.2
+      "predictions": 49765,
+      "median_absolute_error_h": 1546.2,
+      "mean_absolute_error_h": 3998.7,
+      "median_relative_error": 0.1452,
+      "interval_coverage": 0.8232,
+      "median_interval_width_h": 8192.2
     },
     "ESR_ohm+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1378.8,
-      "mean_absolute_error_h": 4035.3,
-      "median_relative_error": 0.1424,
-      "interval_coverage": 0.8254,
-      "median_interval_width_h": 7578.8
+      "predictions": 49765,
+      "median_absolute_error_h": 1410.3,
+      "mean_absolute_error_h": 3921.1,
+      "median_relative_error": 0.1383,
+      "interval_coverage": 0.829,
+      "median_interval_width_h": 7677.3
     },
     "Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1745.6,
-      "mean_absolute_error_h": 4485.5,
-      "median_relative_error": 0.176,
-      "interval_coverage": 0.8185,
-      "median_interval_width_h": 8371.1
+      "predictions": 49765,
+      "median_absolute_error_h": 1733.7,
+      "mean_absolute_error_h": 4288.1,
+      "median_relative_error": 0.1706,
+      "interval_coverage": 0.8201,
+      "median_interval_width_h": 8668.3
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1887.9,
-      "mean_absolute_error_h": 5836.9,
-      "median_relative_error": 0.181,
-      "interval_coverage": 0.7672,
-      "median_interval_width_h": 9080.1
+      "predictions": 49765,
+      "median_absolute_error_h": 1824.8,
+      "mean_absolute_error_h": 5599.9,
+      "median_relative_error": 0.1695,
+      "interval_coverage": 0.7934,
+      "median_interval_width_h": 9513.4
     },
     "Capacitance_uF+ESR_ohm+Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1367.4,
-      "mean_absolute_error_h": 4023.7,
-      "median_relative_error": 0.1377,
-      "interval_coverage": 0.7805,
-      "median_interval_width_h": 6754.7
+      "predictions": 49765,
+      "median_absolute_error_h": 1362.0,
+      "mean_absolute_error_h": 4028.9,
+      "median_relative_error": 0.1339,
+      "interval_coverage": 0.7889,
+      "median_interval_width_h": 6990.2
     },
     "Capacitance_uF+ESR_ohm+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1495.6,
-      "mean_absolute_error_h": 4308.5,
-      "median_relative_error": 0.1479,
-      "interval_coverage": 0.7993,
-      "median_interval_width_h": 7677.7
+      "predictions": 49765,
+      "median_absolute_error_h": 1473.3,
+      "mean_absolute_error_h": 4227.1,
+      "median_relative_error": 0.1416,
+      "interval_coverage": 0.8123,
+      "median_interval_width_h": 7933.0
     },
     "Capacitance_uF+ESR_ohm+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1416.4,
-      "mean_absolute_error_h": 3998.2,
-      "median_relative_error": 0.1409,
-      "interval_coverage": 0.7874,
-      "median_interval_width_h": 6860.1
+      "predictions": 49765,
+      "median_absolute_error_h": 1372.8,
+      "mean_absolute_error_h": 3916.1,
+      "median_relative_error": 0.1346,
+      "interval_coverage": 0.7971,
+      "median_interval_width_h": 7006.3
     },
     "Capacitance_uF+Leakage_uA+Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1663.2,
-      "mean_absolute_error_h": 4384.3,
-      "median_relative_error": 0.1651,
-      "interval_coverage": 0.7789,
-      "median_interval_width_h": 7732.7
+      "predictions": 49765,
+      "median_absolute_error_h": 1659.7,
+      "mean_absolute_error_h": 4265.8,
+      "median_relative_error": 0.1564,
+      "interval_coverage": 0.7944,
+      "median_interval_width_h": 8087.8
     },
     "Capacitance_uF+Leakage_uA+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1883.4,
-      "mean_absolute_error_h": 4715.6,
-      "median_relative_error": 0.181,
-      "interval_coverage": 0.7962,
-      "median_interval_width_h": 8684.1
+      "predictions": 49765,
+      "median_absolute_error_h": 1780.3,
+      "mean_absolute_error_h": 4520.7,
+      "median_relative_error": 0.1679,
+      "interval_coverage": 0.8109,
+      "median_interval_width_h": 8968.9
     },
     "Capacitance_uF+Leakage_uA+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1811.3,
-      "mean_absolute_error_h": 4485.0,
-      "median_relative_error": 0.1731,
-      "interval_coverage": 0.7837,
-      "median_interval_width_h": 7885.8
+      "predictions": 49765,
+      "median_absolute_error_h": 1697.4,
+      "mean_absolute_error_h": 4217.7,
+      "median_relative_error": 0.1604,
+      "interval_coverage": 0.799,
+      "median_interval_width_h": 8177.6
     },
     "Capacitance_uF+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1634.3,
-      "mean_absolute_error_h": 4262.0,
-      "median_relative_error": 0.1568,
-      "interval_coverage": 0.7923,
-      "median_interval_width_h": 7590.7
+      "predictions": 49765,
+      "median_absolute_error_h": 1575.8,
+      "mean_absolute_error_h": 3968.2,
+      "median_relative_error": 0.1483,
+      "interval_coverage": 0.8084,
+      "median_interval_width_h": 7756.7
     },
     "Capacitance_uF+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1712.0,
-      "mean_absolute_error_h": 4362.4,
-      "median_relative_error": 0.1621,
-      "interval_coverage": 0.7731,
-      "median_interval_width_h": 7419.9
+      "predictions": 49765,
+      "median_absolute_error_h": 1637.2,
+      "mean_absolute_error_h": 4197.3,
+      "median_relative_error": 0.1518,
+      "interval_coverage": 0.791,
+      "median_interval_width_h": 7712.1
     },
     "Capacitance_uF+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1730.0,
-      "mean_absolute_error_h": 4286.8,
-      "median_relative_error": 0.1637,
-      "interval_coverage": 0.7876,
-      "median_interval_width_h": 7607.2
+      "predictions": 49765,
+      "median_absolute_error_h": 1618.8,
+      "mean_absolute_error_h": 3980.9,
+      "median_relative_error": 0.1525,
+      "interval_coverage": 0.8033,
+      "median_interval_width_h": 7750.3
     },
     "ESR_ohm+Leakage_uA+Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1706.2,
-      "mean_absolute_error_h": 4449.7,
-      "median_relative_error": 0.1639,
-      "interval_coverage": 0.8085,
-      "median_interval_width_h": 8681.7
+      "predictions": 49765,
+      "median_absolute_error_h": 1791.8,
+      "mean_absolute_error_h": 4487.3,
+      "median_relative_error": 0.1628,
+      "interval_coverage": 0.8168,
+      "median_interval_width_h": 9132.9
     },
     "ESR_ohm+Leakage_uA+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1934.5,
-      "mean_absolute_error_h": 4824.0,
-      "median_relative_error": 0.18,
-      "interval_coverage": 0.8235,
-      "median_interval_width_h": 9631.4
+      "predictions": 49765,
+      "median_absolute_error_h": 1941.3,
+      "mean_absolute_error_h": 4743.6,
+      "median_relative_error": 0.1758,
+      "interval_coverage": 0.8307,
+      "median_interval_width_h": 9949.6
     },
     "ESR_ohm+Leakage_uA+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1743.7,
-      "mean_absolute_error_h": 4541.1,
-      "median_relative_error": 0.1686,
-      "interval_coverage": 0.809,
-      "median_interval_width_h": 8766.3
+      "predictions": 49765,
+      "median_absolute_error_h": 1810.5,
+      "mean_absolute_error_h": 4436.9,
+      "median_relative_error": 0.1663,
+      "interval_coverage": 0.818,
+      "median_interval_width_h": 9137.8
     },
     "ESR_ohm+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1591.5,
-      "mean_absolute_error_h": 4296.5,
-      "median_relative_error": 0.1601,
-      "interval_coverage": 0.8288,
-      "median_interval_width_h": 8445.6
+      "predictions": 49765,
+      "median_absolute_error_h": 1619.5,
+      "mean_absolute_error_h": 4148.0,
+      "median_relative_error": 0.154,
+      "interval_coverage": 0.8333,
+      "median_interval_width_h": 8727.4
     },
     "ESR_ohm+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1618.5,
-      "mean_absolute_error_h": 4306.2,
-      "median_relative_error": 0.1622,
-      "interval_coverage": 0.8075,
-      "median_interval_width_h": 8132.7
+      "predictions": 49765,
+      "median_absolute_error_h": 1674.8,
+      "mean_absolute_error_h": 4349.2,
+      "median_relative_error": 0.1578,
+      "interval_coverage": 0.8146,
+      "median_interval_width_h": 8575.2
     },
     "ESR_ohm+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1630.4,
-      "mean_absolute_error_h": 4277.9,
-      "median_relative_error": 0.1631,
-      "interval_coverage": 0.8191,
-      "median_interval_width_h": 8372.2
+      "predictions": 49765,
+      "median_absolute_error_h": 1659.8,
+      "mean_absolute_error_h": 4137.4,
+      "median_relative_error": 0.1575,
+      "interval_coverage": 0.825,
+      "median_interval_width_h": 8569.8
     },
     "Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1928.2,
-      "mean_absolute_error_h": 4715.2,
-      "median_relative_error": 0.1946,
-      "interval_coverage": 0.8224,
-      "median_interval_width_h": 9274.3
+      "predictions": 49765,
+      "median_absolute_error_h": 1930.2,
+      "mean_absolute_error_h": 4475.7,
+      "median_relative_error": 0.1863,
+      "interval_coverage": 0.8267,
+      "median_interval_width_h": 9710.0
     },
     "Leakage_uA+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1962.2,
-      "mean_absolute_error_h": 4756.1,
-      "median_relative_error": 0.1932,
-      "interval_coverage": 0.811,
-      "median_interval_width_h": 9036.6
+      "predictions": 49765,
+      "median_absolute_error_h": 2031.7,
+      "mean_absolute_error_h": 4703.0,
+      "median_relative_error": 0.1903,
+      "interval_coverage": 0.8172,
+      "median_interval_width_h": 9660.6
     },
     "Leakage_uA+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2054.4,
-      "mean_absolute_error_h": 4743.3,
-      "median_relative_error": 0.199,
-      "interval_coverage": 0.8109,
-      "median_interval_width_h": 9244.8
+      "predictions": 49765,
+      "median_absolute_error_h": 2031.9,
+      "mean_absolute_error_h": 4513.4,
+      "median_relative_error": 0.1898,
+      "interval_coverage": 0.8194,
+      "median_interval_width_h": 9606.7
     },
     "Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1964.0,
-      "mean_absolute_error_h": 5008.5,
-      "median_relative_error": 0.1945,
-      "interval_coverage": 0.8207,
-      "median_interval_width_h": 9536.1
+      "predictions": 49765,
+      "median_absolute_error_h": 1920.9,
+      "mean_absolute_error_h": 4702.3,
+      "median_relative_error": 0.185,
+      "interval_coverage": 0.8291,
+      "median_interval_width_h": 9761.7
     },
     "Capacitance_uF+ESR_ohm": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2014.6,
-      "mean_absolute_error_h": 5970.1,
-      "median_relative_error": 0.1922,
-      "interval_coverage": 0.764,
-      "median_interval_width_h": 9564.7
+      "predictions": 49765,
+      "median_absolute_error_h": 1944.5,
+      "mean_absolute_error_h": 5739.3,
+      "median_relative_error": 0.1788,
+      "interval_coverage": 0.7968,
+      "median_interval_width_h": 9950.4
     },
     "Capacitance_uF+Leakage_uA": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2408.1,
-      "mean_absolute_error_h": 6272.0,
-      "median_relative_error": 0.2317,
-      "interval_coverage": 0.7696,
-      "median_interval_width_h": 10097.2
+      "predictions": 49765,
+      "median_absolute_error_h": 2296.8,
+      "mean_absolute_error_h": 5934.7,
+      "median_relative_error": 0.2138,
+      "interval_coverage": 0.7958,
+      "median_interval_width_h": 10660.3
     },
     "Capacitance_uF+Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1941.0,
-      "mean_absolute_error_h": 4703.7,
-      "median_relative_error": 0.1848,
-      "interval_coverage": 0.7769,
-      "median_interval_width_h": 8360.7
+      "predictions": 49765,
+      "median_absolute_error_h": 1880.6,
+      "mean_absolute_error_h": 4532.6,
+      "median_relative_error": 0.1733,
+      "interval_coverage": 0.7944,
+      "median_interval_width_h": 8657.4
     },
     "Capacitance_uF+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2136.1,
-      "mean_absolute_error_h": 4962.6,
-      "median_relative_error": 0.1966,
-      "interval_coverage": 0.7945,
-      "median_interval_width_h": 9126.1
+      "predictions": 49765,
+      "median_absolute_error_h": 1974.2,
+      "mean_absolute_error_h": 4703.4,
+      "median_relative_error": 0.183,
+      "interval_coverage": 0.8085,
+      "median_interval_width_h": 9372.5
     },
     "Capacitance_uF+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1990.1,
-      "mean_absolute_error_h": 4683.2,
-      "median_relative_error": 0.1873,
-      "interval_coverage": 0.7787,
-      "median_interval_width_h": 8438.0
+      "predictions": 49765,
+      "median_absolute_error_h": 1877.8,
+      "mean_absolute_error_h": 4432.3,
+      "median_relative_error": 0.1737,
+      "interval_coverage": 0.7978,
+      "median_interval_width_h": 8662.9
     },
     "ESR_ohm+Leakage_uA": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2531.6,
-      "mean_absolute_error_h": 6406.7,
-      "median_relative_error": 0.2352,
-      "interval_coverage": 0.7944,
-      "median_interval_width_h": 11070.9
+      "predictions": 49765,
+      "median_absolute_error_h": 2503.4,
+      "mean_absolute_error_h": 6152.0,
+      "median_relative_error": 0.2226,
+      "interval_coverage": 0.8181,
+      "median_interval_width_h": 11783.6
     },
     "ESR_ohm+Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1861.3,
-      "mean_absolute_error_h": 4698.7,
-      "median_relative_error": 0.1837,
-      "interval_coverage": 0.8093,
-      "median_interval_width_h": 9065.8
+      "predictions": 49765,
+      "median_absolute_error_h": 1943.9,
+      "mean_absolute_error_h": 4688.8,
+      "median_relative_error": 0.1787,
+      "interval_coverage": 0.8167,
+      "median_interval_width_h": 9552.9
     },
     "ESR_ohm+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2030.2,
-      "mean_absolute_error_h": 5018.9,
-      "median_relative_error": 0.1946,
-      "interval_coverage": 0.8192,
-      "median_interval_width_h": 9916.1
+      "predictions": 49765,
+      "median_absolute_error_h": 2035.4,
+      "mean_absolute_error_h": 4897.0,
+      "median_relative_error": 0.1887,
+      "interval_coverage": 0.8275,
+      "median_interval_width_h": 10273.8
     },
     "ESR_ohm+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1862.4,
-      "mean_absolute_error_h": 4677.9,
-      "median_relative_error": 0.1848,
-      "interval_coverage": 0.8077,
-      "median_interval_width_h": 9050.1
+      "predictions": 49765,
+      "median_absolute_error_h": 1929.9,
+      "mean_absolute_error_h": 4598.4,
+      "median_relative_error": 0.1793,
+      "interval_coverage": 0.8159,
+      "median_interval_width_h": 9441.8
     },
     "Leakage_uA+Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2133.1,
-      "mean_absolute_error_h": 5016.5,
-      "median_relative_error": 0.216,
-      "interval_coverage": 0.8142,
-      "median_interval_width_h": 9932.1
+      "predictions": 49765,
+      "median_absolute_error_h": 2242.5,
+      "mean_absolute_error_h": 4958.6,
+      "median_relative_error": 0.2121,
+      "interval_coverage": 0.8205,
+      "median_interval_width_h": 10583.2
     },
     "Leakage_uA+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2456.0,
-      "mean_absolute_error_h": 5394.9,
-      "median_relative_error": 0.2339,
-      "interval_coverage": 0.8173,
-      "median_interval_width_h": 10787.4
+      "predictions": 49765,
+      "median_absolute_error_h": 2436.7,
+      "mean_absolute_error_h": 5223.7,
+      "median_relative_error": 0.2269,
+      "interval_coverage": 0.8238,
+      "median_interval_width_h": 11279.3
     },
     "Leakage_uA+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2310.5,
-      "mean_absolute_error_h": 5110.2,
-      "median_relative_error": 0.2235,
-      "interval_coverage": 0.8076,
-      "median_interval_width_h": 9977.0
+      "predictions": 49765,
+      "median_absolute_error_h": 2276.9,
+      "mean_absolute_error_h": 4921.1,
+      "median_relative_error": 0.2155,
+      "interval_coverage": 0.817,
+      "median_interval_width_h": 10542.1
     },
     "Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2155.0,
-      "mean_absolute_error_h": 5188.4,
-      "median_relative_error": 0.211,
-      "interval_coverage": 0.8331,
-      "median_interval_width_h": 10471.0
+      "predictions": 49765,
+      "median_absolute_error_h": 2141.5,
+      "mean_absolute_error_h": 4891.1,
+      "median_relative_error": 0.2034,
+      "interval_coverage": 0.8377,
+      "median_interval_width_h": 10820.5
     },
     "Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2200.2,
-      "mean_absolute_error_h": 5271.4,
-      "median_relative_error": 0.2132,
-      "interval_coverage": 0.8228,
-      "median_interval_width_h": 10376.8
+      "predictions": 49765,
+      "median_absolute_error_h": 2208.5,
+      "mean_absolute_error_h": 5106.0,
+      "median_relative_error": 0.2068,
+      "interval_coverage": 0.8285,
+      "median_interval_width_h": 10891.2
     },
     "H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2240.6,
-      "mean_absolute_error_h": 5178.5,
-      "median_relative_error": 0.2191,
-      "interval_coverage": 0.83,
-      "median_interval_width_h": 10403.5
+      "predictions": 49765,
+      "median_absolute_error_h": 2183.7,
+      "mean_absolute_error_h": 4887.1,
+      "median_relative_error": 0.2083,
+      "interval_coverage": 0.8341,
+      "median_interval_width_h": 10713.3
     },
     "Capacitance_uF": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2716.5,
-      "mean_absolute_error_h": 6569.0,
-      "median_relative_error": 0.2496,
-      "interval_coverage": 0.7733,
-      "median_interval_width_h": 10942.4
+      "predictions": 49765,
+      "median_absolute_error_h": 2520.6,
+      "mean_absolute_error_h": 6227.7,
+      "median_relative_error": 0.2319,
+      "interval_coverage": 0.8002,
+      "median_interval_width_h": 11532.0
     },
     "ESR_ohm": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2663.2,
-      "mean_absolute_error_h": 6632.7,
-      "median_relative_error": 0.2494,
-      "interval_coverage": 0.8006,
-      "median_interval_width_h": 11764.9
+      "predictions": 49765,
+      "median_absolute_error_h": 2644.9,
+      "mean_absolute_error_h": 6345.4,
+      "median_relative_error": 0.2384,
+      "interval_coverage": 0.8213,
+      "median_interval_width_h": 12473.7
     },
     "Leakage_uA": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2943.1,
-      "mean_absolute_error_h": 6851.9,
-      "median_relative_error": 0.287,
-      "interval_coverage": 0.8007,
-      "median_interval_width_h": 12515.5
+      "predictions": 49765,
+      "median_absolute_error_h": 2897.2,
+      "mean_absolute_error_h": 6496.4,
+      "median_relative_error": 0.275,
+      "interval_coverage": 0.8204,
+      "median_interval_width_h": 13374.7
     },
     "Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2444.2,
-      "mean_absolute_error_h": 5658.5,
-      "median_relative_error": 0.2442,
-      "interval_coverage": 0.8332,
-      "median_interval_width_h": 11627.5
+      "predictions": 49765,
+      "median_absolute_error_h": 2515.6,
+      "mean_absolute_error_h": 5454.1,
+      "median_relative_error": 0.2363,
+      "interval_coverage": 0.8385,
+      "median_interval_width_h": 12194.8
     },
     "H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2686.1,
-      "mean_absolute_error_h": 5948.4,
-      "median_relative_error": 0.2562,
-      "interval_coverage": 0.8393,
-      "median_interval_width_h": 12181.3
+      "predictions": 49765,
+      "median_absolute_error_h": 2648.3,
+      "mean_absolute_error_h": 5618.0,
+      "median_relative_error": 0.247,
+      "interval_coverage": 0.8429,
+      "median_interval_width_h": 12613.4
     },
     "Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2523.7,
-      "mean_absolute_error_h": 5627.4,
-      "median_relative_error": 0.2527,
-      "interval_coverage": 0.8276,
-      "median_interval_width_h": 11402.2
+      "predictions": 49765,
+      "median_absolute_error_h": 2484.6,
+      "mean_absolute_error_h": 5352.9,
+      "median_relative_error": 0.2381,
+      "interval_coverage": 0.834,
+      "median_interval_width_h": 11917.9
     }
   },
   "test_metrics_by_subset_without_conditions": {
     "Capacitance_uF+ESR_ohm+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 911.2,
-      "mean_absolute_error_h": 3452.8,
-      "median_relative_error": 0.1037,
-      "interval_coverage": 0.8004,
-      "median_interval_width_h": 4691.6
+      "predictions": 49765,
+      "median_absolute_error_h": 925.0,
+      "mean_absolute_error_h": 3406.7,
+      "median_relative_error": 0.1006,
+      "interval_coverage": 0.7985,
+      "median_interval_width_h": 4726.0
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1051.2,
-      "mean_absolute_error_h": 3695.0,
-      "median_relative_error": 0.1159,
-      "interval_coverage": 0.7994,
-      "median_interval_width_h": 5867.8
+      "predictions": 49765,
+      "median_absolute_error_h": 1090.7,
+      "mean_absolute_error_h": 3664.5,
+      "median_relative_error": 0.1133,
+      "interval_coverage": 0.8028,
+      "median_interval_width_h": 5955.7
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1084.4,
-      "mean_absolute_error_h": 3816.9,
-      "median_relative_error": 0.1197,
-      "interval_coverage": 0.7896,
-      "median_interval_width_h": 5803.6
+      "predictions": 49765,
+      "median_absolute_error_h": 1149.3,
+      "mean_absolute_error_h": 3886.8,
+      "median_relative_error": 0.1171,
+      "interval_coverage": 0.7913,
+      "median_interval_width_h": 6055.9
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1161.4,
-      "mean_absolute_error_h": 3786.8,
-      "median_relative_error": 0.123,
-      "interval_coverage": 0.798,
-      "median_interval_width_h": 6077.1
+      "predictions": 49765,
+      "median_absolute_error_h": 1181.4,
+      "mean_absolute_error_h": 3694.0,
+      "median_relative_error": 0.1184,
+      "interval_coverage": 0.8005,
+      "median_interval_width_h": 6094.4
     },
     "Capacitance_uF+ESR_ohm+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1097.9,
-      "mean_absolute_error_h": 3714.6,
-      "median_relative_error": 0.119,
-      "interval_coverage": 0.8108,
-      "median_interval_width_h": 5783.9
+      "predictions": 49765,
+      "median_absolute_error_h": 1094.4,
+      "mean_absolute_error_h": 3633.9,
+      "median_relative_error": 0.114,
+      "interval_coverage": 0.8133,
+      "median_interval_width_h": 5797.0
     },
     "Capacitance_uF+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1330.8,
-      "mean_absolute_error_h": 3972.5,
-      "median_relative_error": 0.1374,
-      "interval_coverage": 0.7944,
-      "median_interval_width_h": 6759.9
+      "predictions": 49765,
+      "median_absolute_error_h": 1305.8,
+      "mean_absolute_error_h": 3853.2,
+      "median_relative_error": 0.1307,
+      "interval_coverage": 0.8018,
+      "median_interval_width_h": 6851.2
     },
     "ESR_ohm+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1356.9,
-      "mean_absolute_error_h": 4154.6,
-      "median_relative_error": 0.1398,
-      "interval_coverage": 0.8209,
-      "median_interval_width_h": 7544.8
+      "predictions": 49765,
+      "median_absolute_error_h": 1396.9,
+      "mean_absolute_error_h": 4145.1,
+      "median_relative_error": 0.1417,
+      "interval_coverage": 0.8176,
+      "median_interval_width_h": 7665.8
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1291.1,
-      "mean_absolute_error_h": 4093.3,
-      "median_relative_error": 0.1337,
-      "interval_coverage": 0.7926,
-      "median_interval_width_h": 6878.8
+      "predictions": 49765,
+      "median_absolute_error_h": 1358.9,
+      "mean_absolute_error_h": 4224.1,
+      "median_relative_error": 0.1316,
+      "interval_coverage": 0.7946,
+      "median_interval_width_h": 7155.3
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1475.0,
-      "mean_absolute_error_h": 4399.7,
-      "median_relative_error": 0.147,
-      "interval_coverage": 0.8068,
-      "median_interval_width_h": 7916.0
+      "predictions": 49765,
+      "median_absolute_error_h": 1500.4,
+      "mean_absolute_error_h": 4431.0,
+      "median_relative_error": 0.1433,
+      "interval_coverage": 0.8122,
+      "median_interval_width_h": 8135.8
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1372.0,
-      "mean_absolute_error_h": 4168.4,
-      "median_relative_error": 0.1405,
-      "interval_coverage": 0.7968,
-      "median_interval_width_h": 7070.9
+      "predictions": 49765,
+      "median_absolute_error_h": 1414.5,
+      "mean_absolute_error_h": 4142.7,
+      "median_relative_error": 0.1379,
+      "interval_coverage": 0.7977,
+      "median_interval_width_h": 7280.7
     },
     "Capacitance_uF+ESR_ohm+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1287.2,
-      "mean_absolute_error_h": 3952.8,
-      "median_relative_error": 0.1313,
-      "interval_coverage": 0.8014,
-      "median_interval_width_h": 6616.2
+      "predictions": 49765,
+      "median_absolute_error_h": 1275.5,
+      "mean_absolute_error_h": 3868.1,
+      "median_relative_error": 0.1257,
+      "interval_coverage": 0.8119,
+      "median_interval_width_h": 6829.3
     },
     "Capacitance_uF+ESR_ohm+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1288.5,
-      "mean_absolute_error_h": 4012.9,
-      "median_relative_error": 0.1344,
-      "interval_coverage": 0.7902,
-      "median_interval_width_h": 6541.5
+      "predictions": 49765,
+      "median_absolute_error_h": 1305.4,
+      "mean_absolute_error_h": 4067.9,
+      "median_relative_error": 0.1296,
+      "interval_coverage": 0.7973,
+      "median_interval_width_h": 6850.8
     },
     "Capacitance_uF+ESR_ohm+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1346.0,
-      "mean_absolute_error_h": 3965.9,
-      "median_relative_error": 0.1384,
-      "interval_coverage": 0.7989,
-      "median_interval_width_h": 6711.1
+      "predictions": 49765,
+      "median_absolute_error_h": 1311.5,
+      "mean_absolute_error_h": 3858.0,
+      "median_relative_error": 0.13,
+      "interval_coverage": 0.8071,
+      "median_interval_width_h": 6829.4
     },
     "Capacitance_uF+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1506.5,
-      "mean_absolute_error_h": 4194.6,
-      "median_relative_error": 0.1536,
-      "interval_coverage": 0.7967,
-      "median_interval_width_h": 7680.3
+      "predictions": 49765,
+      "median_absolute_error_h": 1496.2,
+      "mean_absolute_error_h": 4088.4,
+      "median_relative_error": 0.146,
+      "interval_coverage": 0.8044,
+      "median_interval_width_h": 7922.7
     },
     "Capacitance_uF+Leakage_uA+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1571.4,
-      "mean_absolute_error_h": 4326.5,
-      "median_relative_error": 0.1565,
-      "interval_coverage": 0.7904,
-      "median_interval_width_h": 7573.5
+      "predictions": 49765,
+      "median_absolute_error_h": 1574.8,
+      "mean_absolute_error_h": 4318.4,
+      "median_relative_error": 0.1517,
+      "interval_coverage": 0.795,
+      "median_interval_width_h": 7962.3
     },
     "Capacitance_uF+Leakage_uA+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1675.5,
-      "mean_absolute_error_h": 4277.8,
-      "median_relative_error": 0.1595,
-      "interval_coverage": 0.7921,
-      "median_interval_width_h": 7792.8
+      "predictions": 49765,
+      "median_absolute_error_h": 1596.6,
+      "mean_absolute_error_h": 4129.1,
+      "median_relative_error": 0.1508,
+      "interval_coverage": 0.8016,
+      "median_interval_width_h": 7963.6
     },
     "Capacitance_uF+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1554.4,
-      "mean_absolute_error_h": 4296.0,
-      "median_relative_error": 0.154,
-      "interval_coverage": 0.8122,
-      "median_interval_width_h": 7762.6
+      "predictions": 49765,
+      "median_absolute_error_h": 1551.1,
+      "mean_absolute_error_h": 4178.5,
+      "median_relative_error": 0.1484,
+      "interval_coverage": 0.8101,
+      "median_interval_width_h": 7833.3
     },
     "ESR_ohm+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1596.6,
-      "mean_absolute_error_h": 4367.4,
-      "median_relative_error": 0.1558,
-      "interval_coverage": 0.824,
-      "median_interval_width_h": 8449.9
+      "predictions": 49765,
+      "median_absolute_error_h": 1631.4,
+      "mean_absolute_error_h": 4366.0,
+      "median_relative_error": 0.1561,
+      "interval_coverage": 0.8211,
+      "median_interval_width_h": 8758.5
     },
     "ESR_ohm+Leakage_uA+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1571.1,
-      "mean_absolute_error_h": 4438.7,
-      "median_relative_error": 0.156,
-      "interval_coverage": 0.8168,
-      "median_interval_width_h": 8302.8
+      "predictions": 49765,
+      "median_absolute_error_h": 1691.8,
+      "mean_absolute_error_h": 4603.1,
+      "median_relative_error": 0.1595,
+      "interval_coverage": 0.8138,
+      "median_interval_width_h": 8889.7
     },
     "ESR_ohm+Leakage_uA+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1683.2,
-      "mean_absolute_error_h": 4419.3,
-      "median_relative_error": 0.1601,
-      "interval_coverage": 0.8212,
-      "median_interval_width_h": 8481.3
+      "predictions": 49765,
+      "median_absolute_error_h": 1723.8,
+      "mean_absolute_error_h": 4385.8,
+      "median_relative_error": 0.1596,
+      "interval_coverage": 0.8189,
+      "median_interval_width_h": 8716.3
     },
     "ESR_ohm+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1526.3,
-      "mean_absolute_error_h": 4454.6,
-      "median_relative_error": 0.1568,
-      "interval_coverage": 0.8239,
-      "median_interval_width_h": 8187.8
+      "predictions": 49765,
+      "median_absolute_error_h": 1594.3,
+      "mean_absolute_error_h": 4433.8,
+      "median_relative_error": 0.1564,
+      "interval_coverage": 0.8223,
+      "median_interval_width_h": 8388.4
     },
     "Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1958.1,
-      "mean_absolute_error_h": 4729.5,
-      "median_relative_error": 0.1938,
-      "interval_coverage": 0.8169,
-      "median_interval_width_h": 9061.6
+      "predictions": 49765,
+      "median_absolute_error_h": 1942.9,
+      "mean_absolute_error_h": 4711.5,
+      "median_relative_error": 0.1906,
+      "interval_coverage": 0.8162,
+      "median_interval_width_h": 9465.8
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2005.3,
-      "mean_absolute_error_h": 5942.9,
-      "median_relative_error": 0.1892,
-      "interval_coverage": 0.7763,
-      "median_interval_width_h": 9841.9
+      "predictions": 49765,
+      "median_absolute_error_h": 2004.8,
+      "mean_absolute_error_h": 5855.2,
+      "median_relative_error": 0.18,
+      "interval_coverage": 0.7984,
+      "median_interval_width_h": 10269.7
     },
     "Capacitance_uF+ESR_ohm+Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1499.9,
-      "mean_absolute_error_h": 4325.4,
-      "median_relative_error": 0.1505,
-      "interval_coverage": 0.7899,
-      "median_interval_width_h": 7523.4
+      "predictions": 49765,
+      "median_absolute_error_h": 1537.5,
+      "mean_absolute_error_h": 4427.2,
+      "median_relative_error": 0.1458,
+      "interval_coverage": 0.7968,
+      "median_interval_width_h": 7837.4
     },
     "Capacitance_uF+ESR_ohm+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1679.4,
-      "mean_absolute_error_h": 4549.6,
-      "median_relative_error": 0.1601,
-      "interval_coverage": 0.809,
-      "median_interval_width_h": 8543.0
+      "predictions": 49765,
+      "median_absolute_error_h": 1629.3,
+      "mean_absolute_error_h": 4554.5,
+      "median_relative_error": 0.1537,
+      "interval_coverage": 0.8184,
+      "median_interval_width_h": 8765.4
     },
     "Capacitance_uF+ESR_ohm+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1571.7,
-      "mean_absolute_error_h": 4319.8,
-      "median_relative_error": 0.1537,
-      "interval_coverage": 0.7961,
-      "median_interval_width_h": 7577.1
+      "predictions": 49765,
+      "median_absolute_error_h": 1555.5,
+      "mean_absolute_error_h": 4302.3,
+      "median_relative_error": 0.148,
+      "interval_coverage": 0.8018,
+      "median_interval_width_h": 7833.0
     },
     "Capacitance_uF+Leakage_uA+Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1828.4,
-      "mean_absolute_error_h": 4592.7,
-      "median_relative_error": 0.1774,
-      "interval_coverage": 0.7877,
-      "median_interval_width_h": 8532.5
+      "predictions": 49765,
+      "median_absolute_error_h": 1821.3,
+      "mean_absolute_error_h": 4635.3,
+      "median_relative_error": 0.1705,
+      "interval_coverage": 0.7958,
+      "median_interval_width_h": 8828.3
     },
     "Capacitance_uF+Leakage_uA+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2040.3,
-      "mean_absolute_error_h": 4857.7,
-      "median_relative_error": 0.1921,
-      "interval_coverage": 0.8005,
-      "median_interval_width_h": 9418.6
+      "predictions": 49765,
+      "median_absolute_error_h": 1962.7,
+      "mean_absolute_error_h": 4823.8,
+      "median_relative_error": 0.1802,
+      "interval_coverage": 0.8114,
+      "median_interval_width_h": 9704.9
     },
     "Capacitance_uF+Leakage_uA+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1953.8,
-      "mean_absolute_error_h": 4702.9,
-      "median_relative_error": 0.1867,
-      "interval_coverage": 0.7916,
-      "median_interval_width_h": 8585.5
+      "predictions": 49765,
+      "median_absolute_error_h": 1870.5,
+      "mean_absolute_error_h": 4566.0,
+      "median_relative_error": 0.1747,
+      "interval_coverage": 0.7992,
+      "median_interval_width_h": 8924.6
     },
     "Capacitance_uF+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1776.2,
-      "mean_absolute_error_h": 4548.3,
-      "median_relative_error": 0.1702,
-      "interval_coverage": 0.8116,
-      "median_interval_width_h": 8473.0
+      "predictions": 49765,
+      "median_absolute_error_h": 1754.9,
+      "mean_absolute_error_h": 4397.3,
+      "median_relative_error": 0.1631,
+      "interval_coverage": 0.8119,
+      "median_interval_width_h": 8703.1
     },
     "Capacitance_uF+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1799.8,
-      "mean_absolute_error_h": 4633.6,
-      "median_relative_error": 0.1728,
-      "interval_coverage": 0.8007,
-      "median_interval_width_h": 8451.2
+      "predictions": 49765,
+      "median_absolute_error_h": 1821.7,
+      "mean_absolute_error_h": 4624.0,
+      "median_relative_error": 0.1688,
+      "interval_coverage": 0.8,
+      "median_interval_width_h": 8827.2
     },
     "Capacitance_uF+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1878.7,
-      "mean_absolute_error_h": 4549.0,
-      "median_relative_error": 0.1755,
-      "interval_coverage": 0.8028,
-      "median_interval_width_h": 8496.7
+      "predictions": 49765,
+      "median_absolute_error_h": 1799.6,
+      "mean_absolute_error_h": 4396.5,
+      "median_relative_error": 0.1669,
+      "interval_coverage": 0.8067,
+      "median_interval_width_h": 8678.8
     },
     "ESR_ohm+Leakage_uA+Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1873.6,
-      "mean_absolute_error_h": 4736.6,
-      "median_relative_error": 0.1762,
-      "interval_coverage": 0.8156,
-      "median_interval_width_h": 9336.2
+      "predictions": 49765,
+      "median_absolute_error_h": 1970.4,
+      "mean_absolute_error_h": 4934.0,
+      "median_relative_error": 0.1785,
+      "interval_coverage": 0.8145,
+      "median_interval_width_h": 9791.5
     },
     "ESR_ohm+Leakage_uA+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2081.4,
-      "mean_absolute_error_h": 5049.5,
-      "median_relative_error": 0.1924,
-      "interval_coverage": 0.8272,
-      "median_interval_width_h": 10267.5
+      "predictions": 49765,
+      "median_absolute_error_h": 2139.6,
+      "mean_absolute_error_h": 5113.1,
+      "median_relative_error": 0.1922,
+      "interval_coverage": 0.8278,
+      "median_interval_width_h": 10592.3
     },
     "ESR_ohm+Leakage_uA+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1913.1,
-      "mean_absolute_error_h": 4818.6,
-      "median_relative_error": 0.1806,
-      "interval_coverage": 0.8174,
-      "median_interval_width_h": 9375.6
+      "predictions": 49765,
+      "median_absolute_error_h": 2002.5,
+      "mean_absolute_error_h": 4855.9,
+      "median_relative_error": 0.1823,
+      "interval_coverage": 0.8185,
+      "median_interval_width_h": 9815.7
     },
     "ESR_ohm+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1778.6,
-      "mean_absolute_error_h": 4715.2,
-      "median_relative_error": 0.1719,
-      "interval_coverage": 0.8308,
-      "median_interval_width_h": 9239.7
+      "predictions": 49765,
+      "median_absolute_error_h": 1817.6,
+      "mean_absolute_error_h": 4661.7,
+      "median_relative_error": 0.1705,
+      "interval_coverage": 0.829,
+      "median_interval_width_h": 9540.0
     },
     "ESR_ohm+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1780.3,
-      "mean_absolute_error_h": 4754.4,
-      "median_relative_error": 0.1735,
-      "interval_coverage": 0.8206,
-      "median_interval_width_h": 9020.9
+      "predictions": 49765,
+      "median_absolute_error_h": 1884.9,
+      "mean_absolute_error_h": 4882.5,
+      "median_relative_error": 0.1764,
+      "interval_coverage": 0.8155,
+      "median_interval_width_h": 9565.9
     },
     "ESR_ohm+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 1820.4,
-      "mean_absolute_error_h": 4678.6,
-      "median_relative_error": 0.1743,
-      "interval_coverage": 0.8234,
-      "median_interval_width_h": 9098.7
+      "predictions": 49765,
+      "median_absolute_error_h": 1853.2,
+      "mean_absolute_error_h": 4645.8,
+      "median_relative_error": 0.174,
+      "interval_coverage": 0.8219,
+      "median_interval_width_h": 9360.3
     },
     "Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2176.3,
-      "mean_absolute_error_h": 4963.3,
-      "median_relative_error": 0.2125,
-      "interval_coverage": 0.8236,
-      "median_interval_width_h": 10082.7
+      "predictions": 49765,
+      "median_absolute_error_h": 2187.5,
+      "mean_absolute_error_h": 4926.0,
+      "median_relative_error": 0.2075,
+      "interval_coverage": 0.8221,
+      "median_interval_width_h": 10518.3
     },
     "Leakage_uA+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2198.1,
-      "mean_absolute_error_h": 5014.4,
-      "median_relative_error": 0.211,
-      "interval_coverage": 0.8179,
-      "median_interval_width_h": 9952.6
+      "predictions": 49765,
+      "median_absolute_error_h": 2277.2,
+      "mean_absolute_error_h": 5152.7,
+      "median_relative_error": 0.2127,
+      "interval_coverage": 0.8158,
+      "median_interval_width_h": 10641.6
     },
     "Leakage_uA+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2270.8,
-      "mean_absolute_error_h": 5000.1,
-      "median_relative_error": 0.2158,
-      "interval_coverage": 0.8185,
-      "median_interval_width_h": 10048.1
+      "predictions": 49765,
+      "median_absolute_error_h": 2260.6,
+      "mean_absolute_error_h": 4947.8,
+      "median_relative_error": 0.2103,
+      "interval_coverage": 0.8176,
+      "median_interval_width_h": 10431.3
     },
     "Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2282.8,
-      "mean_absolute_error_h": 5516.9,
-      "median_relative_error": 0.2246,
-      "interval_coverage": 0.8149,
-      "median_interval_width_h": 10770.8
+      "predictions": 49765,
+      "median_absolute_error_h": 2331.7,
+      "mean_absolute_error_h": 5457.9,
+      "median_relative_error": 0.2199,
+      "interval_coverage": 0.8138,
+      "median_interval_width_h": 11071.4
     },
     "Capacitance_uF+ESR_ohm": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2186.9,
-      "mean_absolute_error_h": 6074.1,
-      "median_relative_error": 0.2017,
-      "interval_coverage": 0.7866,
-      "median_interval_width_h": 10513.7
+      "predictions": 49765,
+      "median_absolute_error_h": 2150.5,
+      "mean_absolute_error_h": 6034.6,
+      "median_relative_error": 0.1924,
+      "interval_coverage": 0.8086,
+      "median_interval_width_h": 10926.5
     },
     "Capacitance_uF+Leakage_uA": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2517.8,
-      "mean_absolute_error_h": 6337.0,
-      "median_relative_error": 0.2407,
-      "interval_coverage": 0.7865,
-      "median_interval_width_h": 11039.3
+      "predictions": 49765,
+      "median_absolute_error_h": 2506.3,
+      "mean_absolute_error_h": 6201.3,
+      "median_relative_error": 0.2276,
+      "interval_coverage": 0.8008,
+      "median_interval_width_h": 11522.6
     },
     "Capacitance_uF+Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2108.6,
-      "mean_absolute_error_h": 4961.6,
-      "median_relative_error": 0.1951,
-      "interval_coverage": 0.8,
-      "median_interval_width_h": 9453.0
+      "predictions": 49765,
+      "median_absolute_error_h": 2123.9,
+      "mean_absolute_error_h": 5006.5,
+      "median_relative_error": 0.1902,
+      "interval_coverage": 0.8003,
+      "median_interval_width_h": 9764.0
     },
     "Capacitance_uF+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2274.3,
-      "mean_absolute_error_h": 5165.3,
-      "median_relative_error": 0.2069,
-      "interval_coverage": 0.8141,
-      "median_interval_width_h": 10124.6
+      "predictions": 49765,
+      "median_absolute_error_h": 2161.7,
+      "mean_absolute_error_h": 5067.0,
+      "median_relative_error": 0.1971,
+      "interval_coverage": 0.8151,
+      "median_interval_width_h": 10428.1
     },
     "Capacitance_uF+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2112.5,
-      "mean_absolute_error_h": 4957.3,
-      "median_relative_error": 0.1998,
-      "interval_coverage": 0.7994,
-      "median_interval_width_h": 9439.3
+      "predictions": 49765,
+      "median_absolute_error_h": 2086.4,
+      "mean_absolute_error_h": 4875.0,
+      "median_relative_error": 0.1915,
+      "interval_coverage": 0.801,
+      "median_interval_width_h": 9711.5
     },
     "ESR_ohm+Leakage_uA": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2747.2,
-      "mean_absolute_error_h": 6561.4,
-      "median_relative_error": 0.2438,
-      "interval_coverage": 0.8117,
-      "median_interval_width_h": 12016.4
+      "predictions": 49765,
+      "median_absolute_error_h": 2766.2,
+      "mean_absolute_error_h": 6509.9,
+      "median_relative_error": 0.2393,
+      "interval_coverage": 0.8216,
+      "median_interval_width_h": 12686.5
     },
     "ESR_ohm+Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2118.4,
-      "mean_absolute_error_h": 5136.6,
-      "median_relative_error": 0.1971,
-      "interval_coverage": 0.8208,
-      "median_interval_width_h": 10046.0
+      "predictions": 49765,
+      "median_absolute_error_h": 2201.0,
+      "mean_absolute_error_h": 5250.3,
+      "median_relative_error": 0.1973,
+      "interval_coverage": 0.819,
+      "median_interval_width_h": 10519.6
     },
     "ESR_ohm+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2262.7,
-      "mean_absolute_error_h": 5331.5,
-      "median_relative_error": 0.2061,
-      "interval_coverage": 0.8338,
-      "median_interval_width_h": 10868.2
+      "predictions": 49765,
+      "median_absolute_error_h": 2280.4,
+      "mean_absolute_error_h": 5361.8,
+      "median_relative_error": 0.2063,
+      "interval_coverage": 0.8322,
+      "median_interval_width_h": 11267.0
     },
     "ESR_ohm+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2088.0,
-      "mean_absolute_error_h": 5092.2,
-      "median_relative_error": 0.1959,
-      "interval_coverage": 0.8167,
-      "median_interval_width_h": 9970.2
+      "predictions": 49765,
+      "median_absolute_error_h": 2162.1,
+      "mean_absolute_error_h": 5124.7,
+      "median_relative_error": 0.1983,
+      "interval_coverage": 0.8159,
+      "median_interval_width_h": 10371.7
     },
     "Leakage_uA+Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2448.1,
-      "mean_absolute_error_h": 5315.1,
+      "predictions": 49765,
+      "median_absolute_error_h": 2533.1,
+      "mean_absolute_error_h": 5461.2,
       "median_relative_error": 0.2329,
-      "interval_coverage": 0.8166,
-      "median_interval_width_h": 10915.3
+      "interval_coverage": 0.817,
+      "median_interval_width_h": 11519.8
     },
     "Leakage_uA+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2641.7,
-      "mean_absolute_error_h": 5603.2,
-      "median_relative_error": 0.2532,
-      "interval_coverage": 0.8216,
-      "median_interval_width_h": 11767.5
+      "predictions": 49765,
+      "median_absolute_error_h": 2694.9,
+      "mean_absolute_error_h": 5627.3,
+      "median_relative_error": 0.2471,
+      "interval_coverage": 0.8234,
+      "median_interval_width_h": 12210.0
     },
     "Leakage_uA+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2551.1,
-      "mean_absolute_error_h": 5395.3,
-      "median_relative_error": 0.241,
-      "interval_coverage": 0.8145,
-      "median_interval_width_h": 10989.0
+      "predictions": 49765,
+      "median_absolute_error_h": 2558.5,
+      "mean_absolute_error_h": 5382.1,
+      "median_relative_error": 0.2363,
+      "interval_coverage": 0.816,
+      "median_interval_width_h": 11517.7
     },
     "Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2563.2,
-      "mean_absolute_error_h": 5732.7,
-      "median_relative_error": 0.2431,
-      "interval_coverage": 0.8221,
-      "median_interval_width_h": 11747.5
+      "predictions": 49765,
+      "median_absolute_error_h": 2597.8,
+      "mean_absolute_error_h": 5688.7,
+      "median_relative_error": 0.2397,
+      "interval_coverage": 0.8199,
+      "median_interval_width_h": 12124.4
     },
     "Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2570.1,
-      "mean_absolute_error_h": 5833.9,
-      "median_relative_error": 0.2415,
-      "interval_coverage": 0.821,
-      "median_interval_width_h": 11844.5
+      "predictions": 49765,
+      "median_absolute_error_h": 2725.3,
+      "mean_absolute_error_h": 5973.3,
+      "median_relative_error": 0.2449,
+      "interval_coverage": 0.813,
+      "median_interval_width_h": 12377.2
     },
     "H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2577.5,
-      "mean_absolute_error_h": 5693.1,
-      "median_relative_error": 0.2446,
-      "interval_coverage": 0.8227,
-      "median_interval_width_h": 11733.5
+      "predictions": 49765,
+      "median_absolute_error_h": 2601.9,
+      "mean_absolute_error_h": 5651.3,
+      "median_relative_error": 0.2404,
+      "interval_coverage": 0.8198,
+      "median_interval_width_h": 11990.8
     },
     "Capacitance_uF": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2753.2,
-      "mean_absolute_error_h": 6653.0,
-      "median_relative_error": 0.2582,
-      "interval_coverage": 0.8072,
-      "median_interval_width_h": 12319.3
+      "predictions": 49765,
+      "median_absolute_error_h": 2804.2,
+      "mean_absolute_error_h": 6651.6,
+      "median_relative_error": 0.2504,
+      "interval_coverage": 0.8094,
+      "median_interval_width_h": 12836.4
     },
     "ESR_ohm": {
-      "predictions": 10076,
-      "median_absolute_error_h": 3005.7,
-      "mean_absolute_error_h": 6933.3,
-      "median_relative_error": 0.2648,
-      "interval_coverage": 0.8201,
-      "median_interval_width_h": 12977.8
+      "predictions": 49765,
+      "median_absolute_error_h": 2978.0,
+      "mean_absolute_error_h": 6871.7,
+      "median_relative_error": 0.2592,
+      "interval_coverage": 0.8284,
+      "median_interval_width_h": 13779.8
     },
     "Leakage_uA": {
-      "predictions": 10076,
-      "median_absolute_error_h": 3164.4,
-      "mean_absolute_error_h": 7077.0,
-      "median_relative_error": 0.3054,
-      "interval_coverage": 0.8103,
-      "median_interval_width_h": 13729.9
+      "predictions": 49765,
+      "median_absolute_error_h": 3248.8,
+      "mean_absolute_error_h": 6950.2,
+      "median_relative_error": 0.2989,
+      "interval_coverage": 0.8216,
+      "median_interval_width_h": 14470.1
     },
     "Case_Expansion_um": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2906.7,
-      "mean_absolute_error_h": 6308.5,
-      "median_relative_error": 0.2731,
-      "interval_coverage": 0.8236,
-      "median_interval_width_h": 13181.9
+      "predictions": 49765,
+      "median_absolute_error_h": 3089.1,
+      "mean_absolute_error_h": 6487.3,
+      "median_relative_error": 0.2793,
+      "interval_coverage": 0.8175,
+      "median_interval_width_h": 13881.2
     },
     "H2_Generated_mL_STP": {
-      "predictions": 10076,
-      "median_absolute_error_h": 3091.1,
-      "mean_absolute_error_h": 6454.7,
-      "median_relative_error": 0.2864,
-      "interval_coverage": 0.8279,
-      "median_interval_width_h": 13606.5
+      "predictions": 49765,
+      "median_absolute_error_h": 3102.3,
+      "mean_absolute_error_h": 6387.2,
+      "median_relative_error": 0.2844,
+      "interval_coverage": 0.8281,
+      "median_interval_width_h": 14017.1
     },
     "Pressure_Abs_kPa": {
-      "predictions": 10076,
-      "median_absolute_error_h": 2900.4,
-      "mean_absolute_error_h": 6206.0,
-      "median_relative_error": 0.2741,
-      "interval_coverage": 0.8263,
-      "median_interval_width_h": 12990.5
+      "predictions": 49765,
+      "median_absolute_error_h": 2990.1,
+      "mean_absolute_error_h": 6260.5,
+      "median_relative_error": 0.2739,
+      "interval_coverage": 0.82,
+      "median_interval_width_h": 13473.1
     }
   },
   "test_metrics_by_subset_custom_limits": {
     "Capacitance_uF+ESR_ohm+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 523.7,
-      "mean_absolute_error_h": 1894.9,
+      "predictions": 50255,
+      "median_absolute_error_h": 549.8,
+      "mean_absolute_error_h": 2016.8,
       "median_relative_error": 0.1028,
-      "interval_coverage": 0.8076,
-      "median_interval_width_h": 2537.6
+      "interval_coverage": 0.8004,
+      "median_interval_width_h": 2673.6
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 664.0,
-      "mean_absolute_error_h": 2340.9,
-      "median_relative_error": 0.1265,
-      "interval_coverage": 0.8122,
-      "median_interval_width_h": 3412.5
+      "predictions": 50255,
+      "median_absolute_error_h": 706.9,
+      "mean_absolute_error_h": 2456.1,
+      "median_relative_error": 0.1268,
+      "interval_coverage": 0.8074,
+      "median_interval_width_h": 3680.5
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 683.0,
-      "mean_absolute_error_h": 2581.5,
-      "median_relative_error": 0.1324,
-      "interval_coverage": 0.7998,
-      "median_interval_width_h": 3478.7
+      "predictions": 50255,
+      "median_absolute_error_h": 736.8,
+      "mean_absolute_error_h": 2625.9,
+      "median_relative_error": 0.1306,
+      "interval_coverage": 0.7932,
+      "median_interval_width_h": 3728.8
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 673.5,
-      "mean_absolute_error_h": 2315.6,
-      "median_relative_error": 0.1253,
-      "interval_coverage": 0.8074,
-      "median_interval_width_h": 3428.8
+      "predictions": 50255,
+      "median_absolute_error_h": 726.0,
+      "mean_absolute_error_h": 2453.0,
+      "median_relative_error": 0.1265,
+      "interval_coverage": 0.8036,
+      "median_interval_width_h": 3705.6
     },
     "Capacitance_uF+ESR_ohm+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 621.0,
-      "mean_absolute_error_h": 2145.2,
-      "median_relative_error": 0.1176,
-      "interval_coverage": 0.8106,
-      "median_interval_width_h": 3147.7
+      "predictions": 50255,
+      "median_absolute_error_h": 661.0,
+      "mean_absolute_error_h": 2310.1,
+      "median_relative_error": 0.1157,
+      "interval_coverage": 0.8046,
+      "median_interval_width_h": 3322.2
     },
     "Capacitance_uF+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 628.4,
-      "mean_absolute_error_h": 2200.2,
-      "median_relative_error": 0.1209,
-      "interval_coverage": 0.8004,
-      "median_interval_width_h": 3153.1
+      "predictions": 50255,
+      "median_absolute_error_h": 658.6,
+      "mean_absolute_error_h": 2258.1,
+      "median_relative_error": 0.1163,
+      "interval_coverage": 0.8047,
+      "median_interval_width_h": 3297.1
     },
     "ESR_ohm+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 778.4,
-      "mean_absolute_error_h": 2474.8,
-      "median_relative_error": 0.1413,
-      "interval_coverage": 0.8156,
-      "median_interval_width_h": 3896.7
+      "predictions": 50255,
+      "median_absolute_error_h": 792.5,
+      "mean_absolute_error_h": 2563.3,
+      "median_relative_error": 0.1322,
+      "interval_coverage": 0.8118,
+      "median_interval_width_h": 4164.3
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+Case_Expansion_um": {
-      "predictions": 10033,
-      "median_absolute_error_h": 870.6,
-      "mean_absolute_error_h": 2980.5,
-      "median_relative_error": 0.1581,
-      "interval_coverage": 0.8075,
-      "median_interval_width_h": 4398.2
+      "predictions": 50255,
+      "median_absolute_error_h": 948.8,
+      "mean_absolute_error_h": 3062.1,
+      "median_relative_error": 0.1604,
+      "interval_coverage": 0.8016,
+      "median_interval_width_h": 4732.3
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 863.0,
-      "mean_absolute_error_h": 2828.4,
-      "median_relative_error": 0.157,
-      "interval_coverage": 0.813,
-      "median_interval_width_h": 4453.5
+      "predictions": 50255,
+      "median_absolute_error_h": 931.1,
+      "mean_absolute_error_h": 3068.8,
+      "median_relative_error": 0.1598,
+      "interval_coverage": 0.8123,
+      "median_interval_width_h": 4848.5
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 902.2,
-      "mean_absolute_error_h": 2937.1,
-      "median_relative_error": 0.1631,
-      "interval_coverage": 0.8113,
-      "median_interval_width_h": 4408.1
+      "predictions": 50255,
+      "median_absolute_error_h": 970.9,
+      "mean_absolute_error_h": 3008.7,
+      "median_relative_error": 0.1617,
+      "interval_coverage": 0.8054,
+      "median_interval_width_h": 4841.4
     },
     "Capacitance_uF+ESR_ohm+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 778.0,
-      "mean_absolute_error_h": 2533.0,
-      "median_relative_error": 0.1421,
-      "interval_coverage": 0.8154,
-      "median_interval_width_h": 4016.2
+      "predictions": 50255,
+      "median_absolute_error_h": 842.5,
+      "mean_absolute_error_h": 2723.2,
+      "median_relative_error": 0.1415,
+      "interval_coverage": 0.8098,
+      "median_interval_width_h": 4302.4
     },
     "Capacitance_uF+ESR_ohm+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 810.2,
-      "mean_absolute_error_h": 2767.1,
-      "median_relative_error": 0.1481,
-      "interval_coverage": 0.8018,
-      "median_interval_width_h": 4113.1
+      "predictions": 50255,
+      "median_absolute_error_h": 884.9,
+      "mean_absolute_error_h": 2870.9,
+      "median_relative_error": 0.1449,
+      "interval_coverage": 0.7934,
+      "median_interval_width_h": 4376.4
     },
     "Capacitance_uF+ESR_ohm+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 776.5,
-      "mean_absolute_error_h": 2517.7,
-      "median_relative_error": 0.1422,
-      "interval_coverage": 0.8113,
-      "median_interval_width_h": 4003.2
+      "predictions": 50255,
+      "median_absolute_error_h": 850.1,
+      "mean_absolute_error_h": 2706.5,
+      "median_relative_error": 0.1407,
+      "interval_coverage": 0.8039,
+      "median_interval_width_h": 4353.6
     },
     "Capacitance_uF+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 802.4,
-      "mean_absolute_error_h": 2632.5,
-      "median_relative_error": 0.1464,
-      "interval_coverage": 0.8083,
-      "median_interval_width_h": 4175.7
+      "predictions": 50255,
+      "median_absolute_error_h": 844.3,
+      "mean_absolute_error_h": 2698.0,
+      "median_relative_error": 0.144,
+      "interval_coverage": 0.8134,
+      "median_interval_width_h": 4380.7
     },
     "Capacitance_uF+Leakage_uA+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 864.5,
-      "mean_absolute_error_h": 2871.9,
-      "median_relative_error": 0.1548,
-      "interval_coverage": 0.7943,
-      "median_interval_width_h": 4266.4
+      "predictions": 50255,
+      "median_absolute_error_h": 883.8,
+      "mean_absolute_error_h": 2855.4,
+      "median_relative_error": 0.1491,
+      "interval_coverage": 0.7985,
+      "median_interval_width_h": 4425.2
     },
     "Capacitance_uF+Leakage_uA+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 830.4,
-      "mean_absolute_error_h": 2609.7,
-      "median_relative_error": 0.1466,
-      "interval_coverage": 0.803,
-      "median_interval_width_h": 4096.3
+      "predictions": 50255,
+      "median_absolute_error_h": 867.6,
+      "mean_absolute_error_h": 2677.6,
+      "median_relative_error": 0.1445,
+      "interval_coverage": 0.809,
+      "median_interval_width_h": 4384.9
     },
     "Capacitance_uF+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 765.8,
-      "mean_absolute_error_h": 2442.7,
-      "median_relative_error": 0.1396,
-      "interval_coverage": 0.8063,
-      "median_interval_width_h": 3826.6
+      "predictions": 50255,
+      "median_absolute_error_h": 807.6,
+      "mean_absolute_error_h": 2580.0,
+      "median_relative_error": 0.1355,
+      "interval_coverage": 0.8076,
+      "median_interval_width_h": 3964.5
     },
     "ESR_ohm+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 984.7,
-      "mean_absolute_error_h": 2859.1,
-      "median_relative_error": 0.1717,
-      "interval_coverage": 0.8233,
-      "median_interval_width_h": 5019.4
+      "predictions": 50255,
+      "median_absolute_error_h": 1016.1,
+      "mean_absolute_error_h": 2951.9,
+      "median_relative_error": 0.1625,
+      "interval_coverage": 0.8228,
+      "median_interval_width_h": 5342.9
     },
     "ESR_ohm+Leakage_uA+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1013.9,
-      "mean_absolute_error_h": 3051.5,
-      "median_relative_error": 0.1781,
-      "interval_coverage": 0.8148,
-      "median_interval_width_h": 5103.8
+      "predictions": 50255,
+      "median_absolute_error_h": 1072.9,
+      "mean_absolute_error_h": 3090.9,
+      "median_relative_error": 0.1674,
+      "interval_coverage": 0.813,
+      "median_interval_width_h": 5400.3
     },
     "ESR_ohm+Leakage_uA+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1005.7,
-      "mean_absolute_error_h": 2857.1,
-      "median_relative_error": 0.1709,
-      "interval_coverage": 0.816,
-      "median_interval_width_h": 4923.1
+      "predictions": 50255,
+      "median_absolute_error_h": 1051.1,
+      "mean_absolute_error_h": 2963.9,
+      "median_relative_error": 0.1644,
+      "interval_coverage": 0.8188,
+      "median_interval_width_h": 5356.4
     },
     "ESR_ohm+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 916.1,
-      "mean_absolute_error_h": 2750.0,
-      "median_relative_error": 0.1667,
-      "interval_coverage": 0.8219,
-      "median_interval_width_h": 4560.0
+      "predictions": 50255,
+      "median_absolute_error_h": 954.3,
+      "mean_absolute_error_h": 2837.6,
+      "median_relative_error": 0.1522,
+      "interval_coverage": 0.8171,
+      "median_interval_width_h": 4870.5
     },
     "Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 942.2,
-      "mean_absolute_error_h": 2773.3,
-      "median_relative_error": 0.1681,
-      "interval_coverage": 0.8127,
-      "median_interval_width_h": 4596.7
+      "predictions": 50255,
+      "median_absolute_error_h": 942.0,
+      "mean_absolute_error_h": 2798.4,
+      "median_relative_error": 0.1543,
+      "interval_coverage": 0.8155,
+      "median_interval_width_h": 4835.2
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1248.5,
-      "mean_absolute_error_h": 3859.8,
-      "median_relative_error": 0.2009,
-      "interval_coverage": 0.8057,
-      "median_interval_width_h": 6004.8
+      "predictions": 50255,
+      "median_absolute_error_h": 1330.7,
+      "mean_absolute_error_h": 4013.3,
+      "median_relative_error": 0.2068,
+      "interval_coverage": 0.8073,
+      "median_interval_width_h": 6521.9
     },
     "Capacitance_uF+ESR_ohm+Case_Expansion_um": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1041.6,
-      "mean_absolute_error_h": 3157.7,
-      "median_relative_error": 0.1767,
-      "interval_coverage": 0.8065,
-      "median_interval_width_h": 5083.4
+      "predictions": 50255,
+      "median_absolute_error_h": 1124.1,
+      "mean_absolute_error_h": 3285.8,
+      "median_relative_error": 0.1768,
+      "interval_coverage": 0.7967,
+      "median_interval_width_h": 5361.4
     },
     "Capacitance_uF+ESR_ohm+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 976.7,
-      "mean_absolute_error_h": 3016.6,
-      "median_relative_error": 0.171,
-      "interval_coverage": 0.8159,
-      "median_interval_width_h": 5122.3
+      "predictions": 50255,
+      "median_absolute_error_h": 1076.3,
+      "mean_absolute_error_h": 3298.2,
+      "median_relative_error": 0.175,
+      "interval_coverage": 0.8114,
+      "median_interval_width_h": 5484.1
     },
     "Capacitance_uF+ESR_ohm+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1009.3,
-      "mean_absolute_error_h": 3077.1,
-      "median_relative_error": 0.1761,
-      "interval_coverage": 0.8115,
-      "median_interval_width_h": 5029.0
+      "predictions": 50255,
+      "median_absolute_error_h": 1120.7,
+      "mean_absolute_error_h": 3214.0,
+      "median_relative_error": 0.1747,
+      "interval_coverage": 0.8012,
+      "median_interval_width_h": 5421.9
     },
     "Capacitance_uF+Leakage_uA+Case_Expansion_um": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1103.8,
-      "mean_absolute_error_h": 3254.7,
-      "median_relative_error": 0.1849,
-      "interval_coverage": 0.799,
-      "median_interval_width_h": 5257.4
+      "predictions": 50255,
+      "median_absolute_error_h": 1135.0,
+      "mean_absolute_error_h": 3274.1,
+      "median_relative_error": 0.1819,
+      "interval_coverage": 0.8053,
+      "median_interval_width_h": 5470.0
     },
     "Capacitance_uF+Leakage_uA+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1074.8,
-      "mean_absolute_error_h": 3078.2,
-      "median_relative_error": 0.1779,
-      "interval_coverage": 0.8061,
-      "median_interval_width_h": 5232.2
+      "predictions": 50255,
+      "median_absolute_error_h": 1108.4,
+      "mean_absolute_error_h": 3278.6,
+      "median_relative_error": 0.1798,
+      "interval_coverage": 0.8166,
+      "median_interval_width_h": 5580.2
     },
     "Capacitance_uF+Leakage_uA+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1119.9,
-      "mean_absolute_error_h": 3200.8,
-      "median_relative_error": 0.1851,
-      "interval_coverage": 0.7996,
-      "median_interval_width_h": 5203.9
+      "predictions": 50255,
+      "median_absolute_error_h": 1145.0,
+      "mean_absolute_error_h": 3212.5,
+      "median_relative_error": 0.1806,
+      "interval_coverage": 0.8064,
+      "median_interval_width_h": 5530.6
     },
     "Capacitance_uF+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 979.7,
-      "mean_absolute_error_h": 2840.6,
-      "median_relative_error": 0.1659,
-      "interval_coverage": 0.8155,
-      "median_interval_width_h": 4809.2
+      "predictions": 50255,
+      "median_absolute_error_h": 1029.9,
+      "mean_absolute_error_h": 2997.6,
+      "median_relative_error": 0.1655,
+      "interval_coverage": 0.8122,
+      "median_interval_width_h": 4998.7
     },
     "Capacitance_uF+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1034.7,
-      "mean_absolute_error_h": 3055.3,
-      "median_relative_error": 0.1729,
-      "interval_coverage": 0.793,
-      "median_interval_width_h": 4951.5
+      "predictions": 50255,
+      "median_absolute_error_h": 1078.7,
+      "mean_absolute_error_h": 3131.3,
+      "median_relative_error": 0.169,
+      "interval_coverage": 0.7966,
+      "median_interval_width_h": 5060.8
     },
     "Capacitance_uF+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 955.0,
-      "mean_absolute_error_h": 2808.3,
-      "median_relative_error": 0.1662,
-      "interval_coverage": 0.8015,
-      "median_interval_width_h": 4752.5
+      "predictions": 50255,
+      "median_absolute_error_h": 1025.8,
+      "mean_absolute_error_h": 2962.9,
+      "median_relative_error": 0.1644,
+      "interval_coverage": 0.8052,
+      "median_interval_width_h": 5006.0
     },
     "ESR_ohm+Leakage_uA+Case_Expansion_um": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1241.6,
-      "mean_absolute_error_h": 3402.1,
-      "median_relative_error": 0.2071,
-      "interval_coverage": 0.8181,
-      "median_interval_width_h": 6100.1
+      "predictions": 50255,
+      "median_absolute_error_h": 1330.3,
+      "mean_absolute_error_h": 3474.4,
+      "median_relative_error": 0.2018,
+      "interval_coverage": 0.816,
+      "median_interval_width_h": 6420.2
     },
     "ESR_ohm+Leakage_uA+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1282.9,
-      "mean_absolute_error_h": 3333.5,
-      "median_relative_error": 0.2086,
-      "interval_coverage": 0.8202,
-      "median_interval_width_h": 6124.9
+      "predictions": 50255,
+      "median_absolute_error_h": 1346.1,
+      "mean_absolute_error_h": 3548.5,
+      "median_relative_error": 0.2044,
+      "interval_coverage": 0.822,
+      "median_interval_width_h": 6552.9
     },
     "ESR_ohm+Leakage_uA+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1288.2,
-      "mean_absolute_error_h": 3388.7,
-      "median_relative_error": 0.2095,
-      "interval_coverage": 0.8228,
-      "median_interval_width_h": 6039.0
+      "predictions": 50255,
+      "median_absolute_error_h": 1368.1,
+      "mean_absolute_error_h": 3449.5,
+      "median_relative_error": 0.2031,
+      "interval_coverage": 0.8172,
+      "median_interval_width_h": 6473.5
     },
     "ESR_ohm+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1168.4,
-      "mean_absolute_error_h": 3124.4,
-      "median_relative_error": 0.1983,
-      "interval_coverage": 0.8232,
-      "median_interval_width_h": 5586.2
+      "predictions": 50255,
+      "median_absolute_error_h": 1208.1,
+      "mean_absolute_error_h": 3216.8,
+      "median_relative_error": 0.1875,
+      "interval_coverage": 0.8216,
+      "median_interval_width_h": 5962.7
     },
     "ESR_ohm+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1177.6,
-      "mean_absolute_error_h": 3298.8,
-      "median_relative_error": 0.2082,
+      "predictions": 50255,
+      "median_absolute_error_h": 1262.1,
+      "mean_absolute_error_h": 3342.0,
+      "median_relative_error": 0.1927,
       "interval_coverage": 0.8071,
-      "median_interval_width_h": 5703.3
+      "median_interval_width_h": 5975.3
     },
     "ESR_ohm+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1144.2,
-      "mean_absolute_error_h": 3096.0,
-      "median_relative_error": 0.1983,
-      "interval_coverage": 0.8187,
-      "median_interval_width_h": 5500.7
+      "predictions": 50255,
+      "median_absolute_error_h": 1216.2,
+      "mean_absolute_error_h": 3208.0,
+      "median_relative_error": 0.187,
+      "interval_coverage": 0.8153,
+      "median_interval_width_h": 5929.6
     },
     "Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1191.4,
-      "mean_absolute_error_h": 3134.3,
-      "median_relative_error": 0.2027,
-      "interval_coverage": 0.8161,
-      "median_interval_width_h": 5704.5
+      "predictions": 50255,
+      "median_absolute_error_h": 1205.9,
+      "mean_absolute_error_h": 3195.2,
+      "median_relative_error": 0.1921,
+      "interval_coverage": 0.8211,
+      "median_interval_width_h": 6010.3
     },
     "Leakage_uA+Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1235.2,
-      "mean_absolute_error_h": 3327.1,
-      "median_relative_error": 0.212,
-      "interval_coverage": 0.8103,
-      "median_interval_width_h": 5857.0
+      "predictions": 50255,
+      "median_absolute_error_h": 1263.4,
+      "mean_absolute_error_h": 3313.6,
+      "median_relative_error": 0.1964,
+      "interval_coverage": 0.815,
+      "median_interval_width_h": 6086.0
     },
     "Leakage_uA+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1207.8,
-      "mean_absolute_error_h": 3109.3,
-      "median_relative_error": 0.2052,
-      "interval_coverage": 0.8143,
-      "median_interval_width_h": 5563.8
+      "predictions": 50255,
+      "median_absolute_error_h": 1236.9,
+      "mean_absolute_error_h": 3200.6,
+      "median_relative_error": 0.193,
+      "interval_coverage": 0.8195,
+      "median_interval_width_h": 5989.6
     },
     "Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1131.6,
-      "mean_absolute_error_h": 3122.5,
-      "median_relative_error": 0.1976,
-      "interval_coverage": 0.8308,
-      "median_interval_width_h": 5302.2
+      "predictions": 50255,
+      "median_absolute_error_h": 1148.0,
+      "mean_absolute_error_h": 3185.7,
+      "median_relative_error": 0.1785,
+      "interval_coverage": 0.8228,
+      "median_interval_width_h": 5667.3
     },
     "Capacitance_uF+ESR_ohm": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1433.1,
-      "mean_absolute_error_h": 3973.5,
-      "median_relative_error": 0.2208,
-      "interval_coverage": 0.8143,
-      "median_interval_width_h": 6679.0
+      "predictions": 50255,
+      "median_absolute_error_h": 1533.9,
+      "mean_absolute_error_h": 4208.4,
+      "median_relative_error": 0.2279,
+      "interval_coverage": 0.8062,
+      "median_interval_width_h": 7168.9
     },
     "Capacitance_uF+Leakage_uA": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1527.1,
-      "mean_absolute_error_h": 4060.1,
-      "median_relative_error": 0.2274,
-      "interval_coverage": 0.7969,
-      "median_interval_width_h": 6771.9
+      "predictions": 50255,
+      "median_absolute_error_h": 1543.5,
+      "mean_absolute_error_h": 4173.1,
+      "median_relative_error": 0.2313,
+      "interval_coverage": 0.8039,
+      "median_interval_width_h": 7179.9
     },
     "Capacitance_uF+Case_Expansion_um": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1297.5,
-      "mean_absolute_error_h": 3429.6,
-      "median_relative_error": 0.2026,
-      "interval_coverage": 0.7987,
-      "median_interval_width_h": 5895.2
+      "predictions": 50255,
+      "median_absolute_error_h": 1335.0,
+      "mean_absolute_error_h": 3536.8,
+      "median_relative_error": 0.2042,
+      "interval_coverage": 0.799,
+      "median_interval_width_h": 6082.2
     },
     "Capacitance_uF+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1234.7,
-      "mean_absolute_error_h": 3222.7,
-      "median_relative_error": 0.1951,
-      "interval_coverage": 0.8045,
-      "median_interval_width_h": 5888.9
+      "predictions": 50255,
+      "median_absolute_error_h": 1306.7,
+      "mean_absolute_error_h": 3527.5,
+      "median_relative_error": 0.2032,
+      "interval_coverage": 0.8108,
+      "median_interval_width_h": 6176.7
     },
     "Capacitance_uF+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1233.9,
-      "mean_absolute_error_h": 3340.0,
-      "median_relative_error": 0.2004,
-      "interval_coverage": 0.7985,
-      "median_interval_width_h": 5828.0
+      "predictions": 50255,
+      "median_absolute_error_h": 1332.7,
+      "mean_absolute_error_h": 3460.4,
+      "median_relative_error": 0.2007,
+      "interval_coverage": 0.8024,
+      "median_interval_width_h": 6120.2
     },
     "ESR_ohm+Leakage_uA": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1645.3,
-      "mean_absolute_error_h": 4190.2,
-      "median_relative_error": 0.2591,
-      "interval_coverage": 0.8151,
-      "median_interval_width_h": 7583.0
+      "predictions": 50255,
+      "median_absolute_error_h": 1745.9,
+      "mean_absolute_error_h": 4367.1,
+      "median_relative_error": 0.2603,
+      "interval_coverage": 0.8189,
+      "median_interval_width_h": 8127.1
     },
     "ESR_ohm+Case_Expansion_um": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1502.5,
-      "mean_absolute_error_h": 3603.8,
-      "median_relative_error": 0.2376,
-      "interval_coverage": 0.8155,
-      "median_interval_width_h": 6609.2
+      "predictions": 50255,
+      "median_absolute_error_h": 1541.9,
+      "mean_absolute_error_h": 3696.9,
+      "median_relative_error": 0.2284,
+      "interval_coverage": 0.8123,
+      "median_interval_width_h": 6944.6
     },
     "ESR_ohm+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1486.2,
-      "mean_absolute_error_h": 3557.0,
-      "median_relative_error": 0.237,
-      "interval_coverage": 0.8217,
-      "median_interval_width_h": 6665.7
+      "predictions": 50255,
+      "median_absolute_error_h": 1521.7,
+      "mean_absolute_error_h": 3772.8,
+      "median_relative_error": 0.231,
+      "interval_coverage": 0.8192,
+      "median_interval_width_h": 7074.5
     },
     "ESR_ohm+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1458.1,
-      "mean_absolute_error_h": 3562.7,
-      "median_relative_error": 0.2404,
-      "interval_coverage": 0.8175,
-      "median_interval_width_h": 6512.0
+      "predictions": 50255,
+      "median_absolute_error_h": 1550.3,
+      "mean_absolute_error_h": 3662.8,
+      "median_relative_error": 0.228,
+      "interval_coverage": 0.811,
+      "median_interval_width_h": 6973.0
     },
     "Leakage_uA+Case_Expansion_um": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1482.3,
-      "mean_absolute_error_h": 3619.9,
-      "median_relative_error": 0.2402,
-      "interval_coverage": 0.8132,
-      "median_interval_width_h": 6825.8
+      "predictions": 50255,
+      "median_absolute_error_h": 1538.0,
+      "mean_absolute_error_h": 3678.6,
+      "median_relative_error": 0.2318,
+      "interval_coverage": 0.8164,
+      "median_interval_width_h": 7094.4
     },
     "Leakage_uA+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1498.3,
-      "mean_absolute_error_h": 3571.7,
-      "median_relative_error": 0.2406,
-      "interval_coverage": 0.8184,
-      "median_interval_width_h": 6813.6
+      "predictions": 50255,
+      "median_absolute_error_h": 1552.6,
+      "mean_absolute_error_h": 3770.9,
+      "median_relative_error": 0.2362,
+      "interval_coverage": 0.8219,
+      "median_interval_width_h": 7210.2
     },
     "Leakage_uA+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1515.7,
-      "mean_absolute_error_h": 3621.8,
-      "median_relative_error": 0.244,
-      "interval_coverage": 0.8139,
-      "median_interval_width_h": 6732.7
+      "predictions": 50255,
+      "median_absolute_error_h": 1564.4,
+      "mean_absolute_error_h": 3653.1,
+      "median_relative_error": 0.2324,
+      "interval_coverage": 0.8168,
+      "median_interval_width_h": 7144.0
     },
     "Case_Expansion_um+H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1410.3,
-      "mean_absolute_error_h": 3513.4,
-      "median_relative_error": 0.2303,
-      "interval_coverage": 0.8295,
-      "median_interval_width_h": 6385.1
+      "predictions": 50255,
+      "median_absolute_error_h": 1410.5,
+      "mean_absolute_error_h": 3561.3,
+      "median_relative_error": 0.2157,
+      "interval_coverage": 0.8268,
+      "median_interval_width_h": 6783.0
     },
     "Case_Expansion_um+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1427.6,
-      "mean_absolute_error_h": 3645.7,
-      "median_relative_error": 0.2423,
-      "interval_coverage": 0.8199,
-      "median_interval_width_h": 6526.7
+      "predictions": 50255,
+      "median_absolute_error_h": 1471.1,
+      "mean_absolute_error_h": 3681.0,
+      "median_relative_error": 0.2236,
+      "interval_coverage": 0.8181,
+      "median_interval_width_h": 6839.8
     },
     "H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1380.7,
-      "mean_absolute_error_h": 3428.3,
-      "median_relative_error": 0.233,
-      "interval_coverage": 0.8292,
-      "median_interval_width_h": 6278.2
+      "predictions": 50255,
+      "median_absolute_error_h": 1433.9,
+      "mean_absolute_error_h": 3550.7,
+      "median_relative_error": 0.2189,
+      "interval_coverage": 0.8239,
+      "median_interval_width_h": 6805.4
     },
     "Capacitance_uF": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1685.4,
-      "mean_absolute_error_h": 4163.8,
-      "median_relative_error": 0.2477,
-      "interval_coverage": 0.809,
-      "median_interval_width_h": 7557.8
+      "predictions": 50255,
+      "median_absolute_error_h": 1749.0,
+      "mean_absolute_error_h": 4439.3,
+      "median_relative_error": 0.2565,
+      "interval_coverage": 0.8051,
+      "median_interval_width_h": 7937.4
     },
     "ESR_ohm": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1877.4,
-      "mean_absolute_error_h": 4310.3,
-      "median_relative_error": 0.2887,
-      "interval_coverage": 0.8229,
-      "median_interval_width_h": 8294.9
+      "predictions": 50255,
+      "median_absolute_error_h": 1939.3,
+      "mean_absolute_error_h": 4589.2,
+      "median_relative_error": 0.2876,
+      "interval_coverage": 0.8174,
+      "median_interval_width_h": 8740.9
     },
     "Leakage_uA": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1858.7,
-      "mean_absolute_error_h": 4357.6,
-      "median_relative_error": 0.2938,
-      "interval_coverage": 0.8139,
-      "median_interval_width_h": 8343.7
+      "predictions": 50255,
+      "median_absolute_error_h": 1938.8,
+      "mean_absolute_error_h": 4518.0,
+      "median_relative_error": 0.2908,
+      "interval_coverage": 0.8202,
+      "median_interval_width_h": 8855.2
     },
     "Case_Expansion_um": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1715.2,
-      "mean_absolute_error_h": 3941.7,
-      "median_relative_error": 0.2736,
-      "interval_coverage": 0.8229,
-      "median_interval_width_h": 7765.4
+      "predictions": 50255,
+      "median_absolute_error_h": 1732.3,
+      "mean_absolute_error_h": 4020.2,
+      "median_relative_error": 0.2632,
+      "interval_coverage": 0.8232,
+      "median_interval_width_h": 8009.1
     },
     "H2_Generated_mL_STP": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1679.8,
-      "mean_absolute_error_h": 3896.0,
-      "median_relative_error": 0.2713,
-      "interval_coverage": 0.8259,
-      "median_interval_width_h": 7655.0
+      "predictions": 50255,
+      "median_absolute_error_h": 1740.6,
+      "mean_absolute_error_h": 4095.0,
+      "median_relative_error": 0.2655,
+      "interval_coverage": 0.828,
+      "median_interval_width_h": 8093.2
     },
     "Pressure_Abs_kPa": {
-      "predictions": 10033,
-      "median_absolute_error_h": 1688.8,
-      "mean_absolute_error_h": 3863.5,
-      "median_relative_error": 0.2751,
-      "interval_coverage": 0.8275,
-      "median_interval_width_h": 7455.3
+      "predictions": 50255,
+      "median_absolute_error_h": 1734.4,
+      "mean_absolute_error_h": 3984.2,
+      "median_relative_error": 0.2626,
+      "interval_coverage": 0.8219,
+      "median_interval_width_h": 7918.8
     }
   },
   "trend_baseline_by_subset": {
     "Capacitance_uF+ESR_ohm+Leakage_uA+Case_Expansion_um+H2_Generated_mL_STP+Pressure_Abs_kPa": {
-      "predictions_with_estimate": 10076,
-      "median_absolute_error_h": 3348.1
+      "predictions_with_estimate": 49765,
+      "median_absolute_error_h": 3440.0
     },
     "Capacitance_uF+ESR_ohm+Leakage_uA": {
-      "predictions_with_estimate": 10039,
-      "median_absolute_error_h": 6676.8
+      "predictions_with_estimate": 49540,
+      "median_absolute_error_h": 7076.4
     },
     "Capacitance_uF+ESR_ohm": {
-      "predictions_with_estimate": 9952,
-      "median_absolute_error_h": 7269.8
+      "predictions_with_estimate": 49101,
+      "median_absolute_error_h": 7630.6
     },
     "Capacitance_uF": {
-      "predictions_with_estimate": 9683,
-      "median_absolute_error_h": 9873.7
+      "predictions_with_estimate": 47729,
+      "median_absolute_error_h": 10369.7
     }
   },
   "trajectory_test_metrics": {
     "test, all six": {
       "Capacitance_uF": {
-        "median_abs_error_halfway": 0.0158,
-        "median_abs_error_at_end_of_life": 0.0236,
-        "interval_coverage": 0.8047
+        "median_abs_error_halfway": 0.0154,
+        "median_abs_error_at_end_of_life": 0.0244,
+        "interval_coverage": 0.8042
       },
       "ESR_ohm": {
-        "median_abs_error_halfway": 0.0194,
-        "median_abs_error_at_end_of_life": 0.0371,
-        "interval_coverage": 0.793
+        "median_abs_error_halfway": 0.019,
+        "median_abs_error_at_end_of_life": 0.0373,
+        "interval_coverage": 0.7955
       },
       "Leakage_uA": {
-        "median_abs_error_halfway": 0.0146,
-        "median_abs_error_at_end_of_life": 0.028,
-        "interval_coverage": 0.8141
+        "median_abs_error_halfway": 0.0152,
+        "median_abs_error_at_end_of_life": 0.0301,
+        "interval_coverage": 0.7926
       },
       "Case_Expansion_um": {
         "median_abs_error_halfway": 0.008,
-        "median_abs_error_at_end_of_life": 0.0148,
-        "interval_coverage": 0.816
+        "median_abs_error_at_end_of_life": 0.0145,
+        "interval_coverage": 0.8108
       },
       "H2_Generated_mL_STP": {
-        "median_abs_error_halfway": 0.0087,
-        "median_abs_error_at_end_of_life": 0.0158,
-        "interval_coverage": 0.7959
+        "median_abs_error_halfway": 0.0085,
+        "median_abs_error_at_end_of_life": 0.015,
+        "interval_coverage": 0.7945
       },
       "Pressure_Abs_kPa": {
-        "median_abs_error_halfway": 0.0074,
-        "median_abs_error_at_end_of_life": 0.0147,
-        "interval_coverage": 0.8079
+        "median_abs_error_halfway": 0.0073,
+        "median_abs_error_at_end_of_life": 0.0143,
+        "interval_coverage": 0.8011
       }
     },
     "test, all six, no operating conditions": {
       "Capacitance_uF": {
-        "median_abs_error_halfway": 0.016,
-        "median_abs_error_at_end_of_life": 0.0241,
-        "interval_coverage": 0.8142
+        "median_abs_error_halfway": 0.0159,
+        "median_abs_error_at_end_of_life": 0.0251,
+        "interval_coverage": 0.8096
       },
       "ESR_ohm": {
-        "median_abs_error_halfway": 0.0209,
-        "median_abs_error_at_end_of_life": 0.039,
-        "interval_coverage": 0.7934
+        "median_abs_error_halfway": 0.0206,
+        "median_abs_error_at_end_of_life": 0.0392,
+        "interval_coverage": 0.7978
       },
       "Leakage_uA": {
-        "median_abs_error_halfway": 0.0161,
-        "median_abs_error_at_end_of_life": 0.0299,
-        "interval_coverage": 0.8122
+        "median_abs_error_halfway": 0.0163,
+        "median_abs_error_at_end_of_life": 0.032,
+        "interval_coverage": 0.793
       },
       "Case_Expansion_um": {
         "median_abs_error_halfway": 0.0084,
-        "median_abs_error_at_end_of_life": 0.0154,
-        "interval_coverage": 0.8106
+        "median_abs_error_at_end_of_life": 0.0151,
+        "interval_coverage": 0.8084
       },
       "H2_Generated_mL_STP": {
         "median_abs_error_halfway": 0.0091,
-        "median_abs_error_at_end_of_life": 0.0164,
-        "interval_coverage": 0.7879
+        "median_abs_error_at_end_of_life": 0.0159,
+        "interval_coverage": 0.7876
       },
       "Pressure_Abs_kPa": {
-        "median_abs_error_halfway": 0.0079,
+        "median_abs_error_halfway": 0.0078,
         "median_abs_error_at_end_of_life": 0.015,
-        "interval_coverage": 0.8013
+        "interval_coverage": 0.7976
       }
     },
     "test, capacitance, ESR, leakage": {
       "Capacitance_uF": {
-        "median_abs_error_halfway": 0.0271,
-        "median_abs_error_at_end_of_life": 0.0498,
-        "interval_coverage": 0.7835
+        "median_abs_error_halfway": 0.0246,
+        "median_abs_error_at_end_of_life": 0.0468,
+        "interval_coverage": 0.8047
       },
       "ESR_ohm": {
-        "median_abs_error_halfway": 0.0294,
-        "median_abs_error_at_end_of_life": 0.0752,
-        "interval_coverage": 0.779
+        "median_abs_error_halfway": 0.0279,
+        "median_abs_error_at_end_of_life": 0.072,
+        "interval_coverage": 0.802
       },
       "Leakage_uA": {
-        "median_abs_error_halfway": 0.024,
-        "median_abs_error_at_end_of_life": 0.0582,
-        "interval_coverage": 0.7897
+        "median_abs_error_halfway": 0.0228,
+        "median_abs_error_at_end_of_life": 0.0569,
+        "interval_coverage": 0.8008
       }
     },
     "test, capacitance, ESR, leakage, no operating conditions": {
       "Capacitance_uF": {
-        "median_abs_error_halfway": 0.0273,
-        "median_abs_error_at_end_of_life": 0.051,
-        "interval_coverage": 0.7896
+        "median_abs_error_halfway": 0.0255,
+        "median_abs_error_at_end_of_life": 0.049,
+        "interval_coverage": 0.8072
       },
       "ESR_ohm": {
-        "median_abs_error_halfway": 0.0315,
-        "median_abs_error_at_end_of_life": 0.081,
-        "interval_coverage": 0.7827
+        "median_abs_error_halfway": 0.0298,
+        "median_abs_error_at_end_of_life": 0.077,
+        "interval_coverage": 0.8033
       },
       "Leakage_uA": {
-        "median_abs_error_halfway": 0.0251,
-        "median_abs_error_at_end_of_life": 0.0614,
-        "interval_coverage": 0.788
+        "median_abs_error_halfway": 0.0241,
+        "median_abs_error_at_end_of_life": 0.0588,
+        "interval_coverage": 0.7982
       }
     },
     "test_custom, all six": {
       "Capacitance_uF": {
-        "median_abs_error_halfway": 0.016,
-        "median_abs_error_at_end_of_life": 0.0241,
-        "interval_coverage": 0.8017
+        "median_abs_error_halfway": 0.0159,
+        "median_abs_error_at_end_of_life": 0.0254,
+        "interval_coverage": 0.7996
       },
       "ESR_ohm": {
-        "median_abs_error_halfway": 0.0161,
-        "median_abs_error_at_end_of_life": 0.0302,
-        "interval_coverage": 0.7898
+        "median_abs_error_halfway": 0.0165,
+        "median_abs_error_at_end_of_life": 0.0306,
+        "interval_coverage": 0.7905
       },
       "Leakage_uA": {
-        "median_abs_error_halfway": 0.0145,
-        "median_abs_error_at_end_of_life": 0.0266,
-        "interval_coverage": 0.8094
+        "median_abs_error_halfway": 0.0143,
+        "median_abs_error_at_end_of_life": 0.027,
+        "interval_coverage": 0.7985
       },
       "Case_Expansion_um": {
-        "median_abs_error_halfway": 0.0073,
-        "median_abs_error_at_end_of_life": 0.0117,
-        "interval_coverage": 0.8079
+        "median_abs_error_halfway": 0.0074,
+        "median_abs_error_at_end_of_life": 0.0118,
+        "interval_coverage": 0.799
       },
       "H2_Generated_mL_STP": {
-        "median_abs_error_halfway": 0.006,
-        "median_abs_error_at_end_of_life": 0.01,
-        "interval_coverage": 0.8039
+        "median_abs_error_halfway": 0.0064,
+        "median_abs_error_at_end_of_life": 0.0107,
+        "interval_coverage": 0.7983
       },
       "Pressure_Abs_kPa": {
-        "median_abs_error_halfway": 0.0059,
-        "median_abs_error_at_end_of_life": 0.0106,
-        "interval_coverage": 0.7908
+        "median_abs_error_halfway": 0.0063,
+        "median_abs_error_at_end_of_life": 0.011,
+        "interval_coverage": 0.7865
       }
     },
     "test_custom, all six, no operating conditions": {
       "Capacitance_uF": {
-        "median_abs_error_halfway": 0.0164,
-        "median_abs_error_at_end_of_life": 0.025,
-        "interval_coverage": 0.8054
+        "median_abs_error_halfway": 0.0165,
+        "median_abs_error_at_end_of_life": 0.0264,
+        "interval_coverage": 0.8033
       },
       "ESR_ohm": {
-        "median_abs_error_halfway": 0.0175,
-        "median_abs_error_at_end_of_life": 0.0336,
-        "interval_coverage": 0.7886
+        "median_abs_error_halfway": 0.0177,
+        "median_abs_error_at_end_of_life": 0.0333,
+        "interval_coverage": 0.7955
       },
       "Leakage_uA": {
-        "median_abs_error_halfway": 0.0158,
-        "median_abs_error_at_end_of_life": 0.0294,
-        "interval_coverage": 0.8055
+        "median_abs_error_halfway": 0.0156,
+        "median_abs_error_at_end_of_life": 0.0293,
+        "interval_coverage": 0.7981
       },
       "Case_Expansion_um": {
-        "median_abs_error_halfway": 0.0076,
-        "median_abs_error_at_end_of_life": 0.0117,
-        "interval_coverage": 0.8098
+        "median_abs_error_halfway": 0.0078,
+        "median_abs_error_at_end_of_life": 0.0122,
+        "interval_coverage": 0.7995
       },
       "H2_Generated_mL_STP": {
-        "median_abs_error_halfway": 0.0062,
-        "median_abs_error_at_end_of_life": 0.0101,
-        "interval_coverage": 0.8029
+        "median_abs_error_halfway": 0.0068,
+        "median_abs_error_at_end_of_life": 0.0111,
+        "interval_coverage": 0.7932
       },
       "Pressure_Abs_kPa": {
-        "median_abs_error_halfway": 0.0061,
-        "median_abs_error_at_end_of_life": 0.0107,
-        "interval_coverage": 0.7954
+        "median_abs_error_halfway": 0.0066,
+        "median_abs_error_at_end_of_life": 0.0114,
+        "interval_coverage": 0.7867
       }
     },
     "test_custom, capacitance, ESR, leakage": {
       "Capacitance_uF": {
-        "median_abs_error_halfway": 0.0239,
-        "median_abs_error_at_end_of_life": 0.0422,
-        "interval_coverage": 0.8011
+        "median_abs_error_halfway": 0.0236,
+        "median_abs_error_at_end_of_life": 0.0439,
+        "interval_coverage": 0.803
       },
       "ESR_ohm": {
-        "median_abs_error_halfway": 0.0224,
-        "median_abs_error_at_end_of_life": 0.0505,
-        "interval_coverage": 0.7866
+        "median_abs_error_halfway": 0.0215,
+        "median_abs_error_at_end_of_life": 0.0489,
+        "interval_coverage": 0.7992
       },
       "Leakage_uA": {
-        "median_abs_error_halfway": 0.0217,
-        "median_abs_error_at_end_of_life": 0.0497,
-        "interval_coverage": 0.8036
+        "median_abs_error_halfway": 0.0206,
+        "median_abs_error_at_end_of_life": 0.0481,
+        "interval_coverage": 0.8051
       }
     },
     "test_custom, capacitance, ESR, leakage, no operating conditions": {
       "Capacitance_uF": {
-        "median_abs_error_halfway": 0.0253,
-        "median_abs_error_at_end_of_life": 0.0439,
-        "interval_coverage": 0.7988
+        "median_abs_error_halfway": 0.0246,
+        "median_abs_error_at_end_of_life": 0.0457,
+        "interval_coverage": 0.804
       },
       "ESR_ohm": {
-        "median_abs_error_halfway": 0.0239,
-        "median_abs_error_at_end_of_life": 0.0549,
-        "interval_coverage": 0.781
+        "median_abs_error_halfway": 0.0233,
+        "median_abs_error_at_end_of_life": 0.0543,
+        "interval_coverage": 0.7969
       },
       "Leakage_uA": {
-        "median_abs_error_halfway": 0.0229,
-        "median_abs_error_at_end_of_life": 0.0535,
-        "interval_coverage": 0.7955
+        "median_abs_error_halfway": 0.0224,
+        "median_abs_error_at_end_of_life": 0.0525,
+        "interval_coverage": 0.8007
       }
     }
   },
   "test_metrics_custom_limits_by_closeness_to_limit": {
     "0.00-0.80": {
-      "predictions": 8282,
-      "median_absolute_error_h": 669.9,
-      "mean_absolute_error_h": 2210.2,
-      "median_relative_error": 0.0934,
-      "interval_coverage": 0.8108,
-      "median_interval_width_h": 3247.6
+      "predictions": 41297,
+      "median_absolute_error_h": 715.5,
+      "mean_absolute_error_h": 2349.9,
+      "median_relative_error": 0.0927,
+      "interval_coverage": 0.803,
+      "median_interval_width_h": 3475.0
     },
     "0.80-0.95": {
-      "predictions": 1205,
-      "median_absolute_error_h": 190.5,
-      "mean_absolute_error_h": 468.9,
-      "median_relative_error": 0.1297,
-      "interval_coverage": 0.7925,
-      "median_interval_width_h": 862.3
+      "predictions": 6084,
+      "median_absolute_error_h": 201.6,
+      "mean_absolute_error_h": 534.3,
+      "median_relative_error": 0.131,
+      "interval_coverage": 0.7824,
+      "median_interval_width_h": 866.1
     },
     "0.95-1.00": {
-      "predictions": 395,
-      "median_absolute_error_h": 141.0,
-      "mean_absolute_error_h": 270.4,
-      "median_relative_error": 0.3566,
-      "interval_coverage": 0.7899,
-      "median_interval_width_h": 614.6
+      "predictions": 2035,
+      "median_absolute_error_h": 152.5,
+      "mean_absolute_error_h": 375.6,
+      "median_relative_error": 0.3738,
+      "interval_coverage": 0.7966,
+      "median_interval_width_h": 637.3
     }
   },
   "end_of_life_causes_in_test_fleet": {
-    "ESR": 126,
-    "capacitance": 115,
-    "expansion": 55,
-    "H2": 43,
-    "pressure": 35,
-    "leakage": 26
+    "capacitance": 606,
+    "ESR": 596,
+    "expansion": 252,
+    "H2": 234,
+    "pressure": 192,
+    "leakage": 120
   }
 }

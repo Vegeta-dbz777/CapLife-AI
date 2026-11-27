@@ -1332,11 +1332,12 @@ def _real_capacitor_section() -> None:
     })
     st.markdown(
         "**The built-in model is not reliable on these real capacitors.** In the two fast overstress tests "
-        "(NASA EOS-2 and PoFINN), real capacitors lost capacitance within tens to a few hundred hours. That is "
-        "much faster than any simulated capacitor, so the model predicted several times too long. In the slow "
-        "NASA ES14 test, it predicted too short. In all three, the true remaining life was rarely inside the 80% "
-        "range. To get reliable forecasts for your capacitors, train the model on Train The AI with readings and "
-        "failures from the same capacitor type and conditions. Its test then shows how well it does on them.")
+        "(NASA EOS-2 and PoFINN), real capacitors lost capacitance within tens to a few hundred hours, faster "
+        "than almost any simulated capacitor. For PoFINN the forecasts came fairly close, but for NASA EOS-2 the "
+        "model predicted several times too long. In the slow NASA ES14 test, it predicted too short. In EOS-2 and "
+        "ES14 the true remaining life was rarely inside the 80% range. To get reliable forecasts for your "
+        "capacitors, train the model on Train The AI with readings and failures from the same capacitor type and "
+        "conditions. Its test then shows how well it does on them.")
 
 
 def _trained_card(info: dict) -> None:
