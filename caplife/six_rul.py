@@ -88,8 +88,12 @@ HIDDEN = 128  # 64 before: the larger network, on more capacitors, cut the typic
 # of life. User limits often put a capacitor close to one, so the calibration and random-limit test
 # capacitors include such readings. "test" keeps the default limits and inspection plan so its
 # accuracy is comparable with earlier models.
-SPLITS = {"train": (9600, 101, True, 0.0), "validation": (400, 202, True, 0.0),
-          "calibration": (1000, 303, True, 0.5), "test": (400, 404, False, 0.0), "test_custom": (400, 505, True, 0.5)}
+# 57,600 training capacitors (6x the 9,600 before): with all six parameters the 80% range came out about 15%
+# narrower at the same coverage (3x data gave 9%); a larger network or an average of networks added nothing.
+# The test fleets have 2,000 capacitors (400 before, same seeds extended): with 400, coverage moved by 2-3 points
+# from luck alone, too much to state accuracy to the nearest percent.
+SPLITS = {"train": (57600, 101, True, 0.0), "validation": (400, 202, True, 0.0),
+          "calibration": (1000, 303, True, 0.5), "test": (2000, 404, False, 0.0), "test_custom": (2000, 505, True, 0.5)}
 # Within 5% of a limit, remaining life is short and harder to predict, so the 80% range is
 # calibrated separately there (Mondrian conformal prediction).
 NEAR_LIMIT = 0.95
