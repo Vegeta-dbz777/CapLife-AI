@@ -349,8 +349,7 @@ def _future_fractions(frame: pd.DataFrame, when: np.ndarray, hours: np.ndarray, 
     return current_limit_used(both, limits).to_numpy(dtype=float)[1:].reshape(*when.shape, N)
 
 
-def _fleet_data(n: int, seed: int, prefix: str, vary_limits: bool, near_end_share: float = 0.0,
-                family_share: float = 0.0) -> dict:
+def _fleet_data(n: int, seed: int, prefix: str, vary_limits: bool, near_end_share: float = 0.0) -> dict:
     """Simulated capacitors with network inputs, log RUL targets and future-fraction targets."""
     parts = {"x": [], "y": [], "path": [], "devices": []}
 
@@ -365,7 +364,7 @@ def _fleet_data(n: int, seed: int, prefix: str, vary_limits: bool, near_end_shar
         parts["devices"] += [meta["Cap_ID"]] * len(ages)
 
     measurements, meta = simulate_fleet(n, seed, prefix=prefix, vary_limits=vary_limits, on_truth=collect,
-                                        near_end_share=near_end_share, family_share=family_share)
+                                        near_end_share=near_end_share)
     return {"measurements": measurements, "meta": meta, "x": np.concatenate(parts["x"]),
             "y": np.concatenate(parts["y"]).astype(np.float32),
             "path": np.concatenate(parts["path"]).astype(np.float32), "devices": np.asarray(parts["devices"])}
