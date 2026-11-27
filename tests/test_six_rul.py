@@ -341,7 +341,7 @@ def test_each_capacitor_is_assessed_with_its_own_parameters():
     # One reading of DEMO_02 lacks its ESR: only that reading is left out.
     gap = mixed.index[mixed["Cap_ID"].eq("DEMO_02")][3]
     mixed.loc[gap, "ESR_ohm"] = np.nan
-    parsed, _, _ = page._parse(mixed.to_csv(index=False).encode(), "mixed", save=False)
+    parsed, _ = page._parse(mixed.to_csv(index=False).encode(), "mixed", save=False)
     assert sorted(parsed["Cap_ID"].unique()) == sorted(own)  # nobody is dropped for lacking other parameters
     assert len(parsed) == len(mixed) - 1
     results = page._assess_cached(parsed, json.dumps({}), json.dumps({}), "test")
@@ -350,7 +350,7 @@ def test_each_capacitor_is_assessed_with_its_own_parameters():
         assert page._measured(readings) == tuple(s for s in SIGNALS if s in signals)
         health = assessment.iloc[-1].filter(like="_health_pct").drop("Overall_health_pct")
         assert health.notna().sum() == len(signals)
-    fleet = page._fleet_table(results, None)
+    fleet = page._fleet_table(results)
     assert fleet.set_index("Capacitor").loc["DEMO_02", "Parameters"] == "2 of 6"
 
 

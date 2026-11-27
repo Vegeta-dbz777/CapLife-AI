@@ -13,6 +13,14 @@ MY_DATA = "My saved datasets"
 # Shown label -> internal workspace value, as defined in app.py; the only three workspaces.
 WORKSPACES = {"Monitor and Predict": MONITOR, "Train The AI": TRAIN, "My Data": MY_DATA}
 
+def upload_example(app):
+    """Monitor and Predict with the twelve simulated example capacitors, uploaded as a file."""
+    from caplife.six_rul import example_fleet
+    measurements, _ = example_fleet()
+    app.get("file_uploader")[0].upload("example.csv", measurements.to_csv(index=False).encode(), "text/csv").run()
+    return app
+
+
 
 def open_workspace(label: str) -> AppTest:
     app = AppTest.from_file(APP, default_timeout=120)
@@ -36,7 +44,7 @@ def test_every_workspace_opens_without_error(label):
 
 def test_monitor_example_shows_fleet_and_capacitor_detail():
     app = open_workspace("Monitor and Predict")
-    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
+    upload_example(app)
     assert not app.exception
     assert metric(app, "Capacitors") == "12"  # two simulated capacitors per end-of-life cause
     assert metric(app, "Remaining useful life").endswith(" h")
@@ -68,7 +76,7 @@ def test_monitor_pdf_report_is_the_page_as_shown():
     from caplife.six_rul import example_fleet, full_limits
 
     app = open_workspace("Monitor and Predict")
-    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
+    upload_example(app)
     device = app.selectbox(key="caplife_six_device").value
     app.number_input(key=f"caplife_six_limit_{device}_ESR_ohm").set_value(150.0).run()
     recorded = app.number_input(key=f"caplife_six_condition_{device}_Ambient_C").value
@@ -119,7 +127,7 @@ def test_monitor_runs_with_only_three_parameters():
 
 def test_monitor_takes_user_limits_and_forecasts_parameter_trends():
     app = open_workspace("Monitor and Predict")
-    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
+    upload_example(app)
     device = app.selectbox(key="caplife_six_device").value
     boxes = [box for box in app.number_input if box.key.startswith(f"caplife_six_limit_{device}_")]
     assert len(boxes) == 6
@@ -192,13 +200,13 @@ def test_app_opens_on_home_and_each_card_opens_its_workspace():
 
 def test_brand_returns_home_from_any_page_and_keeps_the_work():
     app = open_workspace("Monitor and Predict")
-    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
+    upload_example(app)
     app.sidebar.button(key="caplife_brand_home").click().run()
     assert not app.exception
     assert app.sidebar.radio(key=MAIN_KEY).value is None
     assert any("Choose where to start" in m.value for m in app.markdown)
     app.sidebar.radio(key=MAIN_KEY).set_value(MONITOR).run()
-    assert app.radio(key="caplife_six_source").value == "Use simulated example capacitors"  # still chosen
+    assert any("Using **example.csv**" in c.value for c in app.caption)  # the upload, kept
 
 
 def test_upload_pages_have_no_column_guides_or_file_settings():
@@ -212,7 +220,7 @@ def test_each_chart_zooms_on_its_own_and_resets():
     """A drag zooms one chart; a click or tap does not undo it; Reset zoom or a double-click does."""
     from caplife import six_rul_page as page
     app = open_workspace("Monitor and Predict")
-    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
+    upload_example(app)
     device = app.selectbox(key="caplife_six_device").value
     history = f"caplife_six_zoom_{device}_history_Capacitance_uF"
     rul = f"caplife_six_zoom_{device}_rul"
@@ -339,7 +347,7 @@ def test_maintenance_plan_lists_capacitors_that_could_fail_within_the_hours_plan
 
 def test_monitor_and_predict_shows_the_maintenance_plan_and_its_report_copy():
     app = open_workspace("Monitor and Predict")
-    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
+    upload_example(app)
     assert not app.exception, app.exception
     assert app.number_input(key="caplife_six_plan_horizon").value == 2_000
     view = app.session_state["caplife_six_report_view"]
@@ -394,3 +402,15 @@ def test_train_the_ai_matches_outcome_columns_by_meaning():
     assert not app.warning
     assert metric(app, "With an outcome") == str(len(frame))
     assert int(metric(app, "Experiments")) >= 3
+
+
+def test_monitor_offers_only_your_own_data():
+    app = open_workspace("Monitor and Predict")
+    assert app.radio(key="caplife_six_source").options == ["Upload my data", "My saved datasets"]
+    # A visitor whose session still remembers the example choice gets the upload instead.
+    returning = AppTest.from_file(APP, default_timeout=120)
+    returning.session_state[MAIN_KEY] = MONITOR
+    returning.session_state["caplife_six_source"] = "Use simulated example capacitors"
+    returning.run()
+    assert not returning.exception, returning.exception
+    assert returning.radio(key="caplife_six_source").value == "Upload my data"

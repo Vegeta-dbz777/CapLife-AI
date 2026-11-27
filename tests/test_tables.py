@@ -9,6 +9,14 @@ from caplife.tables import centered_config
 
 APP = str(Path(__file__).resolve().parents[1] / "app.py")
 
+def upload_example(app):
+    """Monitor and Predict with the twelve simulated example capacitors, uploaded as a file."""
+    from caplife.six_rul import example_fleet
+    measurements, _ = example_fleet()
+    app.get("file_uploader")[0].upload("example.csv", measurements.to_csv(index=False).encode(), "text/csv").run()
+    return app
+
+
 
 def test_every_column_is_centred_and_existing_settings_are_kept():
     frame = pd.DataFrame({"Capacitor": ["A"], "Health": [50], "Life (h)": [1200.0], "Note": ["x"], "Hidden": [1]})
@@ -32,9 +40,10 @@ def test_rendered_tables_carry_centred_columns():
     app = AppTest.from_file(APP, default_timeout=120)
     app.run()
     app.sidebar.radio(key="caplife_workflow_v07").set_value("Six-parameter RUL prediction (demonstration model)").run()
-    app.radio(key="caplife_six_source").set_value("Use simulated example capacitors").run()
+    upload_example(app)
     assert not app.exception
-    columns = json.loads(app.dataframe[0].proto.columns)
+    fleet = next(d for d in app.dataframe if "Capacitor" in d.value.columns)  # after the file's Columns table
+    columns = json.loads(fleet.proto.columns)
     assert columns["Capacitor"]["alignment"] == "center" and columns["Capacitor"]["pinned"] is True
     assert columns["Remaining life, median (h)"]["alignment"] == "center"
 
