@@ -94,7 +94,7 @@ def frequency_multiplier(hz):
 
 # The physics constants above, as one capacitor family; ``random_family`` draws other families.
 STANDARD_FAMILY = {"life_scale": 1.0, "doubling_c": 10.0, "voltage_exponent": 3.0, "ripple_heating_k": 12.0,
-                   "c_shape": (1.0, 1.5)}
+                   "c_shape": (1.0, 1.5), "esr_exponent": 2.0, "leakage_exponent": 2.0}
 
 
 def random_family(rng: np.random.Generator) -> dict:
@@ -105,7 +105,8 @@ def random_family(rng: np.random.Generator) -> dict:
     shape_low = rng.uniform(0.8, 1.6)
     return {"life_scale": float(np.exp(rng.normal(0.0, 1.0))), "doubling_c": rng.uniform(7.0, 14.0),
             "voltage_exponent": rng.uniform(1.5, 5.0), "ripple_heating_k": rng.uniform(6.0, 18.0),
-            "c_shape": (shape_low, shape_low + rng.uniform(0.1, 0.6))}
+            "c_shape": (shape_low, shape_low + rng.uniform(0.1, 0.6)),
+            "esr_exponent": rng.uniform(1.0, 2.5), "leakage_exponent": rng.uniform(1.0, 2.5)}
 
 
 def operating_stress(ambient_c, voltage_ratio, ripple_ratio, hz, family: dict | None = None):
@@ -134,6 +135,7 @@ def _device(rng: np.random.Generator, family: dict | None = None) -> dict:
         "ripple_Hz": hz, "rated_V": float(rng.choice(RATED_VOLTAGES)),
         "rated_ripple_A": float(rng.lognormal(np.log(1.5), 0.5)),
         "tau_h": tau_rated / acceleration, "change_h": np.inf,
+        "esr_exponent": family["esr_exponent"], "leakage_exponent": family["leakage_exponent"],
     }
     if rng.random() < CHANGE_SHARE:
         ambient2, voltage2, ripple2 = _operating(rng)
@@ -179,8 +181,9 @@ def _state(device: dict, hours: np.ndarray) -> dict[str, np.ndarray]:
     loss = before / device["tau_h"] + (hours - before) / device["tau2_h"]
     conditions = conditions_at(device, hours)
     capacitance = device["capacitance_uF"] * (1 - 0.2 * (device["c_rate"] * loss) ** device["c_shape"])
-    esr = device["esr_ohm"] * (1 + device["esr_gain"] * loss ** 2 / (1 - 0.3 * np.minimum(loss, 2.5)))
-    leakage = device["leakage_uA"] * (1 + 3 * device["leak_gain"] * loss ** 2)
+    esr = device["esr_ohm"] * (1 + device["esr_gain"] * loss ** device["esr_exponent"]
+                               / (1 - 0.3 * np.minimum(loss, 2.5)))
+    leakage = device["leakage_uA"] * (1 + 3 * device["leak_gain"] * loss ** device["leakage_exponent"])
     # Leakage at the operating core temperature drives gas generation.
     operating_leakage_a = leakage * 1e-6 * 2 ** ((conditions["Core_C"] - 25) / 20) * conditions["voltage_ratio"]
     rate_ml_per_h = FARADAY_ML_PER_AS * operating_leakage_a * 3600 * device["h2_efficiency"]
