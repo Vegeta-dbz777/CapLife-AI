@@ -99,10 +99,11 @@ readings cleaned with their neighbours, so one faulty reading affects only its o
 prediction. Status: Good above 70% health, Watch from 40%, Critical below.
 These figures hold for the simulator only: the coefficients are illustrative.
 On real capacitors from three public aging studies the built-in model was not
-reliable: in the fast overstress tests (NASA EOS-2, PoFINN) real capacitors lost
-capacitance far faster than any simulated one and the model predicted several
-times too long; in the slow NASA ES14 test it predicted too short; the true
-remaining life was rarely inside the 80% range. Monitor and Predict shows the
+reliable: in the fast overstress tests real capacitors lost capacitance faster than
+almost any simulated one; for PoFINN the forecasts came fairly close (70% inside the
+80% range), but for NASA EOS-2 the model predicted several times too long; in the
+slow NASA ES14 test it predicted too short. In EOS-2 and ES14 the true remaining
+life was rarely inside the 80% range. Monitor and Predict shows the
 numbers under *About the model*. Retrain with
 `python -m caplife.six_rul --output artifacts/six_rul`, then rerun the real-capacitor
 check with `python -m caplife.real_capacitor_check`.

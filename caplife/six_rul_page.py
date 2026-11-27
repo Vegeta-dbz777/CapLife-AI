@@ -1258,7 +1258,7 @@ def _model_card(measured: tuple[str, ...]) -> None:
         "(30% kept the defaults), so they predict the time to the limits you set. The default expansion and H₂ "
         "limits are the levels at "
         "which a typical simulated capacitor reaches the vent pressure.\n"
-        f"- **80% range:** calibrated on {fleets['calibration']['capacitors']} further simulated capacitors "
+        f"- **80% range:** calibrated on {fleets['calibration']['capacitors']:,} further simulated capacitors "
         "(conformalized quantile regression), separately for every combination of measured parameters, so it "
         "widens when fewer parameters are available.\n"
         "- **Parameter trends:** a second GRU reads the same inputs and forecasts each parameter at 10%, 20%, ..., "
@@ -1266,7 +1266,7 @@ def _model_card(measured: tuple[str, ...]) -> None:
         "and an 80% range calibrated on the same capacitors. It learned from the simulated capacitors' true "
         "paths to end of life."
     )
-    st.markdown(f"**Test on {fleets['test']['capacitors']} simulated capacitors the model never saw**, with the "
+    st.markdown(f"**Test on {fleets['test']['capacitors']:,} simulated capacitors the model never saw**, with the "
                 f"default limits ({neural['predictions']:,} predictions), using {_names(measured)}")
 
     def row(method, metrics):
@@ -1293,7 +1293,7 @@ def _model_card(measured: tuple[str, ...]) -> None:
         "Typical 80% range width (h)": st.column_config.NumberColumn(format="%.0f"),
     })
     st.caption("Typical error is the median absolute difference between predicted and true remaining life. "
-               f"The random-limits row is a further {fleets.get('test_custom', {}).get('capacitors', 0)} test "
+               f"The random-limits row is a further {fleets.get('test_custom', {}).get('capacitors', 0):,} test "
                "capacitors, each with its own limits drawn from the allowed ranges. "
                "Retrain with `python -m caplife.six_rul`.")
     _real_capacitor_section()
@@ -1332,11 +1332,12 @@ def _real_capacitor_section() -> None:
     })
     st.markdown(
         "**The built-in model is not reliable on these real capacitors.** In the two fast overstress tests "
-        "(NASA EOS-2 and PoFINN), real capacitors lost capacitance within tens to a few hundred hours. That is "
-        "much faster than any simulated capacitor, so the model predicted several times too long. In the slow "
-        "NASA ES14 test, it predicted too short. In all three, the true remaining life was rarely inside the 80% "
-        "range. To get reliable forecasts for your capacitors, train the model on Train The AI with readings and "
-        "failures from the same capacitor type and conditions. Its test then shows how well it does on them.")
+        "(NASA EOS-2 and PoFINN), real capacitors lost capacitance within tens to a few hundred hours, faster "
+        "than almost any simulated capacitor. For PoFINN the forecasts came fairly close, but for NASA EOS-2 the "
+        "model predicted several times too long. In the slow NASA ES14 test, it predicted too short. In EOS-2 and "
+        "ES14 the true remaining life was rarely inside the 80% range. To get reliable forecasts for your "
+        "capacitors, train the model on Train The AI with readings and failures from the same capacitor type and "
+        "conditions. Its test then shows how well it does on them.")
 
 
 def _trained_card(info: dict) -> None:

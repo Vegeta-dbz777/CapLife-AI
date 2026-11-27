@@ -1,5 +1,5 @@
 {
-  "model_fingerprint": "141ad63af37928fa",
+  "model_fingerprint": "1c4247bd74596307",
   "studies": [
     {
       "study": "NASA EOS-2",
@@ -14,12 +14,12 @@
       "crossed": 6,
       "predictions": 42,
       "median_true_rul_h": 46.828049690683045,
-      "median_predicted_rul_h": 435.2267761230469,
-      "median_absolute_error_h": 414.9456282088503,
-      "median_relative_error": 6.424046628524987,
+      "median_predicted_rul_h": 182.3648223876953,
+      "median_absolute_error_h": 135.65139523217468,
+      "median_relative_error": 4.026965799180945,
       "trend_median_relative_error": 1.6425728883750104,
-      "interval_coverage": 0.0,
-      "share_failed_before_range": 1.0,
+      "interval_coverage": 0.14285714285714285,
+      "share_failed_before_range": 0.8571428571428571,
       "share_failed_after_range": 0.0
     },
     {
@@ -35,13 +35,13 @@
       "crossed": 8,
       "predictions": 89,
       "median_true_rul_h": 117.60000000000014,
-      "median_predicted_rul_h": 255.37460327148438,
-      "median_absolute_error_h": 114.35659354073655,
-      "median_relative_error": 0.9016534389730334,
+      "median_predicted_rul_h": 134.50428771972656,
+      "median_absolute_error_h": 30.851277144582724,
+      "median_relative_error": 0.2445327166545989,
       "trend_median_relative_error": 0.3858858858858885,
-      "interval_coverage": 0.33707865168539325,
-      "share_failed_before_range": 0.6629213483146067,
-      "share_failed_after_range": 0.0
+      "interval_coverage": 0.6966292134831461,
+      "share_failed_before_range": 0.2696629213483146,
+      "share_failed_after_range": 0.033707865168539325
     },
     {
       "study": "NASA ES14",
@@ -57,13 +57,13 @@
       "crossed": 7,
       "predictions": 277,
       "median_true_rul_h": 898.6225186959912,
-      "median_predicted_rul_h": 217.71218872070312,
-      "median_absolute_error_h": 722.5966580761267,
-      "median_relative_error": 0.8382869799362437,
+      "median_predicted_rul_h": 272.6252746582031,
+      "median_absolute_error_h": 671.4050615991296,
+      "median_relative_error": 0.7930891389649198,
       "trend_median_relative_error": 0.9669785579318917,
-      "interval_coverage": 0.06498194945848375,
-      "share_failed_before_range": 0.10830324909747292,
-      "share_failed_after_range": 0.8267148014440433
+      "interval_coverage": 0.07220216606498195,
+      "share_failed_before_range": 0.10469314079422383,
+      "share_failed_after_range": 0.8231046931407943
     }
   ]
 }
