@@ -165,7 +165,7 @@
 .caplife-hero h1 {
     padding: .24rem 0 .3rem;
     color: #f1fbfa;
-    font-family: system-ui, sans-serif;
+    font-family: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
     font-size: clamp(2.6rem, 6.3vw, 5rem);
     font-weight: 720;
     letter-spacing: -.065em;
@@ -540,10 +540,10 @@
 /* On touch screens a table's toolbar is always shown, above the table; keep it clear of the heading above. */
 @media (hover: none) {
   .stElementContainer:has([data-testid="stDataFrame"]) { margin-top: 1.75rem; }
-  /* A heading's link icon (Streamlit's link to that heading) sticks after a tap on a touch screen and pushes
-     the heading onto a second line; the app does not use heading links. */
-  [data-testid="stHeaderActionElements"] a { display: none; }
 }
+/* Streamlit's link to each heading: the app does not use heading links, and on a touch screen the icon sticks
+   after a tap and pushes the heading onto a second line. */
+[data-testid="stHeaderActionElements"] a { display: none; }
 
 /* More columns to the right (assets/table-scroll-hint.html): a soft fade at the table's right edge and a round
    arrow marker in it. */
@@ -582,4 +582,344 @@
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
   pointer-events: none;
   z-index: 3;
+}
+
+/* ============================================================================================================
+   Design layer: typography, depth and accents. Colours come in light/dark pairs (light-dark()); the palette is
+   the theme's teal, with a cyan highlight for gradients. Motion is limited to hover feedback.
+   ============================================================================================================ */
+:root {
+  --cl-accent: light-dark(#08796b, #4fddc5);
+  --cl-accent-2: light-dark(#0e9f8c, #7cf0dc);
+  --cl-glow: light-dark(rgba(8, 121, 107, .13), rgba(79, 221, 197, .11));
+  --cl-surface: light-dark(#ffffff, #111d21);
+  --cl-surface-2: light-dark(#f2f8f6, #0e181b);
+  --cl-line: light-dark(#cfe0dc, #24383c);
+  --cl-muted: light-dark(#4c6664, #9fb7b8);
+  --cl-shadow: 0 1px 2px light-dark(rgba(16, 42, 40, .05), rgba(0, 0, 0, .35)),
+               0 10px 28px -14px light-dark(rgba(8, 92, 82, .28), rgba(0, 0, 0, .75));
+  --cl-shadow-hover: 0 2px 4px light-dark(rgba(16, 42, 40, .06), rgba(0, 0, 0, .4)),
+                     0 18px 36px -16px light-dark(rgba(8, 92, 82, .38), rgba(0, 0, 0, .85));
+  --cl-gradient: linear-gradient(135deg, var(--cl-accent), var(--cl-accent-2));
+}
+
+/* A soft teal glow behind the top of every page, and a frosted top bar. */
+[data-testid="stApp"] {
+  background-image:
+    radial-gradient(1100px 420px at 78% -8%, var(--cl-glow), transparent 70%),
+    radial-gradient(800px 360px at 8% -12%, light-dark(rgba(52, 91, 178, .06), rgba(140, 169, 255, .06)), transparent 70%);
+  background-attachment: fixed;
+}
+[data-testid="stHeader"] {
+  background: light-dark(rgba(247, 250, 249, .72), rgba(11, 18, 20, .66));
+  backdrop-filter: saturate(160%) blur(10px);
+}
+
+/* Headings: the page title gets a short gradient underline; section titles a gradient bar in front. */
+[data-testid="stMainBlockContainer"] [data-testid="stHeading"] h2 {
+  font-size: clamp(2rem, 3.6vw, 2.7rem);
+  letter-spacing: -.035em;
+  line-height: 1.12;
+}
+[data-testid="stMainBlockContainer"] [data-testid="stHeading"]:has(h2)::after {
+  display: block;
+  width: 3.2rem;
+  height: .28rem;
+  margin: .55rem 0 .35rem;
+  border-radius: 999px;
+  background: var(--cl-gradient);
+  content: "";
+}
+[data-testid="stMainBlockContainer"] [data-testid="stHeading"] h3 {
+  letter-spacing: -.025em;
+}
+[data-testid="stMainBlockContainer"] [data-testid="stHeading"] h3::before {
+  display: inline-block;
+  width: .32rem;
+  height: 1.05em;
+  margin-right: .65rem;
+  border-radius: 999px;
+  background: var(--cl-gradient);
+  content: "";
+  vertical-align: -.14em;
+}
+[data-testid="stMainBlockContainer"] h5 {
+  letter-spacing: -.01em;
+}
+
+/* Summary numbers: raised cards with a gradient edge and large figures. */
+[data-testid="stMetric"] {
+  position: relative;
+  overflow: hidden;
+  padding: 1rem 1.15rem .95rem;
+  border: 1px solid var(--cl-line);
+  border-radius: 1rem;
+  background: linear-gradient(160deg, var(--cl-surface), var(--cl-surface-2));
+  box-shadow: var(--cl-shadow);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+[data-testid="stMetric"]::before {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--cl-gradient);
+  content: "";
+}
+[data-testid="stMetric"]:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cl-shadow-hover);
+}
+[data-testid="stMetricLabel"] p {
+  color: var(--cl-muted);
+  font-size: .82rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+[data-testid="stMetricValue"] {
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-weight: 750;
+  letter-spacing: -.03em;
+}
+
+/* Health cards: the same raised look, lifting on hover. */
+.caplife-health-card {
+  border-color: var(--cl-line);
+  background: linear-gradient(170deg, var(--cl-surface), var(--cl-surface-2));
+  box-shadow: var(--cl-shadow);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.caplife-health-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cl-shadow-hover);
+}
+.caplife-health-value {
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-weight: 750;
+  letter-spacing: -.02em;
+}
+
+/* Buttons: gradient primary buttons with depth; secondary buttons with an accent hover. */
+[data-testid="stBaseButton-primary"] {
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, light-dark(#0a8a79, #0f8f7e), light-dark(#06604f, #0a5c51));
+  box-shadow: 0 6px 18px -8px light-dark(rgba(8, 121, 107, .7), rgba(79, 221, 197, .45));
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+[data-testid="stBaseButton-primary"]:hover {
+  border-color: transparent;
+  background: linear-gradient(135deg, light-dark(#0a8a79, #0f8f7e), light-dark(#06604f, #0a5c51));
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px -8px light-dark(rgba(8, 121, 107, .75), rgba(79, 221, 197, .55));
+}
+[data-testid="stBaseButton-secondary"] {
+  transition: border-color .15s ease, color .15s ease, transform .15s ease;
+}
+[data-testid="stBaseButton-secondary"]:hover {
+  border-color: var(--cl-accent);
+  color: var(--cl-accent);
+}
+
+/* Upload zone: an inviting, tinted drop area. */
+[data-testid="stFileUploaderDropzone"] {
+  border: 1.5px dashed light-dark(#7fb3aa, #3f6d68);
+  border-radius: 1rem;
+  background: linear-gradient(160deg, light-dark(rgba(8, 121, 107, .05), rgba(79, 221, 197, .05)), transparent);
+  transition: border-color .15s ease, background-color .15s ease;
+}
+[data-testid="stFileUploaderDropzone"]:hover {
+  border-color: var(--cl-accent);
+  background-color: light-dark(rgba(8, 121, 107, .04), rgba(79, 221, 197, .05));
+}
+
+/* Expanders and tables: rounded, quietly raised. */
+[data-testid="stExpander"] details {
+  border-color: var(--cl-line);
+  border-radius: .9rem;
+  background: var(--cl-surface);
+  box-shadow: 0 1px 2px light-dark(rgba(16, 42, 40, .04), rgba(0, 0, 0, .3));
+}
+[data-testid="stExpander"] summary:hover {
+  color: var(--cl-accent);
+}
+[data-testid="stDataFrame"] {
+  border-radius: .9rem;
+  box-shadow: var(--cl-shadow);
+}
+
+/* Sidebar: a gradient brand mark and navigation items with icons instead of radio circles. */
+[data-testid="stSidebar"] {
+  background-image: linear-gradient(180deg, light-dark(rgba(8, 121, 107, .06), rgba(79, 221, 197, .05)), transparent 45%);
+}
+.st-key-caplife_brand_home button::before {
+  border: none;
+  background: var(--cl-gradient);
+  box-shadow: 0 8px 20px -8px light-dark(rgba(8, 121, 107, .8), rgba(79, 221, 197, .55));
+  color: light-dark(#ffffff, #062420);
+}
+[data-testid="stSidebar"] [data-testid="stRadioOption"] > div > div:not([data-testid="stMarkdownContainer"]) {
+  display: none;  /* the radio circle: the highlighted item itself shows the choice */
+}
+[data-testid="stSidebar"] [data-testid="stRadioOption"] p {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+}
+[data-testid="stSidebar"] [data-testid="stRadioOption"] p::before {
+  width: 1.9rem;
+  height: 1.9rem;
+  display: grid;
+  flex: none;
+  place-items: center;
+  border-radius: .6rem;
+  background: light-dark(rgba(8, 121, 107, .09), rgba(79, 221, 197, .09));
+  color: var(--cl-accent);
+  font-family: "Material Symbols Rounded";
+  font-size: 1.2rem;
+  font-weight: 400;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+}
+/* Each item sits in its own wrapper, so the wrapper's position picks the icon. */
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] > :nth-child(1) p::before { content: "monitor_heart"; }
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] > :nth-child(2) p::before { content: "neurology"; }
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] > :nth-child(3) p::before { content: "folder_open"; }
+[data-testid="stSidebar"] [data-testid="stRadioOption"]:has(input:checked) {
+  border-color: transparent;
+  background: linear-gradient(135deg, light-dark(rgba(8, 121, 107, .14), rgba(79, 221, 197, .16)),
+                                      light-dark(rgba(14, 159, 140, .06), rgba(79, 221, 197, .05)));
+  box-shadow: inset 3px 0 0 var(--cl-accent);
+}
+[data-testid="stSidebar"] [data-testid="stRadioOption"]:has(input:checked) p::before {
+  background: var(--cl-gradient);
+  color: light-dark(#ffffff, #062420);
+}
+
+/* Home page: facts in the hero, a "how it works" strip and workspace cards that lift on hover. */
+.caplife-hero-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+  margin-top: 1.4rem;
+}
+.caplife-hero-facts span {
+  padding: .38rem .8rem;
+  border: 1px solid rgba(140, 231, 213, .28);
+  border-radius: 999px;
+  background: rgba(9, 28, 30, .55);
+  backdrop-filter: blur(6px);
+  color: #cfe5e2;
+  font-size: .84rem;
+}
+.caplife-hero-facts b {
+  color: #8ce7d5;
+  font-weight: 750;
+}
+.caplife-section-title {
+  margin: 1.9rem 0 .2rem;
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: 1.45rem;
+  font-weight: 750;
+  letter-spacing: -.025em;
+}
+.caplife-section-lead {
+  max-width: 52rem;
+  margin: .15rem 0 .4rem;
+  color: var(--cl-muted);
+}
+.caplife-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .8rem;
+  margin: .6rem 0 .4rem;
+}
+.caplife-step {
+  display: flex;
+  gap: .8rem;
+  align-items: flex-start;
+  padding: .95rem 1rem;
+  border: 1px solid var(--cl-line);
+  border-radius: 1rem;
+  background: linear-gradient(160deg, var(--cl-surface), var(--cl-surface-2));
+}
+.caplife-step-number {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--cl-gradient);
+  color: light-dark(#ffffff, #062420);
+  font-weight: 750;
+}
+.caplife-step b {
+  display: block;
+  margin-bottom: .15rem;
+}
+.caplife-step span {
+  color: var(--cl-muted);
+  font-size: .9rem;
+  line-height: 1.45;
+}
+[class*="st-key-caplife_home_card_"] {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.1rem !important;
+  background: linear-gradient(165deg, var(--cl-surface), var(--cl-surface-2));
+  box-shadow: var(--cl-shadow);
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+[class*="st-key-caplife_home_card_"]::before {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--cl-gradient);
+  content: "";
+}
+[class*="st-key-caplife_home_card_"]:hover {
+  border-color: light-dark(#8fc4b9, #2f6a61) !important;
+  transform: translateY(-4px);
+  box-shadow: var(--cl-shadow-hover);
+}
+[class*="st-key-caplife_home_card_"] h4 {
+  padding: .2rem 0 0;
+  letter-spacing: -.02em;
+}
+[class*="st-key-caplife_home_card_"] [data-testid="stMarkdownContainer"]:has(h4) {
+  margin-bottom: -.6rem;
+}
+[class*="st-key-caplife_home_card_"] h4 > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+}
+[class*="st-key-caplife_home_card_"] h4 span[role="img"] {
+  display: inline-grid !important;  /* over the icon's own inline style */
+  flex: none;
+  line-height: 1;
+  width: 2.6rem;
+  height: 2.6rem;
+  place-items: center;
+  border-radius: .8rem;
+  background: var(--cl-gradient);
+  box-shadow: 0 8px 18px -8px light-dark(rgba(8, 121, 107, .8), rgba(79, 221, 197, .5));
+  color: light-dark(#ffffff, #062420);
+  font-size: 1.45rem;
+  vertical-align: middle !important;
+}
+
+@media (max-width: 760px) {
+  .caplife-steps { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-testid="stMetric"], .caplife-health-card, [class*="st-key-caplife_home_card_"],
+  [data-testid="stBaseButton-primary"] { transition: none; }
+  [data-testid="stMetric"]:hover, .caplife-health-card:hover, [class*="st-key-caplife_home_card_"]:hover,
+  [data-testid="stBaseButton-primary"]:hover { transform: none; }
+}
+@media (max-width: 640px) {
+  .caplife-hero-facts { gap: .4rem; margin-top: 1rem; }
+  .caplife-hero-facts span { padding: .26rem .6rem; font-size: .74rem; }
+  .caplife-section-title { margin-top: 1.4rem; font-size: 1.25rem; }
 }
