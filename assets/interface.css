@@ -860,14 +860,16 @@
   .caplife-section-title { margin-top: 1.4rem; font-size: 1.25rem; }
 }
 
-/* Each workspace has its own colour: azure for Monitor and Predict, violet for Train The AI, amber for My Data.
-   Used for the home cards' icon tile and top edge, and for the workspace icons in the sidebar. */
+/* Each workspace has its own colour: rose for Monitor and Predict, violet for Train The AI, amber for My Data.
+   Used for the home cards' icon tile, top edge and button, and for the workspace icons in the sidebar. The
+   buttons use deeper shades of the same colours so their white text stays easy to read (4.5:1 or more). */
 .st-key-caplife_home_card_monitor,
 [data-testid="stSidebar"] [data-testid="stRadioGroup"] > :nth-child(1) {
-  --cl-ws: linear-gradient(135deg, light-dark(#1d5fd6, #4f95ff), light-dark(#2aa3ee, #8edcff));
-  --cl-ws-ink: light-dark(#1d5fd6, #7fb4ff);
-  --cl-ws-soft: light-dark(rgba(29, 95, 214, .1), rgba(79, 149, 255, .15));
-  --cl-ws-glow: light-dark(rgba(29, 95, 214, .7), rgba(79, 149, 255, .5));
+  --cl-ws: linear-gradient(135deg, light-dark(#d02d63, #ff5f8f), light-dark(#f2678f, #ffa6c0));
+  --cl-ws-ink: light-dark(#c2255c, #ff7fa5);
+  --cl-ws-soft: light-dark(rgba(208, 45, 99, .1), rgba(255, 95, 143, .15));
+  --cl-ws-glow: light-dark(rgba(208, 45, 99, .7), rgba(255, 95, 143, .5));
+  --cl-ws-button: linear-gradient(135deg, #d0336a, #a3174a);
 }
 .st-key-caplife_home_card_train,
 [data-testid="stSidebar"] [data-testid="stRadioGroup"] > :nth-child(2) {
@@ -875,6 +877,7 @@
   --cl-ws-ink: light-dark(#5b3fc4, #b39dff);
   --cl-ws-soft: light-dark(rgba(91, 63, 196, .1), rgba(148, 121, 255, .14));
   --cl-ws-glow: light-dark(rgba(91, 63, 196, .7), rgba(148, 121, 255, .5));
+  --cl-ws-button: linear-gradient(135deg, #6a4bd6, #4a2fae);
 }
 .st-key-caplife_home_card_data,
 [data-testid="stSidebar"] [data-testid="stRadioGroup"] > :nth-child(3) {
@@ -882,6 +885,7 @@
   --cl-ws-ink: light-dark(#a85400, #ffbe6b);
   --cl-ws-soft: light-dark(rgba(180, 90, 0, .1), rgba(245, 164, 66, .14));
   --cl-ws-glow: light-dark(rgba(180, 90, 0, .65), rgba(245, 164, 66, .45));
+  --cl-ws-button: linear-gradient(135deg, #b45f0e, #8f3f0a);
 }
 [class*="st-key-caplife_home_card_"]::before { background: var(--cl-ws); }
 [class*="st-key-caplife_home_card_"] h4 span[role="img"] {
@@ -961,4 +965,14 @@
   [data-testid="stMainBlockContainer"] [data-testid="stHeading"]:has(h2)::after {
     animation: cl-grow .7s cubic-bezier(.2, .7, .2, 1) .15s backwards;
   }
+}
+
+/* Each home card's button in its workspace's colour. */
+[class*="st-key-caplife_home_card_"] [data-testid="stBaseButton-primary"],
+[class*="st-key-caplife_home_card_"] [data-testid="stBaseButton-primary"]:hover {
+  background: var(--cl-ws-button);
+  box-shadow: 0 8px 20px -9px var(--cl-ws-glow);
+}
+[class*="st-key-caplife_home_card_"] [data-testid="stBaseButton-primary"]:focus-visible {
+  outline-color: var(--cl-ws-ink);
 }
