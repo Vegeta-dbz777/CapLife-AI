@@ -539,7 +539,9 @@
 
 /* On touch screens a table's toolbar is always shown, above the table; keep it clear of the heading above. */
 @media (hover: none) {
-  .stElementContainer:has([data-testid="stDataFrame"]) { margin-top: 1.75rem; }
+  /* ... and the same for a chart's toolbar, which would otherwise cover the chart's title above it. */
+  .stElementContainer:has([data-testid="stDataFrame"]),
+  .stElementContainer:has([data-testid="stVegaLiteChart"]) { margin-top: 1.75rem; }
 }
 /* Streamlit's link to each heading: the app does not use heading links, and on a touch screen the icon sticks
    after a tap and pushes the heading onto a second line. */
