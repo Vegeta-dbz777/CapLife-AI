@@ -795,72 +795,13 @@
   color: light-dark(#ffffff, #062420);
 }
 
-/* Home page: facts in the hero, a "how it works" strip and workspace cards that lift on hover. */
-.caplife-hero-facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .55rem;
-  margin-top: 1.4rem;
-}
-.caplife-hero-facts span {
-  padding: .38rem .8rem;
-  border: 1px solid rgba(140, 231, 213, .28);
-  border-radius: 999px;
-  background: rgba(9, 28, 30, .55);
-  backdrop-filter: blur(6px);
-  color: #cfe5e2;
-  font-size: .84rem;
-}
-.caplife-hero-facts b {
-  color: #8ce7d5;
-  font-weight: 750;
-}
+/* Home page: workspace cards that lift on hover. */
 .caplife-section-title {
   margin: 1.9rem 0 .2rem;
   font-family: "Plus Jakarta Sans", Inter, sans-serif;
   font-size: 1.45rem;
   font-weight: 750;
   letter-spacing: -.025em;
-}
-.caplife-section-lead {
-  max-width: 52rem;
-  margin: .15rem 0 .4rem;
-  color: var(--cl-muted);
-}
-.caplife-steps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: .8rem;
-  margin: .6rem 0 .4rem;
-}
-.caplife-step {
-  display: flex;
-  gap: .8rem;
-  align-items: flex-start;
-  padding: .95rem 1rem;
-  border: 1px solid var(--cl-line);
-  border-radius: 1rem;
-  background: linear-gradient(160deg, var(--cl-surface), var(--cl-surface-2));
-}
-.caplife-step-number {
-  display: grid;
-  width: 2rem;
-  height: 2rem;
-  flex: none;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--cl-gradient);
-  color: light-dark(#ffffff, #062420);
-  font-weight: 750;
-}
-.caplife-step b {
-  display: block;
-  margin-bottom: .15rem;
-}
-.caplife-step span {
-  color: var(--cl-muted);
-  font-size: .9rem;
-  line-height: 1.45;
 }
 [class*="st-key-caplife_home_card_"] {
   position: relative;
@@ -909,9 +850,6 @@
   vertical-align: middle !important;
 }
 
-@media (max-width: 760px) {
-  .caplife-steps { grid-template-columns: minmax(0, 1fr); }
-}
 @media (prefers-reduced-motion: reduce) {
   [data-testid="stMetric"], .caplife-health-card, [class*="st-key-caplife_home_card_"],
   [data-testid="stBaseButton-primary"] { transition: none; }
@@ -919,7 +857,46 @@
   [data-testid="stBaseButton-primary"]:hover { transform: none; }
 }
 @media (max-width: 640px) {
-  .caplife-hero-facts { gap: .4rem; margin-top: 1rem; }
-  .caplife-hero-facts span { padding: .26rem .6rem; font-size: .74rem; }
   .caplife-section-title { margin-top: 1.4rem; font-size: 1.25rem; }
+}
+
+/* Each workspace has its own colour: teal for Monitor and Predict, violet for Train The AI, amber for My Data.
+   Used for the home cards' icon tile and top edge, and for the workspace icons in the sidebar. */
+.st-key-caplife_home_card_monitor,
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] > :nth-child(1) {
+  --cl-ws: linear-gradient(135deg, light-dark(#08796b, #3fd3b9), light-dark(#13a38f, #86f3df));
+  --cl-ws-ink: light-dark(#08796b, #4fddc5);
+  --cl-ws-soft: light-dark(rgba(8, 121, 107, .1), rgba(79, 221, 197, .12));
+  --cl-ws-glow: light-dark(rgba(8, 121, 107, .75), rgba(79, 221, 197, .5));
+}
+.st-key-caplife_home_card_train,
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] > :nth-child(2) {
+  --cl-ws: linear-gradient(135deg, light-dark(#5b3fc4, #9479ff), light-dark(#8a63e8, #c3adff));
+  --cl-ws-ink: light-dark(#5b3fc4, #b39dff);
+  --cl-ws-soft: light-dark(rgba(91, 63, 196, .1), rgba(148, 121, 255, .14));
+  --cl-ws-glow: light-dark(rgba(91, 63, 196, .7), rgba(148, 121, 255, .5));
+}
+.st-key-caplife_home_card_data,
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] > :nth-child(3) {
+  --cl-ws: linear-gradient(135deg, light-dark(#b45a00, #f5a442), light-dark(#e08a1e, #ffd08a));
+  --cl-ws-ink: light-dark(#a85400, #ffbe6b);
+  --cl-ws-soft: light-dark(rgba(180, 90, 0, .1), rgba(245, 164, 66, .14));
+  --cl-ws-glow: light-dark(rgba(180, 90, 0, .65), rgba(245, 164, 66, .45));
+}
+[class*="st-key-caplife_home_card_"]::before { background: var(--cl-ws); }
+[class*="st-key-caplife_home_card_"] h4 span[role="img"] {
+  background: var(--cl-ws);
+  box-shadow: 0 8px 18px -8px var(--cl-ws-glow);
+}
+[data-testid="stSidebar"] [data-testid="stRadioOption"] p::before {
+  background: var(--cl-ws-soft);
+  color: var(--cl-ws-ink);
+}
+[data-testid="stSidebar"] [data-testid="stRadioOption"]:has(input:checked) p::before {
+  background: var(--cl-ws);
+  color: light-dark(#ffffff, #10141f);
+}
+[data-testid="stSidebar"] [data-testid="stRadioOption"]:has(input:checked) {
+  background: var(--cl-ws-soft);
+  box-shadow: inset 3px 0 0 var(--cl-ws-ink);
 }
