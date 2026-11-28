@@ -860,14 +860,14 @@
   .caplife-section-title { margin-top: 1.4rem; font-size: 1.25rem; }
 }
 
-/* Each workspace has its own colour: teal for Monitor and Predict, violet for Train The AI, amber for My Data.
+/* Each workspace has its own colour: azure for Monitor and Predict, violet for Train The AI, amber for My Data.
    Used for the home cards' icon tile and top edge, and for the workspace icons in the sidebar. */
 .st-key-caplife_home_card_monitor,
 [data-testid="stSidebar"] [data-testid="stRadioGroup"] > :nth-child(1) {
-  --cl-ws: linear-gradient(135deg, light-dark(#08796b, #3fd3b9), light-dark(#13a38f, #86f3df));
-  --cl-ws-ink: light-dark(#08796b, #4fddc5);
-  --cl-ws-soft: light-dark(rgba(8, 121, 107, .1), rgba(79, 221, 197, .12));
-  --cl-ws-glow: light-dark(rgba(8, 121, 107, .75), rgba(79, 221, 197, .5));
+  --cl-ws: linear-gradient(135deg, light-dark(#1d5fd6, #4f95ff), light-dark(#2aa3ee, #8edcff));
+  --cl-ws-ink: light-dark(#1d5fd6, #7fb4ff);
+  --cl-ws-soft: light-dark(rgba(29, 95, 214, .1), rgba(79, 149, 255, .15));
+  --cl-ws-glow: light-dark(rgba(29, 95, 214, .7), rgba(79, 149, 255, .5));
 }
 .st-key-caplife_home_card_train,
 [data-testid="stSidebar"] [data-testid="stRadioGroup"] > :nth-child(2) {
@@ -899,4 +899,66 @@
 [data-testid="stSidebar"] [data-testid="stRadioOption"]:has(input:checked) {
   background: var(--cl-ws-soft);
   box-shadow: inset 3px 0 0 var(--cl-ws-ink);
+}
+
+/* ------------------------------------------------------------------------------------------------------------
+   Motion. Elements animate when they first appear (opening a page), not on every rerun, and never for visitors
+   who ask their system for reduced motion. Entrances use "backwards" fill so hover effects still work after.
+   ------------------------------------------------------------------------------------------------------------ */
+@keyframes cl-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cl-drift {
+  from { transform: scale(1.02) translate(0, 0); }
+  to { transform: scale(1.09) translate(-1.6%, -1.2%); }
+}
+@keyframes cl-sweep {
+  0%, 55% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+@keyframes cl-grow {
+  from { width: 0; opacity: 0; }
+  to { width: 3.2rem; opacity: 1; }
+}
+@keyframes cl-glow {
+  0%, 100% { opacity: .55; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* Hero: the photo drifts slowly, a soft light sweeps across now and then, and the words rise in. */
+  .caplife-hero img { animation: cl-drift 26s ease-in-out infinite alternate; }
+  .caplife-hero::after {
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 35%, rgba(140, 231, 213, .13) 50%, transparent 65%);
+    content: "";
+    pointer-events: none;
+    animation: cl-sweep 9s ease-in-out 1.2s infinite;
+  }
+  .caplife-overline { animation: cl-rise .7s ease-out .05s backwards; }
+  .caplife-hero h1 { animation: cl-rise .8s cubic-bezier(.2, .7, .2, 1) .15s backwards; }
+  .caplife-hero p { animation: cl-rise .8s cubic-bezier(.2, .7, .2, 1) .3s backwards; }
+  .caplife-section-title { animation: cl-rise .7s ease-out .35s backwards; }
+
+  /* Workspace cards rise in one after another; their icon tiles tilt up on hover and glow gently. */
+  .st-key-caplife_home_card_monitor { animation: cl-rise .75s cubic-bezier(.2, .7, .2, 1) .45s backwards; }
+  .st-key-caplife_home_card_train { animation: cl-rise .75s cubic-bezier(.2, .7, .2, 1) .6s backwards; }
+  .st-key-caplife_home_card_data { animation: cl-rise .75s cubic-bezier(.2, .7, .2, 1) .75s backwards; }
+  [class*="st-key-caplife_home_card_"] h4 span[role="img"] {
+    transition: transform .35s cubic-bezier(.3, 1.6, .5, 1), box-shadow .35s ease;
+  }
+  [class*="st-key-caplife_home_card_"]:hover h4 span[role="img"] {
+    transform: translateY(-3px) rotate(-8deg) scale(1.08);
+    box-shadow: 0 14px 26px -10px var(--cl-ws-glow);
+  }
+  [class*="st-key-caplife_home_card_"]::before { animation: cl-glow 4s ease-in-out infinite; }
+  .st-key-caplife_home_card_train::before { animation-delay: 1.3s; }
+  .st-key-caplife_home_card_data::before { animation-delay: 2.6s; }
+
+  /* Page titles: the gradient underline grows in. */
+  [data-testid="stMainBlockContainer"] [data-testid="stHeading"]:has(h2)::after {
+    animation: cl-grow .7s cubic-bezier(.2, .7, .2, 1) .15s backwards;
+  }
 }
