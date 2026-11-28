@@ -136,9 +136,10 @@ def matched_file(name: str, payload: bytes, kind: str, key: str) -> bytes | None
             frame, key=editor, hide_index=True, width="stretch", disabled=["Column in your file", "Example values"],
             on_change=_choose, args=(store, digest, editor),
             column_config={
-                "Column in your file": st.column_config.TextColumn(pinned=True),
+                # Narrow enough that "Use as" fits beside it on a small phone; longer names are cut, not hidden.
+                "Column in your file": st.column_config.TextColumn(pinned=True, width=130),
                 "Example values": st.column_config.TextColumn(help="The first values in the column."),
-                "Use as": st.column_config.SelectboxColumn(
+                "Use as": st.column_config.SelectboxColumn(width=170,
                     options=[NOT_USED, *(target.label for target in TARGETS[kind])], required=True,
                     help="What this column holds. Pick the unit your values are in: they are converted to "
                          "CapLife's units. Columns marked Not used are left out."),
