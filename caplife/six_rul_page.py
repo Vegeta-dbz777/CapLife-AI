@@ -1175,7 +1175,7 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
         # The last point is the predicted end of life; from there the remaining life's range runs from zero (the
         # failure may already have come) to the end of the failure-age range.
         eol_point = _with_range(pd.DataFrame([{"Hours": ranges[name][1], "median": 0.0,
-                                               "point": f"EOL for {conditions_name}",
+                                               "point": f"Most Likely EOL for {name} Condition",
                                                "low": low - mid, "high": high - mid}]), "low", "high")
         eol_tip = LIFE_TIP
         points = points.iloc[:-1]
