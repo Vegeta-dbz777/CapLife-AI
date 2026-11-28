@@ -994,8 +994,8 @@ def _range_hover(ranges: dict, hours_scale: alt.Scale) -> list:
     if single:
         layers.append(alt.Chart(pd.DataFrame(single)).mark_rect(opacity=0.001).encode(
             x=alt.X("from:Q", scale=hours_scale), x2="to:Q",
-            tooltip=[alt.Tooltip("which:N", title="Point"), hour("median", "Predicted EOL (h)"),
-                     alt.Tooltip("range:N", title="80% range (h)")]))
+            tooltip=[alt.Tooltip("which:N", title="Point"), hour("median", "Most Likely Failure Age (h)"),
+                     alt.Tooltip("range:N", title="Probable Failure Age (h)")]))
     if both:
         frame = pd.DataFrame(both).assign(
             note="Both EOL 80% ranges cover this time", c_mid=c_mid, c_range=f"{c_low:,.0f} – {c_high:,.0f}",
@@ -1003,9 +1003,10 @@ def _range_hover(ranges: dict, hours_scale: alt.Scale) -> list:
         layers.append(alt.Chart(frame).mark_rect(opacity=0.001).encode(
             x=alt.X("from:Q", scale=hours_scale), x2="to:Q",
             tooltip=[alt.Tooltip("note:N", title="Point"),
-                     hour("c_mid", "EOL for Changed Conditions (h)"), alt.Tooltip("c_range:N", title="80% range (h)"),
+                     hour("c_mid", "EOL for Changed Conditions (h)"),
+                     alt.Tooltip("c_range:N", title="Probable Failure Age, changed (h)"),
                      hour("r_mid", "EOL for Recorded Conditions (h)"),
-                     alt.Tooltip("r_range:N", title="80% range (h) ")]))
+                     alt.Tooltip("r_range:N", title="Probable Failure Age, recorded (h)")]))
     return layers
 
 
@@ -1042,8 +1043,18 @@ def _countdown(now: pd.Series) -> pd.DataFrame:
 
 
 def _with_range(frame: pd.DataFrame, low: str = "RUL_low_h", high: str = "RUL_high_h") -> pd.DataFrame:
-    """Adds a readable "range" column ("1,416 – 2,530") for tooltips."""
-    return frame.assign(range=[f"{max(a, 0):,.0f} – {max(b, 0):,.0f}" for a, b in zip(frame[low], frame[high])])
+    """Adds readable ranges for tooltips: "failure" (the 80% range of the age at failure: age plus the remaining
+    life's range) and "range" (the remaining life's 80% range, never below zero), e.g. "4,640 – 5,497"."""
+    ages = frame["Hours"].astype(float)
+    return frame.assign(
+        failure=[f"{age + a:,.0f} – {age + b:,.0f}" for age, a, b in zip(ages, frame[low], frame[high])],
+        range=[f"{max(a, 0):,.0f} – {max(b, 0):,.0f}" for a, b in zip(frame[low], frame[high])])
+
+
+# Every point on the remaining-life chart shows the same four lines.
+LIFE_TIP = [alt.Tooltip("point:N", title="Point"), alt.Tooltip("Hours:Q", title="Current Age (h)", format=",.0f"),
+            alt.Tooltip("failure:N", title="Probable Failure Age (h)"),
+            alt.Tooltip("range:N", title="Remaining Useful Life (h)")]
 
 
 def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd.Series | None = None,
@@ -1086,19 +1097,19 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
     ranges = {name: (latest + float(now["RUL_low_h"]), latest + float(now["RUL_median_h"]),
                      latest + float(now["RUL_high_h"])) for name, now in nows.items()}
     # End-of-life 80% ranges, shaded (grey when there is only the one prediction).
-    for name, (low, _, high) in ranges.items():
-        layers.append(alt.Chart(pd.DataFrame({"from": [low], "to": [high]})).mark_rect(
+    for name, (low, mid, high) in ranges.items():
+        layers.append(alt.Chart(pd.DataFrame({"from": [low], "to": [high], "median": [mid],
+                                              "range": [f"{low:,.0f} – {high:,.0f}"]})).mark_rect(
             color=colours[name] if changed else GREY, opacity=.18 if changed else .16).encode(
             x=alt.X("from:Q", scale=hours_scale), x2="to:Q",
-            tooltip=NO_TOOLTIP if changed else [hour("from", "End of life, 80% range from (h)"),
-                                                hour("to", "to (h)")]))
+            tooltip=NO_TOOLTIP if changed else [hour("median", "Most Likely Failure Age (h)"),
+                                                alt.Tooltip("range:N", title="Probable Failure Age (h)")]))
     if changed:
         layers += _range_hover(ranges, hours_scale)
     # Predictions made at past readings.
     data = _with_range(data)
-    # Every tooltip on this chart: what the point is, then age, remaining life and its 80% range.
-    past_tip = [alt.Tooltip("point:N", title="Point"), hour("Hours", "Age (h)"),
-                hour("RUL_median_h", "Remaining Life (h)"), alt.Tooltip("range:N", title="80% Range (h)")]
+    # Every point's tooltip: what the point is, its age, the 80% ranges of the failure age and remaining life.
+    past_tip = LIFE_TIP
     data = data.assign(point="Prediction for Recorded Condition")
     layers += [
         alt.Chart(data).mark_area(color=PURPLE, opacity=.25).encode(
@@ -1160,13 +1171,13 @@ def _rul_chart(assessment: pd.DataFrame, true_eol: float | None, changed_now: pd
                                            "high": high - steps}), "low", "high")
         conditions_name = f"{name} Conditions"
         points["point"] = [f"Latest reading · {conditions_name}"] + [f"Prediction for {name} Condition"] * 10
-        point_tip = [alt.Tooltip("point:N", title="Point"), hour("Hours", "Age (h)"),
-                     hour("median", "Remaining Life (h)"), alt.Tooltip("range:N", title="80% Range (h)")]
-        # The last point is the predicted end of life: its hour and the end of life's own 80% range.
-        eol_point = pd.DataFrame([{"Hours": ranges[name][1], "median": 0.0, "point": f"EOL for {conditions_name}",
-                                   "range": f"{ranges[name][0]:,.0f} – {ranges[name][2]:,.0f}"}])
-        eol_tip = [alt.Tooltip("point:N", title="Point"), hour("Hours", "Predicted EOL (h)"),
-                   alt.Tooltip("range:N", title="80% range (h)")]
+        point_tip = LIFE_TIP
+        # The last point is the predicted end of life; from there the remaining life's range runs from zero (the
+        # failure may already have come) to the end of the failure-age range.
+        eol_point = _with_range(pd.DataFrame([{"Hours": ranges[name][1], "median": 0.0,
+                                               "point": f"EOL for {conditions_name}",
+                                               "low": low - mid, "high": high - mid}]), "low", "high")
+        eol_tip = LIFE_TIP
         points = points.iloc[:-1]
         y_median = alt.Y("median:Q", scale=scale)
         layers += [alt.Chart(points).mark_point(color=colour, size=34, filled=True, opacity=1).encode(
