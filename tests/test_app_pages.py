@@ -203,7 +203,7 @@ def test_app_opens_on_home_and_each_card_opens_its_workspace():
     assert not app.exception
     assert app.sidebar.radio(key=MAIN_KEY).value is None  # no workspace chosen: Home
     assert "Home" not in app.sidebar.radio(key=MAIN_KEY).options
-    assert any("Choose where to start" in m.value for m in app.markdown)
+    assert any("Choose where to start" in str(h.proto) for h in app.get("html"))
     cards = {"caplife_home_open_monitor": "Monitor and Predict", "caplife_home_open_train": "Train The AI",
              "caplife_home_open_data": "My Data"}
     assert {b.key for b in app.button if b.key and b.key.startswith("caplife_home_open_")} == set(cards)
@@ -221,7 +221,7 @@ def test_brand_returns_home_from_any_page_and_keeps_the_work():
     app.sidebar.button(key="caplife_brand_home").click().run()
     assert not app.exception
     assert app.sidebar.radio(key=MAIN_KEY).value is None
-    assert any("Choose where to start" in m.value for m in app.markdown)
+    assert any("Choose where to start" in str(h.proto) for h in app.get("html"))
     app.sidebar.radio(key=MAIN_KEY).set_value(MONITOR).run()
     assert any("Using **example.csv**" in c.value for c in app.caption)  # the upload, kept
 

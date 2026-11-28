@@ -1,6 +1,10 @@
 [theme]
-font = "sans serif"
-baseRadius = "0.65rem"
+# Inter for text and Plus Jakarta Sans for headings, served by the app itself (static/fonts, SIL Open Font
+# License), so pages load no fonts from other sites.
+font = "Inter"
+headingFont = "Plus Jakarta Sans"
+headingFontWeights = [800, 750, 700, 700, 650, 650]
+baseRadius = "0.75rem"
 showWidgetBorder = true
 showSidebarBorder = true
 
@@ -30,5 +34,16 @@ chartCategoricalColors = ["#4FDDC5", "#F6B77B", "#8CA9FF", "#F689A4", "#ACD078"]
 backgroundColor = "#101B1E"
 secondaryBackgroundColor = "#19292D"
 
+[[theme.fontFaces]]
+family = "Inter"
+url = "app/static/fonts/inter-latin-wght-normal.woff2"
+weight = "100 900"
+
+[[theme.fontFaces]]
+family = "Plus Jakarta Sans"
+url = "app/static/fonts/plus-jakarta-sans-latin-wght-normal.woff2"
+weight = "200 800"
+
 [server]
 maxUploadSize = 8
+enableStaticServing = true
